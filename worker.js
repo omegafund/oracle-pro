@@ -6231,20 +6231,54 @@ function buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags) 
   };
 }
 
-function buildLoveRelationEssence(content, cards, revFlags) {
+function buildLoveRelationEssence(content, cards, revFlags, loveSubType, prompt) {
   const split = splitCardsByRole(cards, revFlags);
+  // [V27.0.6.A] 시드 다양화 — 5 우선순위 서브타입에만 적용
+  //   사장님 진단: '관계 본질' 박스 두 점사 100% 동일 결함
+  //   해결: thumb/crush/mindread/marriage/compatibility 시드 다양화
+  //   안전: 블록 매트릭스 없는 서브타입은 기존 content.* fallback
+  const blocks = (loveSubType && LOVE_ESSENCE_BLOCK_MATRIX[loveSubType]) || null;
+  let userBlock_strength, userBlock_hidden;
+  let partnerBlock_visible, partnerBlock_real;
+  let pairStructure_text, positiveFlow_text, negativeFlow_text, essenceKey_text;
+  
+  if (blocks) {
+    const seed = _getSeedV27(prompt || '', cards || [], `love_essence_${loveSubType}`, 'love', revFlags);
+    // 6 차원 블록 픽 (각 차원마다 비트 시프트로 독립 분포)
+    const userArr = blocks.userState[(seed >> 0) % blocks.userState.length];
+    userBlock_strength = userArr[0] || content.user_strength;
+    userBlock_hidden   = userArr[1] || content.user_hidden;
+    
+    const partnerArr = blocks.partnerState[(seed >> 4) % blocks.partnerState.length];
+    partnerBlock_visible = partnerArr[0] || content.partner_visible;
+    partnerBlock_real    = partnerArr[1] || content.partner_real;
+    
+    pairStructure_text  = blocks.pairStructure[(seed >> 8)  % blocks.pairStructure.length][0];
+    positiveFlow_text   = blocks.positiveFlow[(seed >> 12) % blocks.positiveFlow.length][0];
+    negativeFlow_text   = blocks.negativeFlow[(seed >> 16) % blocks.negativeFlow.length][0];
+    essenceKey_text     = blocks.essenceKey[(seed >> 20) % blocks.essenceKey.length][0];
+  } else {
+    // Fallback — 기존 content.* 그대로 (V27.0.6.B/C 도메인)
+    userBlock_strength = content.user_strength || getCardExpression(split.selfCard, split.selfRev, 'strength');
+    userBlock_hidden   = content.user_hidden   || getCardExpression(split.selfCard, split.selfRev, 'weakness');
+    partnerBlock_visible = content.partner_visible || getCardExpression(split.partnerCard, split.partnerRev, 'strength');
+    partnerBlock_real    = content.partner_real    || getCardExpression(split.partnerCard, split.partnerRev, 'weakness');
+  }
+  
   return {
     userBlock: {
-      strength: content.user_strength || getCardExpression(split.selfCard, split.selfRev, 'strength'),
-      hidden:   content.user_hidden   || getCardExpression(split.selfCard, split.selfRev, 'weakness')
+      strength: userBlock_strength,
+      hidden:   userBlock_hidden
     },
     partnerBlock: {
-      visible: content.partner_visible || getCardExpression(split.partnerCard, split.partnerRev, 'strength'),
-      real:    content.partner_real    || getCardExpression(split.partnerCard, split.partnerRev, 'weakness')
+      visible: partnerBlock_visible,
+      real:    partnerBlock_real
     },
-    dynamic: content.relation_dynamic, counterDynamic: content.counter_dynamic,
-    positiveResult: content.positive_result, negativeResult: content.negative_result,
-    coreKey: content.essence_summary
+    dynamic: pairStructure_text || content.relation_dynamic,
+    counterDynamic: content.counter_dynamic,
+    positiveResult: positiveFlow_text || content.positive_result,
+    negativeResult: negativeFlow_text || content.negative_result,
+    coreKey: essenceKey_text || content.essence_summary
   };
 }
 
@@ -6333,11 +6367,28 @@ function buildLoveFinal(content, scoreCategory, loveSubType, cards, prompt, reve
   const pivot = blocks
     ? buildPhraseFromBlocks(blocks, seed, fallback)
     : fallback;
+  
+  // [V27.0.6.A] FINAL VERDICT 박스 시드 다양화 — 5 우선순위 서브타입
+  //   사장님 진단: 좋은 길/나쁜 길/최종 키 두 점사 100% 동일
+  //   해결: 4 차원 블록 (goodPath/badPath/finalKey/finalAction) 시드 다양화
+  //   안전: 매트릭스 없는 서브타입은 기존 content.* / branches.* fallback
+  const finalBlocks = LOVE_FINAL_BLOCK_MATRIX[loveSubType];
+  let goodPath_text, badPath_text, finalKey_text, finalAction_text;
+  if (finalBlocks) {
+    const finalSeed = _getSeedV27(prompt || '', cards || [], `love_final_${loveSubType}`, 'love', reversedFlags);
+    goodPath_text   = finalBlocks.goodPath[(finalSeed >> 0)   % finalBlocks.goodPath.length][0];
+    badPath_text    = finalBlocks.badPath[(finalSeed >> 6)   % finalBlocks.badPath.length][0];
+    finalKey_text   = finalBlocks.finalKey[(finalSeed >> 12) % finalBlocks.finalKey.length][0];
+    finalAction_text = finalBlocks.finalAction[(finalSeed >> 18) % finalBlocks.finalAction.length][0];
+  }
+  
   return {
     pivot,
     finalState: content.final_state, finalExplanation: content.final_explanation,
-    goodPath: content.good_path || branches.good, badPath: content.bad_path || branches.bad,
-    finalKey: content.final_key, coreKey: content.final_action_statement
+    goodPath: goodPath_text || content.good_path || branches.good,
+    badPath:  badPath_text  || content.bad_path  || branches.bad,
+    finalKey: finalKey_text || content.final_key,
+    coreKey:  finalAction_text || content.final_action_statement
   };
 }
 
@@ -6749,7 +6800,405 @@ const LOVE_RISK_BLOCK_MATRIX = {
 };
 
 // ══════════════════════════════════════════════════════════════════
-// [V27.0.4 안전 가드] 블록 매트릭스 Linter 자동 검증 — Boot 시 1회 실행
+// [V27.0.6.A] LOVE_ESSENCE_BLOCK_MATRIX — 관계 본질 박스 다양화
+//   사장님 진단: '관계 본질' 박스 두 점사 100% 동일 (복붙 인지)
+//   해결: 5 우선순위 서브타입에 6개 차원 블록 시드 다양화
+//   대상: thumb / crush / mindread / marriage / compatibility
+//   효과: 같은 셋트 매핑이라도 서브타입별·카드별 다른 표현
+//
+//   블록 차원 (6):
+//     userState     : 유저 상태 (5개 변형)
+//     partnerState  : 상대 상태 (5개 변형)
+//     pairStructure : 두 사람 구조 (5개 변형)
+//     positiveFlow  : 균형 유지 → 긍정 흐름 (5개 변형)
+//     negativeFlow  : 균형 붕괴 → 부정 흐름 (5개 변형)
+//     essenceKey    : 본질 키 (5개 변형)
+//
+//   다양성: 5×5×5×5×5×5 = 15,625가지/서브타입 × 5 = 78,125가지
+//   안전: 기존 content.* fallback (조합 실패 시)
+// ══════════════════════════════════════════════════════════════════
+const LOVE_ESSENCE_BLOCK_MATRIX = {
+  thumb: {
+    userState: [
+      ['관심을 자연스럽게 표현하는 자세', '진심을 가볍게 드러내는 흐름'],
+      ['끌림을 인식하기 시작한 단계', '감정 신호를 천천히 읽는 중'],
+      ['상대 반응에 민감해진 상태', '관심을 직설보다 간접으로 보내는 흐름'],
+      ['감정의 방향을 확인하려는 단계', '신중하게 거리를 좁히려는 자세'],
+      ['관계 가능성을 살펴보는 흐름', '진심이 표면 위로 떠오르기 시작한 단계']
+    ],
+    partnerState: [
+      ['긍정적 호기심 반응', '아직 확신은 보류 중인 상태'],
+      ['표면적 친밀함 표현', '내면 속도는 신중한 흐름'],
+      ['관심 신호 수신 중', '본격적 응답은 절제 중'],
+      ['호감을 인정하기 시작한 단계', '거리를 천천히 줄이는 흐름'],
+      ['미묘한 끌림 표현', '속도 조절을 의식하는 상태']
+    ],
+    pairStructure: [
+      ['관심 시그널 ↔ 호기심 반응'],
+      ['감정 탐색 ↔ 신중한 응답'],
+      ['끌림 표현 ↔ 거리 조절'],
+      ['신호 송신 ↔ 미묘한 회신'],
+      ['호감 흐름 ↔ 속도 점검']
+    ],
+    positiveFlow: [
+      ['자연스러운 진전 — 관계 형성 가능'],
+      ['속도가 맞으면 다음 단계 진입'],
+      ['반복적 신호 시 본격 관계 전환'],
+      ['신뢰 형성 시 호감이 명확해짐'],
+      ['타이밍이 맞으면 가까워짐']
+    ],
+    negativeFlow: [
+      ['과속 시 부담으로 거리 형성'],
+      ['확신 강요 시 흥미가 식음'],
+      ['일방적 진행 시 신호 차단'],
+      ['속도 무시 시 호감 약화'],
+      ['확인 강요 시 자연스러움 소실']
+    ],
+    essenceKey: [
+      ['"끌림은 있지만, 속도가 결과를 결정하는 단계"'],
+      ['"호감은 있지만, 신호 타이밍이 관계를 좌우합니다"'],
+      ['"관심은 형성됐지만, 자연스러운 진전이 핵심입니다"'],
+      ['"감정은 살아있지만, 속도가 흐름을 가르는 분기점"'],
+      ['"신호는 있지만, 부드러운 접근이 결과를 결정짓습니다"']
+    ]
+  },
+  crush: {
+    userState: [
+      ['진심으로 다가가려는 자세', '용기와 망설임이 공존하는 단계'],
+      ['감정 표현 시점을 고민 중', '진심을 정리하는 흐름'],
+      ['혼자 감정의 무게를 짊어지는 상태', '신호 송신을 망설이는 단계'],
+      ['확신은 있지만 행동이 멈춘 상태', '진심을 어떻게 전할지 정리 중'],
+      ['감정의 강도가 명확한 상태', '표현 방식을 신중히 고르는 흐름']
+    ],
+    partnerState: [
+      ['신호 미수신 상태', '관심 인식 부족 단계'],
+      ['표면적 친밀함만 인지', '깊은 감정 신호는 미감지'],
+      ['관계 거리가 일정한 상태', '특별한 변화 신호 부재'],
+      ['일상적 교류 유지', '감정 흐름은 평이한 상태'],
+      ['중립적 태도 유지', '감정 신호 수신 안 된 상태']
+    ],
+    pairStructure: [
+      ['일방적 감정 ↔ 중립적 거리'],
+      ['표현 망설임 ↔ 인식 부재'],
+      ['진심 보류 ↔ 평이한 일상'],
+      ['용기 정리 ↔ 신호 미감지'],
+      ['감정 누적 ↔ 일정한 거리']
+    ],
+    positiveFlow: [
+      ['신호 송신 시 관계 변화 가능'],
+      ['표현 시점이 맞으면 진전 형성'],
+      ['적절한 접근 시 관심 회수'],
+      ['용기 시점에 따라 분기 변화'],
+      ['진심 표현 시 거리감 변경']
+    ],
+    negativeFlow: [
+      ['과도한 망설임 시 기회 소실'],
+      ['혼자 감정만 키우면 거리 고착'],
+      ['표현 보류 시 무관심 굳어짐'],
+      ['신호 누락 시 관계 평행선'],
+      ['시점 놓치면 감정만 소진']
+    ],
+    essenceKey: [
+      ['"감정은 진심이지만, 표현 시점이 결과를 가릅니다"'],
+      ['"진심은 명확하지만, 신호 송신이 관계를 결정짓습니다"'],
+      ['"감정은 살아있지만, 행동 시점이 분기점입니다"'],
+      ['"진심은 있지만, 침묵이 길어지면 흐름이 닫힙니다"'],
+      ['"감정 강도는 명확하지만, 적절한 접근이 핵심입니다"']
+    ]
+  },
+  mindread: {
+    userState: [
+      ['상대 마음을 헤아리려는 자세', '신호 해석에 집중하는 흐름'],
+      ['감정 신호를 분석 중', '본심 확인 욕구가 강한 단계'],
+      ['표면 신호 너머를 읽으려는 상태', '진심 파악에 몰입한 흐름'],
+      ['상대 행동의 의미를 해석 중', '신호 진위를 가리려는 자세'],
+      ['감정 흐름의 본질을 보려는 단계', '관계 본심을 추적하는 흐름']
+    ],
+    partnerState: [
+      ['표현 절제 중인 상태', '본심은 보호하는 단계'],
+      ['신호를 일부만 송신', '진심은 신중히 관리'],
+      ['감정 표현이 제한된 흐름', '내면 진실은 드러나지 않은 상태'],
+      ['중립적 자세 유지', '본심 노출에 신중한 단계'],
+      ['감정의 일부만 표현', '진심은 깊은 곳에 보류']
+    ],
+    pairStructure: [
+      ['해석 욕구 ↔ 표현 절제'],
+      ['신호 분석 ↔ 본심 보호'],
+      ['진심 추적 ↔ 일부 표현'],
+      ['본질 파악 ↔ 신중한 노출'],
+      ['감정 해석 ↔ 절제된 신호']
+    ],
+    positiveFlow: [
+      ['올바른 해석 시 본질 확인'],
+      ['신호 일치 시 진심 명확화'],
+      ['관찰 누적 시 본심 드러남'],
+      ['시간 흐름 시 진실 노출'],
+      ['신뢰 형성 시 표현 확장']
+    ],
+    negativeFlow: [
+      ['과도한 해석 시 오해 누적'],
+      ['확인 강요 시 본심 차단'],
+      ['추측 의존 시 거리감 형성'],
+      ['질문 반복 시 표현 더 위축'],
+      ['압박 시 진심 더 깊이 숨음']
+    ],
+    essenceKey: [
+      ['"마음은 존재하지만, 해석에 따라 정반대로 읽힐 수 있습니다"'],
+      ['"본심은 있지만, 표현 절제가 신호를 흐리는 단계"'],
+      ['"진심은 형성됐지만, 노출 시점이 관계를 가릅니다"'],
+      ['"감정은 살아있지만, 신호 해석이 결과를 결정짓습니다"'],
+      ['"본심은 명확하지만, 보호 본능이 표현을 막는 흐름"']
+    ]
+  },
+  marriage: {
+    userState: [
+      ['결혼을 진지하게 검토하는 자세', '현실 조건과 감정의 균형 점검 중'],
+      ['장기 관계 의지가 명확한 단계', '결합 가능성을 차분히 평가 중'],
+      ['감정과 조건을 동시에 보는 흐름', '결정 시점을 신중히 고르는 자세'],
+      ['결혼 본질에 대한 확신 형성 중', '실무 점검을 시작한 단계'],
+      ['관계의 다음 단계로 진입 중', '결합 조건을 객관적으로 검토 중']
+    ],
+    partnerState: [
+      ['긍정적 관심 표현', '실무 검토는 신중한 자세'],
+      ['결혼 의향에 호의적 단계', '조건 점검은 진행 중'],
+      ['관계 진전에 동의', '구체 합의는 차분히 진행'],
+      ['장기 관계 의지 형성', '실질 조건 점검은 시작 단계'],
+      ['감정적 합의는 명확', '현실 조건은 점진적 검토']
+    ],
+    pairStructure: [
+      ['감정 합의 ↔ 조건 검증'],
+      ['진심 동의 ↔ 실무 점검'],
+      ['결합 의지 ↔ 현실 조정'],
+      ['장기 결심 ↔ 단계적 합의'],
+      ['감정 결합 ↔ 조건 정렬']
+    ],
+    positiveFlow: [
+      ['단계적 합의 시 안정적 결합'],
+      ['조건 충족 시 본격 진행 가능'],
+      ['실무 점검 완료 시 결혼 진전'],
+      ['균형 합의 시 장기 결합 형성'],
+      ['감정·조건 일치 시 결합 확정']
+    ],
+    negativeFlow: [
+      ['감정만으로 결정 시 후행 충돌'],
+      ['조건 점검 회피 시 결합 후 부담'],
+      ['낙관 의존 시 현실 조정 어려움'],
+      ['실무 미루면 진행 지연'],
+      ['감정 우위로 진행 시 구조 흔들림']
+    ],
+    essenceKey: [
+      ['"결합 가능성은 있지만, 조건 검증이 결과를 가릅니다"'],
+      ['"감정 합의는 형성됐지만, 현실 조건이 핵심 변수입니다"'],
+      ['"결혼 의지는 명확하지만, 단계적 점검이 결정짓습니다"'],
+      ['"본질 합의는 진행 중이지만, 실무 검증이 분기점입니다"'],
+      ['"감정·의지는 살아있지만, 조건 균형이 장기 결합을 좌우합니다"']
+    ]
+  },
+  compatibility: {
+    userState: [
+      ['관계 가능성을 신중히 살피는 자세', '서로의 결을 확인하려는 흐름'],
+      ['궁합의 본질을 보려는 단계', '감정과 가치관의 정렬 점검 중'],
+      ['장기 관계 가능성 평가 중', '서로의 차이를 인식하는 흐름'],
+      ['관계의 깊이를 가늠 중', '본질 합의 가능성 검토 중'],
+      ['감정과 결의 정합성 점검 중', '관계 방향성을 살피는 자세']
+    ],
+    partnerState: [
+      ['관심은 있지만 신중한 단계', '관계 페이스를 점검 중'],
+      ['긍정적 호의 표현', '본격 합의는 차분히 진행'],
+      ['감정 흐름은 형성', '관계 방향성 점검 중'],
+      ['중립적이지만 호의적', '진전 시점을 살피는 흐름'],
+      ['관계 가능성 인지', '구체 진전은 신중히 검토']
+    ],
+    pairStructure: [
+      ['결 점검 ↔ 페이스 조절'],
+      ['본질 확인 ↔ 신중한 호의'],
+      ['정합성 검토 ↔ 진전 시점'],
+      ['차이 인식 ↔ 방향성 살핌'],
+      ['관계 깊이 ↔ 합의 페이스']
+    ],
+    positiveFlow: [
+      ['결 일치 확인 시 자연스러운 진전'],
+      ['차이 인정 시 관계 본질 형성'],
+      ['단계적 정렬 시 장기 흐름 안정'],
+      ['상호 페이스 맞춤 시 진전 가속'],
+      ['본질 합의 시 결합력 강화']
+    ],
+    negativeFlow: [
+      ['차이 무시 시 후행 충돌 누적'],
+      ['일방적 진행 시 본질 합의 깨짐'],
+      ['페이스 무시 시 관계 정체'],
+      ['표면 합의만 추구 시 깊이 형성 실패'],
+      ['속도 강요 시 자연스러움 소실']
+    ],
+    essenceKey: [
+      ['"결은 맞지만, 차이를 다루는 방식이 결과를 가릅니다"'],
+      ['"끌림은 명확하지만, 페이스 조율이 관계를 결정짓습니다"'],
+      ['"본질은 정렬됐지만, 단계적 합의가 분기점입니다"'],
+      ['"관계 가능성은 있지만, 차이 인정이 깊이를 좌우합니다"'],
+      ['"호감과 결은 살아있지만, 자연스러운 페이스가 핵심입니다"']
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// [V27.0.6.A] LOVE_FINAL_BLOCK_MATRIX — FINAL VERDICT 박스 다양화
+//   대상: 좋은 길 / 나쁜 길 / 최종 키 / 최종 행동 (4 차원)
+//   다양성: 5 서브타입 × 4 차원 × 5 변형 = 100개 블록
+// ══════════════════════════════════════════════════════════════════
+const LOVE_FINAL_BLOCK_MATRIX = {
+  thumb: {
+    goodPath: [
+      ['자연스러운 신호 송신 → 관계 진전'],
+      ['속도 맞춤 접근 → 호감 명확화'],
+      ['타이밍 맞춤 행동 → 다음 단계 진입'],
+      ['부드러운 표현 → 가까워짐 형성'],
+      ['신중한 진전 → 관계 안정화']
+    ],
+    badPath: [
+      ['확신 강요 → 호감 식음'],
+      ['과속 진행 → 부담 형성'],
+      ['일방적 행동 → 거리감 굳어짐'],
+      ['신호 무시 → 자연스러움 소실'],
+      ['확인 압박 → 흥미 약화']
+    ],
+    finalKey: [
+      ['"속도가 결과를 결정한다"'],
+      ['"타이밍이 관계를 가른다"'],
+      ['"자연스러움이 호감을 만든다"'],
+      ['"부드러움이 결정짓는 단계"'],
+      ['"신호가 흐름을 좌우한다"']
+    ],
+    finalAction: [
+      ['지금은 결정의 시점이 아니라 자연스럽게 가까워지는 단계'],
+      ['확신을 만드는 시점이 아니라 흐름을 따라가는 단계'],
+      ['행동의 시점이 아니라 신호를 주고받는 단계'],
+      ['진전을 강요하는 시점이 아니라 페이스를 맞추는 단계'],
+      ['빠른 답을 찾는 시점이 아니라 부드럽게 다가가는 단계']
+    ]
+  },
+  crush: {
+    goodPath: [
+      ['용기 있는 표현 → 관계 변화 가능'],
+      ['적절한 시점 신호 → 거리감 변경'],
+      ['진심 송신 → 분기 형성'],
+      ['부드러운 접근 → 관심 회수'],
+      ['신중한 표현 → 흐름 전환']
+    ],
+    badPath: [
+      ['표현 회피 → 기회 소실'],
+      ['혼자 감정만 키움 → 거리 고착'],
+      ['신호 보류 → 무관심 굳어짐'],
+      ['시점 놓침 → 감정만 소진'],
+      ['망설임 누적 → 평행선 고착화']
+    ],
+    finalKey: [
+      ['"신호가 결과를 가른다"'],
+      ['"표현 시점이 분기점이다"'],
+      ['"용기가 흐름을 결정짓는다"'],
+      ['"행동이 관계를 변화시킨다"'],
+      ['"적절한 접근이 핵심이다"']
+    ],
+    finalAction: [
+      ['지금은 망설이는 시점이 아니라 적절한 신호를 보내는 단계'],
+      ['감정을 정리하는 시점이 아니라 부드럽게 표현하는 단계'],
+      ['혼자 결심하는 시점이 아니라 신호를 주고받는 단계'],
+      ['확신을 만드는 시점이 아니라 행동으로 옮기는 단계'],
+      ['감정을 키우는 시점이 아니라 적절히 드러내는 단계']
+    ]
+  },
+  mindread: {
+    goodPath: [
+      ['올바른 해석 → 본심 명확화'],
+      ['신뢰 형성 → 표현 확장'],
+      ['관찰 누적 → 진심 노출'],
+      ['신호 일치 확인 → 본질 드러남'],
+      ['시간 흐름 → 진실 표면화']
+    ],
+    badPath: [
+      ['확인 강요 → 본심 차단'],
+      ['질문 반복 → 표현 더 위축'],
+      ['추측 의존 → 거리감 형성'],
+      ['압박 누적 → 진심 더 깊이 숨음'],
+      ['해석 과다 → 오해 누적']
+    ],
+    finalKey: [
+      ['"해석이 결과를 가른다"'],
+      ['"신호 읽기가 분기점이다"'],
+      ['"신뢰가 표현을 끌어낸다"'],
+      ['"관찰이 진심을 드러낸다"'],
+      ['"시간이 본심을 노출시킨다"']
+    ],
+    finalAction: [
+      ['지금은 답을 강요하는 시점이 아니라 신호를 관찰하는 단계'],
+      ['확인하는 시점이 아니라 신뢰를 쌓는 단계'],
+      ['질문하는 시점이 아니라 흐름을 읽는 단계'],
+      ['추측하는 시점이 아니라 시간을 두는 단계'],
+      ['해석에 매달리는 시점이 아니라 본심이 드러나길 기다리는 단계']
+    ]
+  },
+  marriage: {
+    goodPath: [
+      ['단계적 합의 → 안정적 결합'],
+      ['조건 충족 → 본격 진행'],
+      ['실무 점검 완료 → 결혼 진전'],
+      ['균형 합의 → 장기 결합 형성'],
+      ['감정·조건 일치 → 결합 확정']
+    ],
+    badPath: [
+      ['감정만으로 결정 → 후행 충돌'],
+      ['조건 점검 회피 → 결합 후 부담'],
+      ['낙관 의존 → 현실 조정 어려움'],
+      ['실무 미룸 → 진행 지연'],
+      ['감정 우위 진행 → 구조 흔들림']
+    ],
+    finalKey: [
+      ['"조건 검증이 결과를 가른다"'],
+      ['"본질 합의가 결정짓는다"'],
+      ['"단계적 점검이 분기점이다"'],
+      ['"균형이 장기 결합을 만든다"'],
+      ['"실무 정렬이 핵심이다"']
+    ],
+    finalAction: [
+      ['지금은 결혼을 밀어붙일 시점이 아니라 가능한 관계인지 확정하는 단계'],
+      ['감정만으로 결정하는 시점이 아니라 조건 균형을 검증하는 단계'],
+      ['속도를 내는 시점이 아니라 단계적 합의를 쌓는 단계'],
+      ['결합을 확정하는 시점이 아니라 본질을 점검하는 단계'],
+      ['감정 우위로 진행하는 시점이 아니라 실무를 점검하는 단계']
+    ]
+  },
+  compatibility: {
+    goodPath: [
+      ['결 일치 확인 → 자연스러운 진전'],
+      ['차이 인정 → 관계 본질 형성'],
+      ['단계적 정렬 → 장기 흐름 안정'],
+      ['상호 페이스 맞춤 → 진전 가속'],
+      ['본질 합의 → 결합력 강화']
+    ],
+    badPath: [
+      ['차이 무시 → 후행 충돌 누적'],
+      ['일방적 진행 → 본질 합의 깨짐'],
+      ['페이스 무시 → 관계 정체'],
+      ['표면 합의만 → 깊이 형성 실패'],
+      ['속도 강요 → 자연스러움 소실']
+    ],
+    finalKey: [
+      ['"차이를 다루는 방식이 결과를 가른다"'],
+      ['"페이스 조율이 결정짓는다"'],
+      ['"단계적 합의가 분기점이다"'],
+      ['"차이 인정이 깊이를 좌우한다"'],
+      ['"자연스러운 페이스가 핵심이다"']
+    ],
+    finalAction: [
+      ['지금은 결정을 내릴 시점이 아니라 관계를 자연스럽게 키워가는 단계'],
+      ['속도를 내는 시점이 아니라 페이스를 맞추는 단계'],
+      ['확정하는 시점이 아니라 본질을 정렬하는 단계'],
+      ['진전을 강요하는 시점이 아니라 차이를 받아들이는 단계'],
+      ['빠른 답을 찾는 시점이 아니라 결을 확인하는 단계']
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
 //   목적: SELL 블록에 '진입/매수' 어휘 들어가는 결함 사전 차단
 //   방식: 모듈 로드 시 자동 검증 → 결함 발견 시 console.error
 //   보호: 사장님 V27.0.3 결함 ('추가 진입보다') 재발 방지
@@ -7168,7 +7617,7 @@ function buildLoveOracleV25_24({ totalScore, cards, revFlags, loveSubType, numer
     version: 'V25.24', score: totalScore, scoreCategory, subtype, flowArrow, metaPattern,
     boxes: {
       coreInsight: buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags),
-      relationEssence: buildLoveRelationEssence(content, cards, revFlags),
+      relationEssence: buildLoveRelationEssence(content, cards, revFlags, subtype, prompt),
       actionGuide: buildLoveActionGuide(content),
       timing: buildLoveTiming(content, numerology, cards),
       risk: buildLoveRisk(content, subtype, cards, prompt, revFlags),
