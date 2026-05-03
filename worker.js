@@ -6282,16 +6282,31 @@ function buildLoveRelationEssence(content, cards, revFlags, loveSubType, prompt)
   };
 }
 
-function buildLoveActionGuide(content) {
+function buildLoveActionGuide(content, loveSubType, cards, prompt, reversedFlags) {
+  // [V27.1] 시드 다양화 — 9 서브타입 actionKey + avoidAction
+  //   사장님 V27.0.6 통찰 확장: 사용자 1달 5-6회 점사 시 패턴 인지 차단
+  //   안전: 매트릭스 없거나 호출 시 fallback (기존 content.* 그대로)
+  let actionKey_text = content.action_core;
+  let avoidCore_text = content.risk_effect;
+  
+  if (loveSubType && typeof LOVE_ACTION_BLOCK_MATRIX !== 'undefined' && LOVE_ACTION_BLOCK_MATRIX[loveSubType]) {
+    try {
+      const blocks = LOVE_ACTION_BLOCK_MATRIX[loveSubType];
+      const seed = _getSeedV27(prompt || '', cards || [], `love_action_${loveSubType}`, 'love', reversedFlags);
+      actionKey_text = blocks.actionKey[(seed >> 0)  % blocks.actionKey.length][0] || actionKey_text;
+      avoidCore_text = blocks.avoidCore[(seed >> 8) % blocks.avoidCore.length][0] || avoidCore_text;
+    } catch (e) { /* 안전: fallback 유지 */ }
+  }
+  
   return {
     action1: content.action_1, actionResult1: content.action_result_1,
     action2: content.action_2, actionResult2: content.action_result_2,
-    avoidAction: content.avoid_action, riskEffect: content.risk_effect,
-    coreKey: content.action_core
+    avoidAction: content.avoid_action, riskEffect: avoidCore_text,
+    coreKey: actionKey_text
   };
 }
 
-function buildLoveTiming(content, numerologyText, cards) {
+function buildLoveTiming(content, numerologyText, cards, loveSubType, prompt, reversedFlags) {
   // [V26.3 결함 4] 카드별 분기점 차별화 — 사장님 진단 안
   //   사장님 진단: 두 화면 모두 동일 분기점 ('이번 주 후반 또는 다음 주말')
   //   해결: 카드 이름 해시 기반 8가지 변형 패턴 (advance 케이스 한정)
@@ -6322,6 +6337,16 @@ function buildLoveTiming(content, numerologyText, cards) {
       critTiming = advanceVariants[idx];
     }
   }
+  // [V27.1] timingKey 시드 다양화 — 9 서브타입 × 3 변형
+  let timingKey_text = content.timing_core;
+  if (loveSubType && typeof LOVE_TIMING_BLOCK_MATRIX !== 'undefined' && LOVE_TIMING_BLOCK_MATRIX[loveSubType]) {
+    try {
+      const tBlocks = LOVE_TIMING_BLOCK_MATRIX[loveSubType];
+      const tSeed = _getSeedV27(prompt || '', cards || [], `love_timing_${loveSubType}`, 'love', reversedFlags);
+      timingKey_text = tBlocks.timingKey[tSeed % tBlocks.timingKey.length][0] || timingKey_text;
+    } catch (e) { /* 안전 */ }
+  }
+  
   return {
     shortTerm: content.short_term, shortFlow: content.short_flow,
     midTerm: content.mid_term, midFlow: content.mid_flow,
@@ -6329,7 +6354,7 @@ function buildLoveTiming(content, numerologyText, cards) {
     criticalTiming: critTiming,
     timingNow: content.timing_now, timingNext: content.timing_next,
     numerology: numerologyText || '안정적인 시간대',
-    coreKey: content.timing_core
+    coreKey: timingKey_text
   };
 }
 
@@ -6345,11 +6370,22 @@ function buildLoveRisk(content, loveSubType, cards, prompt, reversedFlags) {
   const riskPhrase = blocks
     ? buildPhraseFromBlocks(blocks, seed, fallback)
     : fallback;
+  
+  // [V27.1] riskKey 시드 다양화 (LOVE_RISKBOX_BLOCK_MATRIX) — riskPhrase와 별개
+  let riskKey_text = content.risk_summary;
+  if (loveSubType && typeof LOVE_RISKBOX_BLOCK_MATRIX !== 'undefined' && LOVE_RISKBOX_BLOCK_MATRIX[loveSubType]) {
+    try {
+      const rkBlocks = LOVE_RISKBOX_BLOCK_MATRIX[loveSubType];
+      const rkSeed = _getSeedV27(prompt || '', cards || [], `love_riskkey_${loveSubType}`, 'love', reversedFlags);
+      riskKey_text = rkBlocks.riskKey[rkSeed % rkBlocks.riskKey.length][0] || riskKey_text;
+    } catch (e) { /* 안전 */ }
+  }
+  
   return {
     risk1: content.risk_1, risk2: content.risk_2,
     riskProgression: content.risk_progression,
     triggerCondition: content.trigger_condition, collapseType: content.collapse_type,
-    coreKey: content.risk_summary,
+    coreKey: riskKey_text,
     riskPhrase
   };
 }
@@ -7037,6 +7073,190 @@ const LOVE_ESSENCE_BLOCK_MATRIX = {
       ['"관계 가능성은 있지만, 차이 인정이 깊이를 좌우합니다"'],
       ['"호감과 결은 살아있지만, 자연스러운 페이스가 핵심입니다"']
     ]
+  },
+  // [V27.0.6.C] 연애운 (general) — 특정 상대 없는 전반적 연애 흐름
+  //   톤 본질: 흐름·기회·만남·시기 (전반적 운세)
+  general: {
+    userState: [
+      ['연애 흐름의 전반적 방향을 살피는 자세', '다음 만남에 대한 기대를 조용히 키우는 단계'],
+      ['새로운 인연 가능성을 인식한 흐름', '감정 회복과 정리가 동시에 진행되는 단계'],
+      ['지난 관계의 정리가 마무리되는 자세', '새로운 연애 에너지로 전환 중인 흐름'],
+      ['연애 운의 변화를 감지한 단계', '내면 정리가 다음 단계를 준비하는 흐름'],
+      ['감정 흐름이 새 방향을 찾는 자세', '연애 운이 새로운 시기로 이동 중인 단계']
+    ],
+    partnerState: [
+      ['아직 명확한 대상은 형성되지 않음', '잠재적 인연이 주변에 존재하는 단계'],
+      ['새 인연 가능성이 무르익는 중', '구체적 대상은 가시화 미완 단계'],
+      ['만남의 가능성이 누적되는 흐름', '특정 인물의 윤곽은 차차 드러날 단계'],
+      ['주변 인연의 흐름이 활성화되는 중', '본격적 만남 시점은 준비되는 단계'],
+      ['새 관계 신호가 나타나기 시작', '구체적 진전은 시간이 필요한 흐름']
+    ],
+    pairStructure: [
+      ['내면 정리 ↔ 잠재 인연'],
+      ['감정 회복 ↔ 새로운 가능성'],
+      ['연애 운 전환 ↔ 인연 누적'],
+      ['자기 정렬 ↔ 만남 준비'],
+      ['흐름 변화 ↔ 신호 형성']
+    ],
+    positiveFlow: [
+      ['자기 정리 완성 시 자연스러운 만남 형성'],
+      ['내면 준비 완료 시 좋은 인연 진입'],
+      ['감정 회복 시 새로운 관계 시작 가능'],
+      ['흐름 수용 시 적절한 시점에 인연 도착'],
+      ['주변 활동 확장 시 인연 가시화']
+    ],
+    negativeFlow: [
+      ['지난 감정 집착 시 새 흐름 차단'],
+      ['조급함 누적 시 잘못된 인연으로 연결'],
+      ['내면 정리 미완 시 같은 패턴 반복'],
+      ['일방적 기대만 키울 시 만남 시점 지연'],
+      ['주변 활동 위축 시 인연 가능성 축소']
+    ],
+    essenceKey: [
+      ['"흐름은 열려 있지만, 자기 정리가 만남의 질을 결정합니다"'],
+      ['"새로운 인연 가능성은 살아있지만, 시점이 결과를 가릅니다"'],
+      ['"연애 운은 전환 중이지만, 내면 준비가 분기점입니다"'],
+      ['"만남의 흐름은 형성됐지만, 감정 회복이 핵심 변수입니다"'],
+      ['"새 관계 가능성은 명확하지만, 내면 정렬이 결정짓는 단계입니다"']
+    ]
+  },
+  // [V27.0.6.B] 연락 (contact) — '연락 올까/먼저 할까' 톤
+  //   톤 본질: 신호·시점·표현 (즉시성·긴박감)
+  contact: {
+    userState: [
+      ['연락 시점을 신중히 가늠하는 자세', '신호 송신 망설임이 형성된 단계'],
+      ['상대 반응을 기다리는 흐름', '먼저 다가갈지 고민하는 단계'],
+      ['연락의 적절성 점검 중', '관계 거리감을 측정하는 자세'],
+      ['표현 방식을 다듬는 중', '신호 강도를 조절하는 단계'],
+      ['상대 시점을 의식하는 자세', '연락 시기를 신중히 살피는 흐름']
+    ],
+    partnerState: [
+      ['연락 가능성을 인지한 단계', '응답 시점은 자기 페이스로 조율'],
+      ['신호 수신은 됐지만 응답 보류 중', '내면 정리 시간이 필요한 단계'],
+      ['관계 거리를 살피는 흐름', '연락 응답 시점을 가늠 중'],
+      ['상황 정리 후 응답 예정', '바로 답변할 여유 부족 단계'],
+      ['관심은 있지만 표현 절제', '응답 시점은 신중히 검토']
+    ],
+    pairStructure: [
+      ['신호 송신 ↔ 응답 시점 조율'],
+      ['연락 망설임 ↔ 페이스 유지'],
+      ['표현 시도 ↔ 정리 시간'],
+      ['거리 측정 ↔ 응답 보류'],
+      ['시점 가늠 ↔ 자기 페이스']
+    ],
+    positiveFlow: [
+      ['적절한 시점 송신 시 자연스러운 응답 형성'],
+      ['부담 없는 신호 시 거리감 좁혀짐'],
+      ['타이밍 맞춤 시 흐름 회복'],
+      ['자연스러운 표현 시 응답 가능성 ↑'],
+      ['페이스 존중 시 연락 흐름 살아남']
+    ],
+    negativeFlow: [
+      ['잦은 연락 시 부담으로 거리감 형성'],
+      ['확인 강요 시 응답 차단'],
+      ['시점 무시 시 신호 무게만 무거워짐'],
+      ['답장 강요 시 관계 식음'],
+      ['일방적 송신 시 침묵 굳어짐']
+    ],
+    essenceKey: [
+      ['"신호는 보냈지만, 시점이 응답의 질을 결정합니다"'],
+      ['"연락 가능성은 있지만, 부담 없는 표현이 핵심입니다"'],
+      ['"표현 의지는 있지만, 페이스 존중이 결과를 가릅니다"'],
+      ['"신호는 살아있지만, 강도가 흐름을 좌우합니다"'],
+      ['"연락 흐름은 형성 중이지만, 자연스러움이 결정짓습니다"']
+    ]
+  },
+  // [V27.0.6.B] 재회 (reunion) — '다시 만날 수 있을까' 톤
+  //   톤 본질: 회복·치유·재정렬 (감정 강도 95)
+  reunion: {
+    userState: [
+      ['관계 회복 가능성을 살피는 자세', '지난 감정의 정리와 새 시도 사이 흐름'],
+      ['재회 의지가 형성된 단계', '준비 완성도를 점검하는 자세'],
+      ['감정 회복이 진행 중인 흐름', '재시작 시점을 신중히 가늠하는 단계'],
+      ['지난 패턴 점검이 마무리되는 자세', '새 접근 방식을 정리하는 흐름'],
+      ['관계 재정렬 의지가 명확한 단계', '내면 준비가 진행되는 흐름']
+    ],
+    partnerState: [
+      ['감정 정리는 진행 중', '재회 가능성에 신중한 단계'],
+      ['지난 관계 잔상은 남아있는 흐름', '본격 재시작은 검토 중'],
+      ['관계 재고 가능성 인지', '구체 진전은 시간 필요'],
+      ['감정 회복은 부분 진행', '재접근에 신중한 자세'],
+      ['관심은 살아있지만', '본격 재회는 시점 검토']
+    ],
+    pairStructure: [
+      ['회복 의지 ↔ 신중한 검토'],
+      ['재정렬 시도 ↔ 감정 정리'],
+      ['새 접근 ↔ 시점 가늠'],
+      ['준비 완성 ↔ 관계 재고'],
+      ['재시작 의지 ↔ 잔상 정리']
+    ],
+    positiveFlow: [
+      ['지난 패턴 변화 시 재회 가능성 형성'],
+      ['새 접근 방식 시 관계 재정렬 가능'],
+      ['감정 회복 완성 시 자연스러운 재시작'],
+      ['상호 준비 완료 시 본격 진전'],
+      ['적절한 시점 시 관계 재구축 시작']
+    ],
+    negativeFlow: [
+      ['같은 패턴 반복 시 다시 같은 결말'],
+      ['감정 회복 미완 시 충돌 재발'],
+      ['일방적 재접근 시 거리감 굳어짐'],
+      ['시점 강요 시 회복 흐름 차단'],
+      ['지난 문제 미해결 시 결합 후 재충돌']
+    ],
+    essenceKey: [
+      ['"재회 가능성은 있지만, 변화 없이는 같은 결말로 직결됩니다"'],
+      ['"감정 회복은 진행 중이지만, 패턴 변화가 결정짓습니다"'],
+      ['"재정렬 의지는 살아있지만, 시점이 결과를 가릅니다"'],
+      ['"관계 재고 흐름은 열려 있지만, 새 접근이 핵심입니다"'],
+      ['"재시작 가능성은 형성됐지만, 준비 완성이 분기점입니다"']
+    ]
+  },
+  // [V27.0.6.B] 이별 (breakup) — '헤어져야 하나/이별 시점' 톤
+  //   톤 본질: 정리·결단·다음 단계 (감정 강도 95)
+  breakup: {
+    userState: [
+      ['관계 정리 가능성을 검토하는 자세', '결단 시점을 신중히 가늠하는 흐름'],
+      ['감정 정리가 진행되는 단계', '다음 단계 준비 중인 자세'],
+      ['관계 마무리 의지가 형성 중', '결정 시점을 살피는 흐름'],
+      ['지속 가능성 점검 중', '정리 방식을 다듬는 자세'],
+      ['관계 본질 재고 중', '결정 후 흐름을 그려보는 단계']
+    ],
+    partnerState: [
+      ['관계 변화 신호 인지', '본격 정리는 시점 검토'],
+      ['감정 흐름 변화 감지', '구체 결정은 자기 페이스'],
+      ['관계 거리 형성 진행', '정리 방향 점검 중'],
+      ['중립적 자세 유지', '결정 시점은 신중히 검토'],
+      ['관계 페이스 변화', '본격 흐름은 시간 필요']
+    ],
+    pairStructure: [
+      ['정리 검토 ↔ 페이스 점검'],
+      ['결단 가늠 ↔ 신호 인지'],
+      ['마무리 의지 ↔ 거리 형성'],
+      ['지속성 점검 ↔ 변화 감지'],
+      ['본질 재고 ↔ 방향 점검']
+    ],
+    positiveFlow: [
+      ['단계적 정리 시 깔끔한 마무리'],
+      ['상호 합의 시 후행 부담 최소화'],
+      ['적절한 시점 결정 시 다음 단계 준비'],
+      ['감정 정리 완료 시 새 흐름 형성'],
+      ['솔직한 대화 시 관계 본질 명확화']
+    ],
+    negativeFlow: [
+      ['감정만으로 즉시 결정 시 후회 누적'],
+      ['일방적 통보 시 정리 흐름 험악화'],
+      ['미루기 누적 시 감정 피로 증대'],
+      ['확신 없이 결정 시 재시도 반복'],
+      ['표현 회피 시 관계 정체 굳어짐']
+    ],
+    essenceKey: [
+      ['"정리 가능성은 있지만, 시점이 후행 결과를 결정합니다"'],
+      ['"결단 의지는 형성됐지만, 방식이 결과를 가릅니다"'],
+      ['"마무리 시점은 신중히 검토 중이지만, 본질 점검이 핵심입니다"'],
+      ['"관계 변화는 명확하지만, 정리 방식이 분기점입니다"'],
+      ['"결정 흐름은 진행 중이지만, 단계적 접근이 안전합니다"']
+    ]
   }
 };
 
@@ -7194,6 +7414,393 @@ const LOVE_FINAL_BLOCK_MATRIX = {
       ['확정하는 시점이 아니라 본질을 정렬하는 단계'],
       ['진전을 강요하는 시점이 아니라 차이를 받아들이는 단계'],
       ['빠른 답을 찾는 시점이 아니라 결을 확인하는 단계']
+    ]
+  },
+  // [V27.0.6.C] 연애운 (general) — 전반적 연애 운세 톤
+  general: {
+    goodPath: [
+      ['자기 정리 완성 → 자연스러운 만남 형성'],
+      ['내면 준비 완료 → 좋은 인연 진입'],
+      ['감정 회복 → 새로운 관계 시작 가능'],
+      ['흐름 수용 → 적절한 시점에 인연 도착'],
+      ['주변 활동 확장 → 인연 가시화']
+    ],
+    badPath: [
+      ['지난 감정 집착 → 새 흐름 차단'],
+      ['조급함 누적 → 잘못된 인연 연결'],
+      ['내면 정리 미완 → 같은 패턴 반복'],
+      ['일방적 기대 → 만남 시점 지연'],
+      ['주변 활동 위축 → 인연 가능성 축소']
+    ],
+    finalKey: [
+      ['"자기 정리가 만남의 질을 결정한다"'],
+      ['"시점이 결과를 가른다"'],
+      ['"내면 준비가 분기점이다"'],
+      ['"감정 회복이 핵심 변수다"'],
+      ['"내면 정렬이 결정짓는 단계다"']
+    ],
+    finalAction: [
+      ['지금은 인연을 찾을 시점이 아니라 내면을 정리하는 단계'],
+      ['만남을 강요할 시점이 아니라 자기 흐름을 따르는 단계'],
+      ['빠른 만남을 추구할 시점이 아니라 회복하는 단계'],
+      ['새 관계를 서두를 시점이 아니라 준비를 마무리하는 단계'],
+      ['인연을 기다릴 시점이 아니라 자신을 정렬하는 단계']
+    ]
+  },
+  // [V27.0.6.B] 연락 (contact) — 신호·시점·표현 톤
+  contact: {
+    goodPath: [
+      ['적절한 시점 송신 → 자연스러운 응답 형성'],
+      ['부담 없는 신호 → 거리감 좁혀짐'],
+      ['타이밍 맞춤 → 흐름 회복'],
+      ['자연스러운 표현 → 응답 가능성 ↑'],
+      ['페이스 존중 → 연락 흐름 살아남']
+    ],
+    badPath: [
+      ['잦은 연락 → 부담으로 거리감 형성'],
+      ['확인 강요 → 응답 차단'],
+      ['시점 무시 → 신호 무게만 무거워짐'],
+      ['답장 강요 → 관계 식음'],
+      ['일방적 송신 → 침묵 굳어짐']
+    ],
+    finalKey: [
+      ['"시점이 응답의 질을 결정한다"'],
+      ['"부담 없는 표현이 핵심이다"'],
+      ['"페이스 존중이 결과를 가른다"'],
+      ['"강도가 흐름을 좌우한다"'],
+      ['"자연스러움이 결정짓는다"']
+    ],
+    finalAction: [
+      ['지금은 연락을 강요할 시점이 아니라 적절한 신호를 보내는 단계'],
+      ['답장을 기다리는 시점이 아니라 자기 흐름을 유지하는 단계'],
+      ['확인을 강요할 시점이 아니라 부담 없이 표현하는 단계'],
+      ['빈번한 송신 시점이 아니라 적절한 간격을 두는 단계'],
+      ['응답을 강요할 시점이 아니라 페이스를 존중하는 단계']
+    ]
+  },
+  // [V27.0.6.B] 재회 (reunion) — 회복·치유·재정렬 톤
+  reunion: {
+    goodPath: [
+      ['지난 패턴 변화 → 재회 가능성 형성'],
+      ['새 접근 방식 → 관계 재정렬 가능'],
+      ['감정 회복 완성 → 자연스러운 재시작'],
+      ['상호 준비 완료 → 본격 진전'],
+      ['적절한 시점 → 관계 재구축 시작']
+    ],
+    badPath: [
+      ['같은 패턴 반복 → 다시 같은 결말'],
+      ['감정 회복 미완 → 충돌 재발'],
+      ['일방적 재접근 → 거리감 굳어짐'],
+      ['시점 강요 → 회복 흐름 차단'],
+      ['지난 문제 미해결 → 결합 후 재충돌']
+    ],
+    finalKey: [
+      ['"변화 없이는 같은 결말로 직결된다"'],
+      ['"패턴 변화가 결정짓는다"'],
+      ['"시점이 결과를 가른다"'],
+      ['"새 접근이 핵심이다"'],
+      ['"준비 완성이 분기점이다"']
+    ],
+    finalAction: [
+      ['지금은 재회를 서두를 시점이 아니라 패턴 변화를 점검하는 단계'],
+      ['관계를 재시도할 시점이 아니라 새 접근을 준비하는 단계'],
+      ['만남을 강요할 시점이 아니라 감정 회복을 마무리하는 단계'],
+      ['연락을 시도할 시점이 아니라 자기 변화를 검증하는 단계'],
+      ['결단을 내릴 시점이 아니라 본질을 재정렬하는 단계']
+    ]
+  },
+  // [V27.0.6.B] 이별 (breakup) — 정리·결단·다음 단계 톤
+  breakup: {
+    goodPath: [
+      ['단계적 정리 → 깔끔한 마무리'],
+      ['상호 합의 → 후행 부담 최소화'],
+      ['적절한 시점 결정 → 다음 단계 준비'],
+      ['감정 정리 완료 → 새 흐름 형성'],
+      ['솔직한 대화 → 관계 본질 명확화']
+    ],
+    badPath: [
+      ['감정만으로 즉시 결정 → 후회 누적'],
+      ['일방적 통보 → 정리 흐름 험악화'],
+      ['미루기 누적 → 감정 피로 증대'],
+      ['확신 없이 결정 → 재시도 반복'],
+      ['표현 회피 → 관계 정체 굳어짐']
+    ],
+    finalKey: [
+      ['"시점이 후행 결과를 결정한다"'],
+      ['"방식이 결과를 가른다"'],
+      ['"본질 점검이 핵심이다"'],
+      ['"정리 방식이 분기점이다"'],
+      ['"단계적 접근이 안전하다"']
+    ],
+    finalAction: [
+      ['지금은 즉시 결정할 시점이 아니라 본질을 점검하는 단계'],
+      ['감정만으로 통보할 시점이 아니라 단계적으로 정리하는 단계'],
+      ['관계를 끊을 시점이 아니라 솔직한 대화를 시도하는 단계'],
+      ['결단을 내릴 시점이 아니라 지속 가능성을 검토하는 단계'],
+      ['빠른 마무리를 추구할 시점이 아니라 후행을 그려보는 단계']
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// [V27.1] LOVE_ACTION_BLOCK_MATRIX — 행동 가이드 핵심 키 다양화
+//   사장님 V27.0.6 통찰 확장: 9 서브타입 × 2 차원 × 3 변형
+//   대상 차원:
+//     actionKey  : 행동 핵심 키 (3 변형)
+//     avoidCore  : 피할 행동 핵심 (3 변형)
+//   다양성: 9 × 9 = 81가지 조합 (서브타입 매핑)
+//   효과: 같은 서브타입 다른 카드 = 다른 행동 키
+//   안전: content.action_core / content.avoid_action fallback
+// ══════════════════════════════════════════════════════════════════
+const LOVE_ACTION_BLOCK_MATRIX = {
+  thumb: {
+    actionKey: [
+      ['속도가 결과를 만드는 시점이 아니라 자연스러운 신호가 핵심인 단계'],
+      ['행동을 강요할 시점이 아니라 흐름을 따라가는 단계'],
+      ['확신을 만들 시점이 아니라 부드럽게 다가가는 단계']
+    ],
+    avoidCore: [
+      ['확신 강요 시 호감 식음'],
+      ['과속 진행 시 부담 형성'],
+      ['일방적 행동 시 거리감 굳어짐']
+    ]
+  },
+  crush: {
+    actionKey: [
+      ['감정을 키울 시점이 아니라 적절히 신호를 보내는 단계'],
+      ['혼자 결심할 시점이 아니라 부드럽게 표현하는 단계'],
+      ['망설일 시점이 아니라 용기 있게 행동하는 단계']
+    ],
+    avoidCore: [
+      ['표현 회피 시 기회 소실'],
+      ['혼자 감정만 키움 시 거리 고착'],
+      ['시점 놓칠 시 감정만 소진']
+    ]
+  },
+  mindread: {
+    actionKey: [
+      ['답을 강요할 시점이 아니라 신호를 관찰하는 단계'],
+      ['확인을 요구할 시점이 아니라 신뢰를 쌓는 단계'],
+      ['추측에 매달릴 시점이 아니라 시간을 두는 단계']
+    ],
+    avoidCore: [
+      ['확인 강요 시 본심 차단'],
+      ['질문 반복 시 표현 더 위축'],
+      ['압박 누적 시 진심 더 깊이 숨음']
+    ]
+  },
+  marriage: {
+    actionKey: [
+      ['결혼을 밀어붙일 시점이 아니라 본질을 점검하는 단계'],
+      ['감정만으로 결정할 시점이 아니라 조건 균형을 검증하는 단계'],
+      ['속도를 낼 시점이 아니라 단계적 합의를 쌓는 단계']
+    ],
+    avoidCore: [
+      ['감정만으로 결정 시 후행 충돌'],
+      ['조건 점검 회피 시 결합 후 부담'],
+      ['실무 미룰 시 진행 지연']
+    ]
+  },
+  compatibility: {
+    actionKey: [
+      ['결정을 내릴 시점이 아니라 관계를 자연스럽게 키워가는 단계'],
+      ['속도를 낼 시점이 아니라 페이스를 맞추는 단계'],
+      ['진전을 강요할 시점이 아니라 차이를 받아들이는 단계']
+    ],
+    avoidCore: [
+      ['차이 무시 시 후행 충돌 누적'],
+      ['일방적 진행 시 본질 합의 깨짐'],
+      ['속도 강요 시 자연스러움 소실']
+    ]
+  },
+  general: {
+    actionKey: [
+      ['인연을 찾을 시점이 아니라 내면을 정리하는 단계'],
+      ['만남을 강요할 시점이 아니라 자기 흐름을 따르는 단계'],
+      ['새 관계를 서두를 시점이 아니라 회복을 마무리하는 단계']
+    ],
+    avoidCore: [
+      ['지난 감정 집착 시 새 흐름 차단'],
+      ['조급함 누적 시 잘못된 인연 연결'],
+      ['일방적 기대 시 만남 시점 지연']
+    ]
+  },
+  contact: {
+    actionKey: [
+      ['연락을 강요할 시점이 아니라 적절한 신호를 보내는 단계'],
+      ['답장을 기다릴 시점이 아니라 자기 흐름을 유지하는 단계'],
+      ['확인을 강요할 시점이 아니라 부담 없이 표현하는 단계']
+    ],
+    avoidCore: [
+      ['잦은 연락 시 부담으로 거리감 형성'],
+      ['확인 강요 시 응답 차단'],
+      ['답장 강요 시 관계 식음']
+    ]
+  },
+  reunion: {
+    actionKey: [
+      ['재회를 서두를 시점이 아니라 패턴 변화를 점검하는 단계'],
+      ['관계 재시도할 시점이 아니라 새 접근을 준비하는 단계'],
+      ['만남을 강요할 시점이 아니라 감정 회복을 마무리하는 단계']
+    ],
+    avoidCore: [
+      ['같은 패턴 반복 시 다시 같은 결말'],
+      ['감정 회복 미완 시 충돌 재발'],
+      ['일방적 재접근 시 거리감 굳어짐']
+    ]
+  },
+  breakup: {
+    actionKey: [
+      ['즉시 결정할 시점이 아니라 본질을 점검하는 단계'],
+      ['감정만으로 통보할 시점이 아니라 단계적으로 정리하는 단계'],
+      ['관계를 끊을 시점이 아니라 솔직한 대화를 시도하는 단계']
+    ],
+    avoidCore: [
+      ['감정만으로 즉시 결정 시 후회 누적'],
+      ['일방적 통보 시 정리 흐름 험악화'],
+      ['미루기 누적 시 감정 피로 증대']
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// [V27.1] LOVE_TIMING_BLOCK_MATRIX — 타이밍 키 다양화
+//   대상 차원: timingKey (3 변형 × 9 서브타입 = 27 블록)
+// ══════════════════════════════════════════════════════════════════
+const LOVE_TIMING_BLOCK_MATRIX = {
+  thumb: {
+    timingKey: [
+      ['"흐름이 열리는 시점에 자연스럽게 다가가는 것"'],
+      ['"속도보다 신호의 결이 우선인 단계"'],
+      ['"부드러운 접근이 흐름을 만드는 구간"']
+    ]
+  },
+  crush: {
+    timingKey: [
+      ['"용기를 내야 하는 시점이 가까워지는 단계"'],
+      ['"신호 송신 적기가 형성되는 구간"'],
+      ['"표현 시점이 결과를 가르는 분기점"']
+    ]
+  },
+  mindread: {
+    timingKey: [
+      ['"신호 관찰이 답을 만드는 시점"'],
+      ['"본심이 자연스럽게 드러나는 구간"'],
+      ['"시간이 진실을 표면화하는 단계"']
+    ]
+  },
+  marriage: {
+    timingKey: [
+      ['"단계적 합의가 결정짓는 구간"'],
+      ['"실무 점검이 진전을 만드는 시점"'],
+      ['"본질 검증이 시기를 결정짓는 단계"']
+    ]
+  },
+  compatibility: {
+    timingKey: [
+      ['"페이스 맞춤이 깊이를 만드는 시점"'],
+      ['"차이 인정이 결합력을 결정짓는 구간"'],
+      ['"본질 정렬이 진전 시기를 만드는 단계"']
+    ]
+  },
+  general: {
+    timingKey: [
+      ['"내면 정리가 만남의 시점을 결정한다"'],
+      ['"자기 회복이 인연 시기를 만든다"'],
+      ['"흐름 수용이 다음 단계를 여는 시점"']
+    ]
+  },
+  contact: {
+    timingKey: [
+      ['"연락 강요가 아닌 자연스러운 시점이 핵심"'],
+      ['"부담 없는 신호가 응답 시기를 만든다"'],
+      ['"페이스 존중이 흐름을 살리는 시점"']
+    ]
+  },
+  reunion: {
+    timingKey: [
+      ['"패턴 변화 검증이 재회 시점을 결정한다"'],
+      ['"감정 회복 완성이 재시작 시기를 만든다"'],
+      ['"새 접근 준비가 진전을 여는 시점"']
+    ]
+  },
+  breakup: {
+    timingKey: [
+      ['"단계적 정리가 깔끔한 마무리를 만든다"'],
+      ['"본질 점검이 결정 시기를 결정한다"'],
+      ['"솔직한 대화가 후행을 안전하게 만든다"']
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// [V27.1] LOVE_RISKBOX_BLOCK_MATRIX — 리스크 박스 시나리오 다양화
+//   대상 차원: riskKey (3 변형 × 9 서브타입 = 27 블록)
+//   효과: 같은 서브타입 다른 카드 = 다른 리스크 키
+//   주의: LOVE_RISK_BLOCK_MATRIX(riskPhrase 한방 박스)와 별개 차원
+// ══════════════════════════════════════════════════════════════════
+const LOVE_RISKBOX_BLOCK_MATRIX = {
+  thumb: {
+    riskKey: [
+      ['"속도 차이가 호감을 식게 만드는 위험"'],
+      ['"확신 강요가 자연스러움을 깨는 위험"'],
+      ['"일방적 진행이 거리감을 굳게 만드는 위험"']
+    ]
+  },
+  crush: {
+    riskKey: [
+      ['"표현 회피가 기회를 소실시키는 위험"'],
+      ['"혼자 감정만 키움이 거리를 고착시키는 위험"'],
+      ['"망설임 누적이 평행선을 굳히는 위험"']
+    ]
+  },
+  mindread: {
+    riskKey: [
+      ['"확인 강요가 본심을 차단하는 위험"'],
+      ['"질문 반복이 표현을 위축시키는 위험"'],
+      ['"추측 의존이 오해를 누적시키는 위험"']
+    ]
+  },
+  marriage: {
+    riskKey: [
+      ['"감정만으로 결정 시 결합 후 충돌"'],
+      ['"조건 점검 회피 시 후행 부담"'],
+      ['"실무 미룸이 결합 구조를 흔드는 위험"']
+    ]
+  },
+  compatibility: {
+    riskKey: [
+      ['"차이 무시가 후행 충돌을 누적시키는 위험"'],
+      ['"일방적 진행이 본질 합의를 깨는 위험"'],
+      ['"속도 강요가 자연스러움을 잃게 만드는 위험"']
+    ]
+  },
+  general: {
+    riskKey: [
+      ['"지난 감정 집착이 새 흐름을 차단하는 위험"'],
+      ['"조급함이 잘못된 인연을 끌어들이는 위험"'],
+      ['"내면 정리 미완이 같은 패턴을 반복시키는 위험"']
+    ]
+  },
+  contact: {
+    riskKey: [
+      ['"잦은 연락이 부담으로 변하는 위험"'],
+      ['"확인 강요가 응답을 차단시키는 위험"'],
+      ['"답장 강요가 관계를 식게 하는 위험"']
+    ]
+  },
+  reunion: {
+    riskKey: [
+      ['"같은 패턴 반복이 같은 결말을 부르는 위험"'],
+      ['"감정 회복 미완이 충돌을 재발시키는 위험"'],
+      ['"일방적 재접근이 거리감을 굳히는 위험"']
+    ]
+  },
+  breakup: {
+    riskKey: [
+      ['"감정만으로 즉시 결정 시 후회 누적"'],
+      ['"일방적 통보가 정리 흐름을 험악하게 만드는 위험"'],
+      ['"미루기 누적이 감정 피로를 증대시키는 위험"']
     ]
   }
 };
@@ -7618,8 +8225,8 @@ function buildLoveOracleV25_24({ totalScore, cards, revFlags, loveSubType, numer
     boxes: {
       coreInsight: buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags),
       relationEssence: buildLoveRelationEssence(content, cards, revFlags, subtype, prompt),
-      actionGuide: buildLoveActionGuide(content),
-      timing: buildLoveTiming(content, numerology, cards),
+      actionGuide: buildLoveActionGuide(content, subtype, cards, prompt, revFlags),
+      timing: buildLoveTiming(content, numerology, cards, subtype, prompt, revFlags),
       risk: buildLoveRisk(content, subtype, cards, prompt, revFlags),
       final: buildLoveFinal(content, scoreCategory, subtype, cards, prompt, revFlags)
     },
