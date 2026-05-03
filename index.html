@@ -5221,6 +5221,10 @@ function _mapServerMetricsToInvestData(sm, cards) {
             //   효과: 5계층 빌더가 한방 박스 정상 노출 (LOVE 패턴 동일)
             pivotPhrase: sm.pivotPhrase || '',
             riskPhrase:  sm.riskPhrase  || '',
+            // [V28.A] ZEUS COMPOSITION ENGINE 데이터 매핑
+            //   서버 metrics.zeusV28 → 클라이언트 d.zeusV28
+            //   안전: 서버에서 V28 실패 시 zeusV28 = null → 기존 V27.0.4 박스 그대로
+            zeusV28: sm.zeusV28 || null,
             _server: sm
         };
     }
@@ -5248,6 +5252,8 @@ function _mapServerMetricsToInvestData(sm, cards) {
             //   주식·코인 모두 동일 매핑 (buildStockMetrics가 두 도메인 공용)
             pivotPhrase: sm.pivotPhrase || '',
             riskPhrase:  sm.riskPhrase  || '',
+            // [V28.A] ZEUS COMPOSITION ENGINE 데이터 매핑 (주식·코인)
+            zeusV28: sm.zeusV28 || null,
             _server: sm
         };
     }
@@ -6630,19 +6636,126 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
             // ────────────────────────────────────────────────
             // 최종 결합 — 도메인별 순서 다름
             // ────────────────────────────────────────────────
+            // ────────────────────────────────────────────────
+            // [V28.A] V28 박스 추가 (주식·코인·부동산만, LOVE 제외)
+            //   사장님 V28 + 7가지 보강 데이터 노출
+            //   안전: serverMetrics.zeusV28 없으면 빈 문자열 (Fallback)
+            const _zeusV28Data = (window._serverMetrics && window._serverMetrics.zeusV28) || null;
+            const _isSellMode = (window._serverMetrics && window._serverMetrics.stockIntent === 'sell');
+            const v28BoxHTML = (domain === 'realestate' || domain === 'stock' || domain === 'crypto')
+                ? _v28RenderBox(_zeusV28Data, _isSellMode)
+                : '';
+            
             if (domain === 'love') {
                 // 연애: Decision → Mind → Action → Timing → Signal → Risk → Rules → Critical
                 return decisionHTML + mindHTML + executionHTML + timingHTML + signalHTML + riskHTML + rulesHTML + criticalInterpHTML;
             } else if (domain === 'realestate') {
-                // 부동산: Decision → Market → Execution → Contract → Timing → Signal → Risk → Rules → Critical
-                return decisionHTML + marketHTML + executionHTML + contractHTML + timingHTML + signalHTML + riskHTML + rulesHTML + criticalInterpHTML;
+                // 부동산: Decision → Market → Execution → Contract → Timing → Signal → Risk → Rules → Critical → V28
+                return decisionHTML + marketHTML + executionHTML + contractHTML + timingHTML + signalHTML + riskHTML + rulesHTML + criticalInterpHTML + v28BoxHTML;
             } else {
-                // 주식/코인: Decision → Execution → Timing → Signal → Risk → Rules → Critical
-                return decisionHTML + executionHTML + timingHTML + signalHTML + riskHTML + rulesHTML + criticalInterpHTML;
+                // 주식/코인: Decision → Execution → Timing → Signal → Risk → Rules → Critical → V28
+                return decisionHTML + executionHTML + timingHTML + signalHTML + riskHTML + rulesHTML + criticalInterpHTML + v28BoxHTML;
             }
         }
 
         // ── 🔒 방호벽: 주식/코인 전용 렌더러 [V20.0] 5계층 우선 + 기존 폴백
+        // [V28.A] ZEUS COMPOSITION ENGINE 박스 렌더 헬퍼 — 주식·코인·부동산 공용
+        //   사장님 V28 + 7가지 보강 데이터를 사용자에게 노출
+        //   안전: zeusV28 데이터 없으면 빈 문자열 반환 (Fallback / Regression 0)
+        //   설계: 기존 박스 위에 추가 (기존 박스 그대로 보존)
+        function _v28RenderBox(zeusV28, isSellMode) {
+            if (!zeusV28 || typeof zeusV28 !== 'object') return '';
+            
+            const intentLabel = zeusV28.intent === 'sell' ? '매도 흐름'
+                              : zeusV28.intent === 'hold' ? '보유 흐름'
+                              : '진입 흐름';
+            const accentColor = zeusV28.intent === 'sell' ? '#5DADE2'
+                              : zeusV28.intent === 'hold' ? '#F1C40F'
+                              : '#2ecc71';
+            
+            // FINAL 박스 (CORE + TONE 조합)
+            const finalText = zeusV28.finalText || zeusV28.core || '';
+            
+            // RISK_POINTS 박스 (3개 랜덤 추출)
+            const risksHTML = (Array.isArray(zeusV28.risks) && zeusV28.risks.length > 0)
+                ? zeusV28.risks.map(r => 
+                    `<div style="padding:6px 10px; margin:6px 0; 
+                                background: rgba(231,76,60,0.06); 
+                                border-left: 3px solid rgba(231,76,60,0.5); 
+                                border-radius: 0 6px 6px 0;
+                                font-size: 0.86rem; color: rgba(255,255,255,0.85); 
+                                line-height: 1.6;">
+                        ⚠️ ${r}
+                    </div>`).join('')
+                : '';
+            
+            // GUIDE 박스 (3개 행동 지침)
+            const guidesHTML = (Array.isArray(zeusV28.guides) && zeusV28.guides.length > 0)
+                ? zeusV28.guides.map(g => 
+                    `<div style="padding:6px 10px; margin:6px 0; 
+                                background: rgba(46,204,113,0.05); 
+                                border-left: 3px solid rgba(46,204,113,0.5); 
+                                border-radius: 0 6px 6px 0;
+                                font-size: 0.86rem; color: rgba(255,255,255,0.85); 
+                                line-height: 1.6;">
+                        ✔ ${g}
+                    </div>`).join('')
+                : '';
+            
+            // TIMING 박스
+            const timingText = zeusV28.timing || '';
+            
+            return `
+                <div style="margin-top:24px; padding:18px 16px;
+                            background: linear-gradient(135deg, rgba(212,175,55,0.06), rgba(255,255,255,0.02));
+                            border: 1px solid rgba(212,175,55,0.25);
+                            border-radius: 12px;">
+                    <div style="font-size:0.78rem; color:#FFD970; font-weight:800; letter-spacing:0.1em; margin-bottom:14px; text-align:center;">
+                        ⚡ ZEUS DEEP ANALYSIS ⚡
+                    </div>
+                    
+                    ${finalText ? `
+                    <div style="margin-bottom:18px; padding:12px 14px; 
+                                background: rgba(${zeusV28.intent === 'sell' ? '93,173,226' : zeusV28.intent === 'hold' ? '241,196,15' : '46,204,113'},0.06);
+                                border-left: 3px solid ${accentColor};
+                                border-radius: 0 8px 8px 0;">
+                        <div style="font-size: 0.76rem; color: ${accentColor}; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.05em;">
+                            🔥 ${intentLabel} 핵심 진단
+                        </div>
+                        <div style="font-size: 0.92rem; color: #fff; line-height: 1.75; font-weight: 500;">
+                            ${finalText}
+                        </div>
+                    </div>` : ''}
+                    
+                    ${risksHTML ? `
+                    <div style="margin-bottom:14px;">
+                        <div style="font-size: 0.76rem; color: #FF8080; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.05em;">
+                            ⚠️ 핵심 리스크 포인트
+                        </div>
+                        ${risksHTML}
+                    </div>` : ''}
+                    
+                    ${guidesHTML ? `
+                    <div style="margin-bottom:14px;">
+                        <div style="font-size: 0.76rem; color: #7ad188; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.05em;">
+                            🛡 행동 지침
+                        </div>
+                        ${guidesHTML}
+                    </div>` : ''}
+                    
+                    ${timingText ? `
+                    <div style="padding: 10px 12px;
+                                background: rgba(212,175,55,0.06);
+                                border: 1px solid rgba(212,175,55,0.25);
+                                border-radius: 8px;
+                                font-size: 0.84rem; color: rgba(255,255,255,0.85); 
+                                line-height: 1.65;">
+                        <span style="color: #FFD970; font-weight: 700;">⏱ 타이밍 가이드:</span>
+                        ${timingText}
+                    </div>` : ''}
+                </div>`;
+        }
+        
         function _renderStockBlock(d) {
             const isStock = d && (d.type === 'stock' || d.type === 'crypto');
             if (!isStock) return '';
@@ -8730,12 +8843,41 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
                     { icon: '⚡', title: '행동 타이밍 가이드', preview: '단기·중기·장기 행동 시점과 수비학 기반 황금 시간대 분석...' }
                 ];
             } else if (_activeDomain === 'stock' || _activeDomain === 'crypto') {
+                // [V27.2.C] 매수/매도 의도 분기 — 잠금 해제 박스 약속이 결과와 일치
+                //   사장님 진단: "매도 점사인데 진입 트리거 시그널 약속" = 약속·결과 불일치
+                //   해결: stockIntent (sell/buy) 따라 잠금 해제 박스 어휘 분기
+                //   안전: 약속 = 결제 후 결과 100% 일치 → 환불 분쟁 차단
+                const _smIntent = (window._serverMetrics && window._serverMetrics.stockIntent) || 'buy';
+                const _isStockSell = (_smIntent === 'sell');
+                if (_isStockSell) {
+                    // 매도 시나리오 — 결제 후 결과: 매도 비중 / 익절 구간 / 손실 한도
+                    return [
+                        { icon: '📊', title: '5차원 영성 분석', preview: '카드별 base/관계/리스크/변동성/불확실성 점수 시각화...' },
+                        { icon: '🎯', title: '익절·매도 시그널', preview: '익절 구간과 단계적 매도 흐름의 카드 기반 정밀 해석...' },
+                        { icon: '⚡', title: '수비학 황금 시간대', preview: '카드 에너지가 정점에 이르는 정확한 요일·시간대 분석...' }
+                    ];
+                }
+                // 매수 시나리오 — 결제 후 결과: 진입 트리거 / 1차 신호 / 2차 확정
                 return [
                     { icon: '📊', title: '5차원 영성 분석', preview: '카드별 base/관계/리스크/변동성/불확실성 점수 시각화...' },
                     { icon: '🎯', title: '진입 트리거 시그널', preview: '객관적 신호 충족 시 단계별 비중 조정 흐름과 타이밍...' },
                     { icon: '⚡', title: '수비학 황금 시간대', preview: '카드 에너지가 정점에 이르는 정확한 요일·시간대 분석...' }
                 ];
             } else if (_activeDomain === 'realestate') {
+                // [V27.2.C] 부동산 매수/매도 의도 분기 — 약속·결과 일치
+                //   사장님 진단 동일 로직 적용 (주식·코인과 같은 결함 가능성)
+                const _reIntent = (window._serverMetrics && window._serverMetrics.realEstateIntent)
+                    || (window._serverMetrics && window._serverMetrics.stockIntent) || 'buy';
+                const _isReSell = (_reIntent === 'sell');
+                if (_isReSell) {
+                    // 매도 시나리오
+                    return [
+                        { icon: '🏛️', title: '시장 흐름 심층 분석', preview: '향후 시즌별 거래 가능성과 가격 협상 여지의 깊이...' },
+                        { icon: '📅', title: '매도 황금 시점', preview: '카드 에너지가 매도·계약 성사에 가장 적합한 월·주 분석...' },
+                        { icon: '🛡️', title: '리스크 회피 가이드', preview: '금리·규제·실거래가 변수의 카드별 영향도 분석...' }
+                    ];
+                }
+                // 매수 시나리오
                 return [
                     { icon: '🏛️', title: '시장 흐름 심층 분석', preview: '향후 시즌별 거래 가능성과 가격 협상 여지의 깊이...' },
                     { icon: '📅', title: '계약 황금 시점', preview: '카드 에너지가 부동산 거래에 가장 적합한 월·주 분석...' },
