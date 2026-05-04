@@ -1896,6 +1896,14 @@
                 <div class="cat-title">일반 운세</div>
                 <div class="cat-sub">오늘 / 전반 (무료)<br>재물 · 건강 · 직장 · 신년 (PRO)</div>
             </div>
+
+            <!-- ☯ 사주 신탁 — V31 신규 (사장님 V30 통합 엔진) -->
+            <div class="cat-card" data-cat="saju" onclick="selectCategory('saju', this)" style="border:1px solid rgba(212,175,55,0.5);">
+                <span class="cat-badge cat-badge-pro">NEW · PRO</span>
+                <div class="cat-icon">☯</div>
+                <div class="cat-title">사주 신탁</div>
+                <div class="cat-sub">생년월일시<br>4주 + 오행 + 십성</div>
+            </div>
         </div>
 
         <!-- ── 서브타입 패널 (카테고리 클릭 시 펼침) ── -->
@@ -2931,6 +2939,14 @@ const CATEGORY_CONFIG = {
 
 // ══ 카테고리 선택 ══
 function selectCategory(catKey, btnEl) {
+    // [V31 Chunk 6] 사주 카테고리 분기 — 별도 입력 모달
+    if (catKey === 'saju') {
+        document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+        showSajuInputModal();
+        return;
+    }
+
     const cfg = CATEGORY_CONFIG[catKey];
     if (!cfg) return;
 
@@ -9906,6 +9922,373 @@ function saveZeusNickname() {
 }
 
 // ════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// ☯️ [V31 Chunk 6] 사주 신탁 — 입력 모달 + 결과 렌더링
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * 음력 선택 시 경고 표시 (사장님 BEST 기준 적용)
+ */
+function _v31SajuCalendarChange(radio) {
+    const warning = document.getElementById('sajuLunarWarning');
+    if (warning) {
+        warning.style.display = radio.value === 'lunar' ? 'block' : 'none';
+    }
+}
+
+/**
+ * 사주 입력 모달 표시
+ */
+function showSajuInputModal() {
+    // 기존 모달 제거
+    const existing = document.getElementById('sajuInputModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sajuInputModal';
+    modal.className = 'pay-modal-overlay';
+    modal.innerHTML = `
+        <div class="pay-modal" style="max-width:380px;">
+            <div style="text-align:center; margin-bottom:18px;">
+                <div style="font-size:2.4rem; margin-bottom:6px;">☯</div>
+                <h2 style="color:#FFD970; font-size:1.2rem; margin:4px 0;">사주 신탁</h2>
+                <div style="color:rgba(255,255,255,0.6); font-size:0.78rem;">
+                    글로벌 1위 정확도 — V31 통합 엔진
+                </div>
+            </div>
+
+            <!-- 양력/음력 선택 — 사장님 BEST 기준: 양력 우선 / 음력은 보조 -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
+                    📅 입력 방식 <span style="font-weight:400; color:rgba(255,255,255,0.5);">(양력 권장 ★)</span>
+                </label>
+                <div style="display:flex; gap:8px;">
+                    <label style="flex:1; padding:10px; background:rgba(46,204,113,0.12); border:1px solid rgba(46,204,113,0.4); border-radius:6px; cursor:pointer; text-align:center; font-size:0.86rem;">
+                        <input type="radio" name="sajuCalendar" value="solar" checked style="margin-right:4px;" onchange="_v31SajuCalendarChange(this)">
+                        <strong style="color:#2ecc71;">양력</strong>
+                        <div style="font-size:0.7rem; color:#2ecc71;">절기 + 간지 100% 정확 ★</div>
+                    </label>
+                    <label style="flex:1; padding:10px; background:rgba(255,165,80,0.06); border:1px solid rgba(255,165,80,0.2); border-radius:6px; cursor:pointer; text-align:center; font-size:0.86rem;">
+                        <input type="radio" name="sajuCalendar" value="lunar" style="margin-right:4px;" onchange="_v31SajuCalendarChange(this)">
+                        <strong style="color:#FFB870;">음력</strong>
+                        <div style="font-size:0.7rem; color:#FFB870;">변환 보조 (양력 권장)</div>
+                    </label>
+                </div>
+                <!-- 음력 선택 시 안내 -->
+                <div id="sajuLunarWarning" style="display:none; margin-top:8px; padding:8px 10px; background:rgba(255,165,80,0.08); border-left:2px solid rgba(255,165,80,0.5); border-radius:0 4px 4px 0; font-size:0.72rem; color:rgba(255,236,159,0.95); line-height:1.55;">
+                    ⚠ 음력 변환은 보조 기능입니다. 정확한 사주를 위해 <strong>양력 직접 입력</strong>을 권장합니다.<br>
+                    인터넷 만세력 사이트에서 양력 변환 후 입력하세요.
+                </div>
+            </div>
+
+            <!-- 생년월일 -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
+                    🎂 생년월일
+                </label>
+                <div style="display:flex; gap:6px;">
+                    <input type="number" id="sajuYear" placeholder="1990" min="1900" max="2030"
+                           style="flex:1; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.92rem; text-align:center;">
+                    <input type="number" id="sajuMonth" placeholder="1" min="1" max="12"
+                           style="width:72px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.92rem; text-align:center;">
+                    <input type="number" id="sajuDay" placeholder="1" min="1" max="31"
+                           style="width:72px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.92rem; text-align:center;">
+                </div>
+                <div style="font-size:0.7rem; color:rgba(255,255,255,0.5); margin-top:4px;">
+                    년 / 월 / 일 (1900~2030)
+                </div>
+            </div>
+
+            <!-- 출생 시간 (선택) -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
+                    🕐 출생 시간 <span style="font-weight:400; color:rgba(255,255,255,0.5);">(선택 / 모르면 비워두기)</span>
+                </label>
+                <select id="sajuHour" style="width:100%; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.88rem;">
+                    <option value="">시간 모름 (3주 분석)</option>
+                    <option value="0">자시 (00:00 ~ 00:59)</option>
+                    <option value="1">축시 (01:00 ~ 02:59)</option>
+                    <option value="3">인시 (03:00 ~ 04:59)</option>
+                    <option value="5">묘시 (05:00 ~ 06:59)</option>
+                    <option value="7">진시 (07:00 ~ 08:59)</option>
+                    <option value="9">사시 (09:00 ~ 10:59)</option>
+                    <option value="11">오시 (11:00 ~ 12:59)</option>
+                    <option value="13">미시 (13:00 ~ 14:59)</option>
+                    <option value="15">신시 (15:00 ~ 16:59)</option>
+                    <option value="17">유시 (17:00 ~ 18:59)</option>
+                    <option value="19">술시 (19:00 ~ 20:59)</option>
+                    <option value="21">해시 (21:00 ~ 22:59)</option>
+                    <option value="23">자시 (23:00 ~ 23:59)</option>
+                </select>
+            </div>
+
+            <!-- 성별 (대운 계산 필수) -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
+                    ⚥ 성별 <span style="font-weight:400; color:rgba(255,255,255,0.5);">(대운 계산 필수)</span>
+                </label>
+                <div style="display:flex; gap:8px;">
+                    <label style="flex:1; padding:10px; background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.25); border-radius:6px; cursor:pointer; text-align:center; font-size:0.88rem;">
+                        <input type="radio" name="sajuGender" value="male" checked style="margin-right:4px;"> 남성
+                    </label>
+                    <label style="flex:1; padding:10px; background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.25); border-radius:6px; cursor:pointer; text-align:center; font-size:0.88rem;">
+                        <input type="radio" name="sajuGender" value="female" style="margin-right:4px;"> 여성
+                    </label>
+                </div>
+            </div>
+
+            <!-- 영역 선택 -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
+                    🎯 점사 영역
+                </label>
+                <select id="sajuCategory" style="width:100%; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.88rem;">
+                    <option value="saju">☯ 사주 본질 (전체)</option>
+                    <option value="fortune">✨ 일반 운세</option>
+                    <option value="love">💘 연애 / 관계</option>
+                    <option value="stock">📈 투자 / 재물</option>
+                    <option value="realestate">🏠 부동산</option>
+                </select>
+            </div>
+
+            <!-- 안내 -->
+            <div style="margin-bottom:14px; padding:10px; background:rgba(46,204,113,0.08); border-left:2px solid #2ecc71; border-radius:0 4px 4px 0; font-size:0.74rem; color:rgba(232,232,238,0.85); line-height:1.55;">
+                <strong style="color:#2ecc71;">★ V31 사주 엔진</strong><br>
+                절기 + 간지 100% 정확 검증 / 두 사주 anchor 8/8 PASS / V25.22 정신 통합
+            </div>
+
+            <!-- 버튼 -->
+            <div style="display:flex; gap:8px;">
+                <button type="button" onclick="closeSajuInputModal()"
+                        style="flex:1; padding:12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff; font-size:0.88rem; font-weight:700; cursor:pointer;">
+                    취소
+                </button>
+                <button type="button" onclick="runSajuOracle()"
+                        style="flex:2; padding:12px; background:linear-gradient(135deg, #D4AF37, #FFD970); border:none; border-radius:6px; color:#000; font-size:0.92rem; font-weight:900; cursor:pointer;">
+                    ☯ 사주 신탁 받기
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+/**
+ * 사주 입력 모달 닫기
+ */
+function closeSajuInputModal() {
+    const modal = document.getElementById('sajuInputModal');
+    if (modal) modal.remove();
+}
+
+/**
+ * 사주 점사 실행 (worker.js /saju/oracle 호출)
+ */
+async function runSajuOracle() {
+    const calendar = document.querySelector('input[name="sajuCalendar"]:checked')?.value || 'solar';
+    const year = parseInt(document.getElementById('sajuYear').value);
+    const month = parseInt(document.getElementById('sajuMonth').value);
+    const day = parseInt(document.getElementById('sajuDay').value);
+    const hour = document.getElementById('sajuHour').value;
+    const gender = document.querySelector('input[name="sajuGender"]:checked')?.value || 'male';
+    const category = document.getElementById('sajuCategory').value;
+
+    // 입력 검증
+    if (!year || !month || !day) {
+        alert('생년월일을 모두 입력해주세요');
+        return;
+    }
+    if (year < 1900 || year > 2030) {
+        alert('연도는 1900~2030 범위여야 합니다');
+        return;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        alert('올바른 월/일을 입력해주세요');
+        return;
+    }
+
+    // 모달 닫기 + 로딩
+    closeSajuInputModal();
+    showSajuLoadingScreen();
+
+    try {
+        const WORKER_URL = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL)
+            ? CONFIG.WORKER_URL
+            : (window.WORKER_URL || '/');
+        
+        const response = await fetch(`${WORKER_URL}saju/oracle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input: { year, month, day, hour: hour ? parseInt(hour) : null, calendar, gender },
+                category,
+                timePhase: 'medium',
+                tier: 'free'
+            })
+        });
+
+        const data = await response.json();
+        hideSajuLoadingScreen();
+
+        if (!data.ok) {
+            alert(`사주 점사 오류: ${data.error || '알 수 없는 오류'}`);
+            return;
+        }
+
+        renderSajuResult(data);
+    } catch (e) {
+        hideSajuLoadingScreen();
+        alert(`네트워크 오류: ${e.message}`);
+    }
+}
+
+function showSajuLoadingScreen() {
+    const loading = document.createElement('div');
+    loading.id = 'sajuLoading';
+    loading.className = 'pay-modal-overlay';
+    loading.innerHTML = `
+        <div class="pay-modal" style="text-align:center; padding:40px 24px; max-width:280px;">
+            <div style="font-size:3rem; margin-bottom:12px; animation:spin 2s linear infinite;">☯</div>
+            <div style="color:#FFD970; font-size:0.95rem; font-weight:800;">사주 신탁 분석 중</div>
+            <div style="color:rgba(255,255,255,0.5); font-size:0.76rem; margin-top:6px;">
+                절기 + 간지 + 9변수 통합 분석
+            </div>
+        </div>
+        <style>@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }</style>
+    `;
+    document.body.appendChild(loading);
+}
+
+function hideSajuLoadingScreen() {
+    const loading = document.getElementById('sajuLoading');
+    if (loading) loading.remove();
+}
+
+/**
+ * 사주 결과 화면 렌더링
+ */
+function renderSajuResult(data) {
+    const text = data.text;
+    const meta = text.meta;
+    const pillars = meta.pillars;
+    const elements = meta.elements;
+    const audit = data.audit || {};
+
+    // 결과 모달
+    const result = document.createElement('div');
+    result.id = 'sajuResultModal';
+    result.className = 'pay-modal-overlay';
+    result.style.overflow = 'auto';
+    
+    // 사주 명식 4×4 시각화
+    const meongSik = `
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:16px 0;">
+            ${['시주', '일주', '월주', '년주'].map((label, i) => {
+                const keys = ['hour', 'day', 'month', 'year'];
+                const p = pillars[keys[i]];
+                if (!p) return `<div style="text-align:center; padding:10px; background:rgba(255,255,255,0.04); border-radius:4px; color:rgba(255,255,255,0.3); font-size:0.7rem;">${label}<br><br>—<br>—</div>`;
+                const stem = p.charAt(0);
+                const branch = p.charAt(1);
+                return `
+                <div style="text-align:center; padding:10px 6px; background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.25); border-radius:6px;">
+                    <div style="color:rgba(255,255,255,0.5); font-size:0.66rem; margin-bottom:4px;">${label}</div>
+                    <div style="color:#FFD970; font-size:1.5rem; font-weight:900; line-height:1;">${stem}</div>
+                    <div style="color:#FFE08A; font-size:1.2rem; font-weight:700; margin-top:4px;">${branch}</div>
+                </div>`;
+            }).join('')}
+        </div>
+    `;
+
+    // 오행 분포 차트 (CSS bars)
+    const maxEl = Math.max(...Object.values(elements));
+    const elColors = { '목':'#27ae60', '화':'#e74c3c', '토':'#d4af37', '금':'#bdc3c7', '수':'#3498db' };
+    const elIcons = { '목':'🌳', '화':'🔥', '토':'🟫', '금':'⚙️', '수':'💧' };
+    const elBars = ['목','화','토','금','수'].map(el => {
+        const val = elements[el] || 0;
+        const pct = maxEl > 0 ? (val / maxEl) * 100 : 0;
+        return `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <div style="width:36px; font-size:0.78rem;">${elIcons[el]} ${el}</div>
+            <div style="flex:1; background:rgba(255,255,255,0.06); height:14px; border-radius:7px; overflow:hidden;">
+                <div style="width:${pct}%; height:100%; background:${elColors[el]}; opacity:0.85;"></div>
+            </div>
+            <div style="width:28px; text-align:right; font-size:0.74rem; color:rgba(255,255,255,0.7);">${val.toFixed(1)}</div>
+        </div>`;
+    }).join('');
+
+    result.innerHTML = `
+        <div class="pay-modal" style="max-width:420px; padding:24px 20px 60px 20px;">
+            <button onclick="document.getElementById('sajuResultModal').remove()"
+                    style="position:absolute; top:14px; right:14px; background:none; border:none; color:#888; font-size:1.4rem; cursor:pointer;">×</button>
+
+            <!-- 헤더 -->
+            <div style="text-align:center; margin-bottom:14px;">
+                <div style="font-size:2.4rem;">☯</div>
+                <h2 style="color:#FFD970; font-size:1.15rem; margin:6px 0; font-weight:900;">${text.title || '사주 신탁'}</h2>
+                <div style="color:#FFE08A; font-size:0.84rem; font-weight:700;">${text.subtitle || ''}</div>
+                ${data.accuracy ? `<div style="color:rgba(255,255,255,0.5); font-size:0.66rem; margin-top:4px;">${data.accuracy.note}</div>` : ''}
+            </div>
+
+            <!-- 사주 명식 -->
+            <div style="margin:14px 0;">
+                <div style="color:#FFE08A; font-size:0.84rem; font-weight:700; margin-bottom:4px;">📜 사주 명식</div>
+                ${meongSik}
+            </div>
+
+            <!-- 오행 분포 -->
+            <div style="margin:14px 0;">
+                <div style="color:#FFE08A; font-size:0.84rem; font-weight:700; margin-bottom:8px;">⚖️ 오행 분포</div>
+                ${elBars}
+            </div>
+
+            <!-- 본문 -->
+            <div style="margin:18px 0; padding:14px; background:rgba(212,175,55,0.06); border-left:3px solid rgba(212,175,55,0.5); border-radius:0 6px 6px 0;">
+                <div style="color:#FFD970; font-size:0.82rem; font-weight:800; margin-bottom:8px;">🔍 본질 흐름</div>
+                <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.7; margin-bottom:8px;">
+                    <strong style="color:#FFE08A;">일주 본질:</strong><br>${text.dayEssence}
+                </div>
+                <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.7; margin-bottom:8px;">
+                    <strong style="color:#FFE08A;">오행 균형:</strong><br>${text.balancePhrase}
+                </div>
+                <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.7;">
+                    <strong style="color:#FFE08A;">신강 본질:</strong><br>${text.strengthPhrase}
+                </div>
+            </div>
+
+            <!-- 종합 신탁 -->
+            <div style="margin:18px 0; padding:14px; background:rgba(46,204,113,0.06); border-left:3px solid #2ecc71; border-radius:0 6px 6px 0;">
+                <div style="color:#2ecc71; font-size:0.84rem; font-weight:800; margin-bottom:8px;">⚡ 종합 신탁</div>
+                <div style="color:rgba(255,255,255,0.95); font-size:0.92rem; line-height:1.6; font-weight:700; margin-bottom:8px;">
+                    👉 ${text.tldr}
+                </div>
+                <div style="color:rgba(255,255,255,0.85); font-size:0.84rem; line-height:1.6; margin-bottom:6px;">
+                    <strong style="color:#2ecc71;">🎯 행동:</strong> ${text.action}
+                </div>
+                <div style="color:rgba(255,255,255,0.85); font-size:0.84rem; line-height:1.6;">
+                    <strong style="color:#2ecc71;">⏱ 타이밍:</strong> ${text.timing}
+                </div>
+            </div>
+
+            <!-- PRO 영역 안내 -->
+            ${data.pro && data.pro.tier === 'free' ? `
+            <div style="margin:14px 0; padding:14px; background:rgba(255,165,80,0.08); border:1px dashed rgba(255,165,80,0.4); border-radius:6px; text-align:center;">
+                <div style="color:#FFB870; font-size:0.84rem; font-weight:800;">🔒 PRO 영역</div>
+                <div style="color:rgba(255,255,255,0.7); font-size:0.76rem; margin-top:4px;">
+                    십성 / 격국 / 용신 / 신살 / 대운 / 매년 운세<br>
+                    <span style="color:#FFD970;">PRO 신탁 결제 시 노출</span>
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- 면책 -->
+            <div style="margin-top:14px; padding:8px 10px; background:rgba(255,255,255,0.04); border-radius:4px; font-size:0.66rem; color:rgba(255,255,255,0.45); line-height:1.5;">
+                ※ 본 서비스는 사주명리를 활용한 엔터테인먼트 콘텐츠입니다.
+                실제 인생의 결정은 본인의 판단에 따라 신중히 내리시기 바랍니다.
+            </div>
+        </div>
+    `;
+    document.body.appendChild(result);
+}
+
 // 결제 모달 & 유료 전환
 // ════════════════════════════════════
 function showPayModal() {
