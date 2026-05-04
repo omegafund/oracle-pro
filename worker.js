@@ -6721,6 +6721,10 @@ function v31GenerateText(sajuData, judgeResult) {
  * @param {string} tier - 'free' | 'day' | 'month' | 'lifetime'
  * @returns {Object} PRO 콘텐츠
  */
+/**
+ * V31 #137 — PRO 콘텐츠 정밀 생성
+ * 사장님 진단 #137 적용: 십성/12운성/격국/신살 모두 정밀화
+ */
 function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
   const { schema, scenarioKey, matrix, category } = judgeResult;
   const { strength, meta } = sajuData;
@@ -6739,66 +6743,188 @@ function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
     return proContent;
   }
 
+  // ★ [V31 #137] 정밀 추론 한 번 실행 (모든 PRO 영역에서 활용)
+  const tenStars = v31CalcTenStars(sajuData);
+  const luckPhase = v31CalcLuckPhase(sajuData);
+  const gyeokGuk = v31InferGyeokGuk(sajuData, tenStars);
+  const shinSal = v31DetectShinSal(sajuData);
+
   // ── PRO 1일권 (3,900원) ──
   if (tier === 'day' || tier === 'month' || tier === 'lifetime') {
     proContent.available = true;
     proContent.locked = false;
 
-    // 십성 간이 분석
+    // ★ [V31 #137] 십성 정밀 분석
+    const dominantSipsung = tenStars.dominant;
+    const subSipsung = tenStars.sub || [];
+    let tenStarsContent = '';
+    
+    if (dominantSipsung) {
+      const domInfo = V31_TEN_STARS_MATRIX[dominantSipsung];
+      const domCount = tenStars.distribution[dominantSipsung].toFixed(1);
+      
+      tenStarsContent = `당신의 사주는 ${domInfo.name}이 가장 강한 흐름입니다 (${domCount}점)\n\n`;
+      tenStarsContent += `▸ 본질: ${domInfo.meaning}\n`;
+      tenStarsContent += `▸ 강한 점: ${domInfo.strong}\n`;
+      tenStarsContent += `▸ 주의 점: ${domInfo.weak}\n`;
+      tenStarsContent += `▸ 적합 직업: ${domInfo.job}\n`;
+      
+      if (subSipsung.length > 0) {
+        const subList = subSipsung.map(s => {
+          const info = V31_TEN_STARS_MATRIX[s];
+          const cnt = tenStars.distribution[s].toFixed(1);
+          return `${info.short}(${cnt})`;
+        }).join(', ');
+        tenStarsContent += `\n▸ 보조 흐름: ${subList}`;
+      }
+      
+      // 전체 분포 표시
+      const distribStr = Object.entries(tenStars.distribution)
+        .filter(([k, v]) => v > 0)
+        .map(([k, v]) => `${V31_TEN_STARS_MATRIX[k].short} ${v.toFixed(1)}`)
+        .join(' · ');
+      tenStarsContent += `\n\n📊 십성 분포: ${distribStr}`;
+    } else {
+      tenStarsContent = '십성 분포가 매우 고르게 형성된 균형형 사주입니다.';
+    }
+    
     proContent.tenStars = {
-      title: '십성 간이 분석',
-      content: `일간 ${meta.dayMaster}(${meta.dayMasterElement}) 기준 십성 분포가 ${strength.level === 'strong' ? '균형 잡힌' : strength.level === 'weak' ? '협력 활용 효과적인' : '안정적인'} 흐름으로 형성되어 있습니다`
+      title: `⭐ 십성 정밀 분석 — ${dominantSipsung || '균형형'}`,
+      content: tenStarsContent,
+      data: tenStars  // 디버그/추가 활용용
     };
 
-    // 깊이 통찰
+    // ★ [V31 #137] 깊이 통찰 - 사주 본질 정밀
+    let deepInsightContent = '';
+    
+    if (gyeokGuk.gyeokGuk && gyeokGuk.info) {
+      deepInsightContent = `🔮 ${gyeokGuk.info.name}\n\n`;
+      deepInsightContent += `${gyeokGuk.info.description}\n\n`;
+      deepInsightContent += `▸ 본 격국의 강점: ${gyeokGuk.info.strong_point}\n`;
+      deepInsightContent += `▸ 운세 흐름: ${gyeokGuk.info.fortune}\n`;
+      deepInsightContent += `▸ 적합 진로: ${gyeokGuk.info.suitable_career}`;
+    } else {
+      // 격국 분류 어려운 경우 — 일간 + 신강신약 기반
+      const strengthDesc = strength.level === 'strong' ? '강한' : strength.level === 'weak' ? '약한' : '균형 잡힌';
+      deepInsightContent = `당신의 사주는 일간 ${meta.dayMaster}(${meta.dayMasterElement}) 기준 ${strengthDesc} 흐름으로 형성되어 있습니다.\n\n`;
+      deepInsightContent += `오행 분포의 균형과 십성의 흐름이 어우러져 독특한 개성을 만들어내는 사주입니다.`;
+    }
+    
     proContent.deepInsight = {
-      title: '깊이 통찰',
-      content: v31EnforceIntent(
-        matrix?.tldr ?
-          `${matrix.tldr} 본 흐름은 일간 ${meta.dayMaster}의 본질과 정렬되어 작동합니다` :
-          '본 흐름은 일간 본질과 정렬되어 작동합니다',
-        category, scenarioKey
-      )
+      title: '🔮 깊이 통찰 — 격국 분석',
+      content: v31EnforceIntent(deepInsightContent, category, scenarioKey)
     };
   }
 
   // ── PRO 30일권 (9,900원) ──
   if (tier === 'month' || tier === 'lifetime') {
-    proContent.hiddenRisk = {
-      title: '숨은 리스크',
-      content: v31EnforceIntent(
-        '본 흐름의 잠재 변수는 외부 흐름과의 충돌 시점에서 발생할 수 있는 균형 흔들림입니다. 일간 안정 유지가 효과적인 대응 흐름입니다',
-        category, scenarioKey
-      )
-    };
-
-    proContent.timingPrecision = {
-      title: '타이밍 정밀',
-      content: v31EnforceIntent(
-        matrix?.timing ?
-          `${matrix.timing} 흐름의 전환점은 외부 신호 정렬 시점에서 명확해집니다` :
-          '흐름 전환점은 외부 신호 정렬 시점에서 명확해집니다',
-        category, scenarioKey
-      )
-    };
-
-    // 12운성 간이
+    
+    // ★ [V31 #137] 12운성 정밀
+    let luckPhaseContent = '';
+    if (luckPhase.dayPhase) {
+      const phaseInfo = V31_LUCK_PHASE_12[luckPhase.dayPhase];
+      luckPhaseContent = `${phaseInfo.icon} ${phaseInfo.name} 단계\n\n`;
+      luckPhaseContent += `▸ 의미: ${phaseInfo.meaning}\n`;
+      luckPhaseContent += `▸ 시기: ${phaseInfo.period}\n`;
+      luckPhaseContent += `▸ 조언: ${phaseInfo.advice}\n\n`;
+      
+      // 4주 운성 표시
+      luckPhaseContent += `📊 4주 운성:\n`;
+      luckPhaseContent += `시주 ${luckPhase.hour || '-'} · 일주 ${luckPhase.day || '-'} · 월주 ${luckPhase.month || '-'} · 년주 ${luckPhase.year || '-'}`;
+    } else {
+      luckPhaseContent = '12운성 분석을 위한 데이터가 부족합니다.';
+    }
+    
     proContent.luckPhase12 = {
-      title: '12운성',
-      content: '본 일주의 12운성 흐름은 안정적 단계에 진입한 구조로 해석됩니다 (Phase 2에서 정밀 분석 제공 예정)'
+      title: '🌀 12운성 정밀',
+      content: luckPhaseContent,
+      data: luckPhase
+    };
+
+    // ★ [V31 #137] 신살 검출
+    let shinSalContent = '';
+    if (shinSal.detected.length > 0) {
+      shinSalContent = `검출된 신살: ${shinSal.count}개\n\n`;
+      shinSalContent += shinSal.detected.map(s => {
+        return `${s.info.icon} ${s.info.name}\n  ▸ ${s.info.meaning}\n  ▸ 효과: ${s.info.effect}\n  ▸ 조언: ${s.info.advice}`;
+      }).join('\n\n');
+    } else {
+      shinSalContent = '주요 신살이 검출되지 않은 평이한 흐름입니다. 십성과 격국에 따른 정밀 분석을 참고해주세요.';
+    }
+    
+    proContent.shinSal = {
+      title: `⚔️ 신살 검출 — ${shinSal.count}개`,
+      content: shinSalContent,
+      data: shinSal
+    };
+
+    // ★ [V31 #137] 숨은 리스크 - 사주 정밀
+    let hiddenRiskContent = '';
+    
+    // 양인 + 편관 동시 = 충돌 리스크
+    const hasYangin = shinSal.detected.some(s => s.name === '양인');
+    const hasGongmang = shinSal.detected.some(s => s.name === '공망');
+    
+    if (hasYangin && tenStars.distribution.편관 >= 1) {
+      hiddenRiskContent = '⚠ 양인 + 편관 결합 — 강한 추진력이 갈등으로 번질 수 있는 리스크. 차분한 결단 필요.';
+    } else if (hasGongmang) {
+      hiddenRiskContent = '⚠ 공망 검출 — 노력 대비 결과가 약한 시기. 결과보다 과정에 집중 + 봉사/수행으로 승화 효과적.';
+    } else if (strength.level === 'strong' && tenStars.distribution.겁재 >= 1.5) {
+      hiddenRiskContent = '⚠ 신강 + 겁재 강함 — 재물 분배 + 동업 갈등 리스크. 큰 자금 운용 시 신중함 필요.';
+    } else if (strength.level === 'weak') {
+      hiddenRiskContent = '⚠ 신약 흐름 — 과도한 활동 시 체력/정신 소진 리스크. 협력 활용 + 휴식 균형 필요.';
+    } else if (tenStars.distribution.상관 >= 2) {
+      hiddenRiskContent = '⚠ 상관 강함 — 관(官)과의 충돌로 인한 명예 손상 리스크. 표현 절제 + 공식 절차 준수 필요.';
+    } else {
+      hiddenRiskContent = '본 사주는 큰 리스크 흐름이 없는 안정형입니다. 다만 평범한 흐름에 안주하지 않도록 적극성 유지가 중요합니다.';
+    }
+    
+    proContent.hiddenRisk = {
+      title: '⚠ 숨은 리스크 — 사주 정밀',
+      content: v31EnforceIntent(hiddenRiskContent, category, scenarioKey)
+    };
+
+    // ★ [V31 #137] 타이밍 정밀
+    let timingContent = '';
+    
+    if (luckPhase.dayPhase) {
+      const phaseInfo = V31_LUCK_PHASE_12[luckPhase.dayPhase];
+      
+      // 강도별 타이밍 조언
+      if (phaseInfo.strength === 'peak' || phaseInfo.strength === 'very_high') {
+        timingContent = `현재 일주 운성이 ${phaseInfo.short}로 절정 흐름입니다.\n\n▸ 즉시 행동 권장 — 이 시기를 활용하지 않으면 손실\n▸ 큰 결단 + 적극 진행 + 도전 적합`;
+      } else if (phaseInfo.strength === 'high') {
+        timingContent = `현재 일주 운성이 ${phaseInfo.short}로 상승 흐름입니다.\n\n▸ 적극 진행 권장\n▸ 새 도전/큰 결정에 좋은 시기`;
+      } else if (phaseInfo.strength === 'medium') {
+        timingContent = `현재 일주 운성이 ${phaseInfo.short}로 안정 흐름입니다.\n\n▸ 단계적 진행 + 검증 후 확대\n▸ 큰 변화보다는 꾸준한 진행 효과적`;
+      } else if (phaseInfo.strength === 'low' || phaseInfo.strength === 'very_low') {
+        timingContent = `현재 일주 운성이 ${phaseInfo.short}로 약한 흐름입니다.\n\n▸ 큰 결정 미루고 준비/학습 흐름 추천\n▸ 휴식 + 내면 성찰 시기 활용`;
+      } else {
+        timingContent = `현재 일주 운성이 ${phaseInfo.short}로 전환 흐름입니다.\n\n▸ 유연성 발휘 + 변화 받아들임\n▸ 새 가능성 탐색 시기`;
+      }
+    } else {
+      timingContent = '타이밍 흐름은 외부 신호와 정렬되는 시점에서 명확해집니다.';
+    }
+    
+    proContent.timingPrecision = {
+      title: '⏱ 타이밍 정밀 — 12운성 추론',
+      content: v31EnforceIntent(timingContent, category, scenarioKey)
     };
   }
 
   // ── PRO 평생권 (199,000원) ──
   if (tier === 'lifetime') {
+    
+    // 가족 사주 (Phase 2 예고)
     proContent.familyPackage = {
-      title: '가족 사주 (Phase 2)',
-      content: '본인 + 배우자 + 자녀 사주 묶음 분석은 Phase 2에서 제공됩니다'
+      title: '👨‍👩‍👧 가족 사주 (Phase 2)',
+      content: `본인 + 배우자 + 자녀 사주 묶음 분석은 Phase 2에서 제공됩니다.\n\n현재 평생권 혜택:\n▸ 본인 사주 평생 무제한 조회\n▸ 모든 PRO 콘텐츠 (십성/격국/12운성/신살)\n▸ Phase 2 출시 시 자동 업그레이드`
     };
 
+    // 연운 흐름 (Phase 2 예고)
     proContent.yearlyOutlook = {
-      title: '연운 흐름 (Phase 2)',
-      content: '매년 세운 + 매월 월운 정밀 분석은 Phase 2에서 제공됩니다'
+      title: '📅 연운 흐름 (Phase 2)',
+      content: `매년 세운 + 매월 월운 정밀 분석은 Phase 2에서 제공됩니다.\n\n현재 평생권 혜택:\n▸ 모든 사주 PRO 콘텐츠 평생 사용\n▸ 신규 기능 자동 업그레이드 (대운/세운/월운/궁합)`
     };
   }
 
@@ -7131,6 +7257,848 @@ function v31RunSajuOracleWithAudit(input, category = 'fortune', timePhase = 'med
 
 // ════════════════════════════════════════════════════════════════════════════════
 // [V31 Chunk 5 끝] — 다음 Chunk 6: UI 통합 (index.html 사주 입력 화면)
+
+// ════════════════════════════════════════════════════════════════════════════════
+// 🌟 [V31 Chunk 6] PRO 콘텐츠 정밀 보강 — 글로벌 1위 사주 콘텐츠
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// [ 사장님 진단 #137 ]
+//   "유료 점사 결과 텍스트 빈약 → 결함 A"
+//   해결: 7개 영역 본격 보강 (십성/격국/12운성/신살/숨은리스크/타이밍/깊이통찰)
+//
+// [ 보강 영역 ]
+//   ① V31_TEN_STARS_MATRIX — 십성 10개 정밀
+//   ② V31_LUCK_PHASE_12    — 12운성 12단계
+//   ③ V31_GYEOK_GUK_MATRIX — 격국 8격 분류
+//   ④ V31_SHIN_SAL_MATRIX  — 신살 5개 (천을귀인/도화/역마/공망/양인)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// ────────────────────────────────────────────────────────────────────────────────
+// ⭐ [V31 Chunk 6.1] V31_TEN_STARS_MATRIX — 십성 10개 정밀
+// ────────────────────────────────────────────────────────────────────────────────
+//
+// 십성(十星) 명리학 표준 10개:
+//   1. 비견(比肩): 일간과 같은 오행 + 같은 음양 (형제/동료)
+//   2. 겁재(劫財): 일간과 같은 오행 + 다른 음양 (경쟁자/형제)
+//   3. 식신(食神): 일간이 생하는 오행 + 같은 음양 (자녀/표현/기쁨)
+//   4. 상관(傷官): 일간이 생하는 오행 + 다른 음양 (재능/창의)
+//   5. 편재(偏財): 일간이 극하는 오행 + 같은 음양 (편재/투자/기회)
+//   6. 정재(正財): 일간이 극하는 오행 + 다른 음양 (정재/저축/배우자)
+//   7. 편관(偏官): 일간을 극하는 오행 + 같은 음양 (위험/도전)
+//   8. 정관(正官): 일간을 극하는 오행 + 다른 음양 (명예/관직)
+//   9. 편인(偏印): 일간을 생하는 오행 + 같은 음양 (예술/직관)
+//  10. 정인(正印): 일간을 생하는 오행 + 다른 음양 (학문/모성)
+
+const V31_TEN_STARS_MATRIX = {
+  비견: {
+    name: '비견(比肩)',
+    short: '비견',
+    nature: '협력형',
+    keywords: '형제 · 동료 · 경쟁',
+    meaning: '동등한 협력자가 주변에 있어 함께 성장하는 흐름',
+    strong: '리더십 발휘 + 자기 주도성 강화',
+    weak: '협력 부족 + 고립감',
+    health: '근육/관절 (비견 기운이 강하면 활동량 ↑)',
+    wealth: '동업/협력 사업에 유리',
+    love: '같은 가치관의 파트너',
+    job: '독립/경영/리더 직군'
+  },
+  겁재: {
+    name: '겁재(劫財)',
+    short: '겁재',
+    nature: '경쟁형',
+    keywords: '경쟁 · 도전 · 분배',
+    meaning: '경쟁 환경에서 진가를 발휘하는 흐름',
+    strong: '도전 정신 + 강한 추진력',
+    weak: '재물 분배 + 갈등 가능성',
+    health: '간/담 (스트레스 관리 필요)',
+    wealth: '큰 변동 (집중 투자 시 주의)',
+    love: '경쟁적 관계 흐름',
+    job: '영업/스포츠/경쟁 직군'
+  },
+  식신: {
+    name: '식신(食神)',
+    short: '식신',
+    nature: '표현형',
+    keywords: '자녀 · 표현 · 즐거움',
+    meaning: '자기 표현이 풍부하고 안정적인 행복 흐름',
+    strong: '창의력 + 즐거운 활동',
+    weak: '안일함 + 추진력 부족',
+    health: '소화기 (식신은 식록을 의미)',
+    wealth: '꾸준한 수입 + 부동산 안정',
+    love: '편안하고 따뜻한 관계',
+    job: '예술/요리/교육/서비스'
+  },
+  상관: {
+    name: '상관(傷官)',
+    short: '상관',
+    nature: '재능형',
+    keywords: '재능 · 창의 · 비판',
+    meaning: '독창적 재능이 빛나는 비범한 흐름',
+    strong: '창의력 폭발 + 사회 변혁',
+    weak: '관성과의 충돌 + 명예 손상',
+    health: '폐/대장 (말이 많으면 폐 부담)',
+    wealth: '재능 기반 큰 수익',
+    love: '독특한 매력 + 관성 흐름 주의',
+    job: '예술가/방송/IT/혁신가'
+  },
+  편재: {
+    name: '편재(偏財)',
+    short: '편재',
+    nature: '활동형',
+    keywords: '재물 · 활동 · 기회',
+    meaning: '큰 재물 흐름이 형성되는 활동적 운세',
+    strong: '사업 + 큰 자금 운용 + 인맥',
+    weak: '돈 새는 흐름 + 분산',
+    health: '비/위 (식이 조절 중요)',
+    wealth: '동산/유동 재물 + 사업 수익',
+    love: '자유롭고 활동적 관계',
+    job: '금융/사업/영업/유통'
+  },
+  정재: {
+    name: '정재(正財)',
+    short: '정재',
+    nature: '안정형',
+    keywords: '저축 · 배우자 · 정직',
+    meaning: '꾸준한 재물 축적 + 안정된 가정 흐름',
+    strong: '재물 + 가정 안정 + 신용',
+    weak: '인색함 + 도전 부족',
+    health: '비/위 (안정적)',
+    wealth: '월급/저축/부동산 안정',
+    love: '안정적이고 책임감 있는 관계',
+    job: '회계/공무원/은행/안정 직군'
+  },
+  편관: {
+    name: '편관(偏官)',
+    short: '편관',
+    nature: '도전형',
+    keywords: '도전 · 권위 · 압박',
+    meaning: '강한 압박을 견디며 큰 성취를 이루는 흐름',
+    strong: '리더십 + 결단력 + 군경/사법',
+    weak: '스트레스 + 대인 충돌',
+    health: '심장/혈압 (압박 흐름)',
+    wealth: '큰 성공 또는 큰 손실 (양극)',
+    love: '강한 매력 + 갈등 가능',
+    job: '군인/경찰/검사/외과의/CEO'
+  },
+  정관: {
+    name: '정관(正官)',
+    short: '정관',
+    nature: '명예형',
+    keywords: '명예 · 조직 · 책임',
+    meaning: '조직 내 명예와 안정된 지위 흐름',
+    strong: '책임감 + 사회적 인정 + 승진',
+    weak: '경직성 + 융통성 부족',
+    health: '심장 (책임감 부담)',
+    wealth: '월급/연금/공적 자금',
+    love: '품격 있는 정통적 관계',
+    job: '공무원/대기업/법조/교수'
+  },
+  편인: {
+    name: '편인(偏印)',
+    short: '편인',
+    nature: '직관형',
+    keywords: '직관 · 예술 · 신비',
+    meaning: '예술적 직관과 깊은 통찰력의 흐름',
+    strong: '창작 + 영적 감수성 + 학문',
+    weak: '고독 + 변덕',
+    health: '신경 (예민함)',
+    wealth: '창작/저작/특허 수익',
+    love: '독특하고 신비로운 관계',
+    job: '작가/예술가/철학/종교/연구'
+  },
+  정인: {
+    name: '정인(正印)',
+    short: '정인',
+    nature: '학문형',
+    keywords: '학문 · 모성 · 보호',
+    meaning: '학문과 인덕이 깊은 평온한 흐름',
+    strong: '학습 + 교육 + 보호받음',
+    weak: '의존성 + 게으름',
+    health: '신장/생식 (보호받음)',
+    wealth: '학문/교육/임대 수익',
+    love: '안정적이고 보호적 관계',
+    job: '교사/학자/연구원/공무원'
+  }
+};
+
+// 일간 → 십성 매핑 테이블 (천간 10개 × 천간 10개 = 100칸)
+// 행: 일간(나), 열: 대상 천간 → 십성 분류
+const V31_TEN_STARS_LOOKUP = {
+  // 갑(陽木) 기준
+  '갑': { '갑':'비견', '을':'겁재', '병':'식신', '정':'상관', '무':'편재', '기':'정재', '경':'편관', '신':'정관', '임':'편인', '계':'정인' },
+  // 을(陰木) 기준
+  '을': { '갑':'겁재', '을':'비견', '병':'상관', '정':'식신', '무':'정재', '기':'편재', '경':'정관', '신':'편관', '임':'정인', '계':'편인' },
+  // 병(陽火) 기준
+  '병': { '갑':'편인', '을':'정인', '병':'비견', '정':'겁재', '무':'식신', '기':'상관', '경':'편재', '신':'정재', '임':'편관', '계':'정관' },
+  // 정(陰火) 기준
+  '정': { '갑':'정인', '을':'편인', '병':'겁재', '정':'비견', '무':'상관', '기':'식신', '경':'정재', '신':'편재', '임':'정관', '계':'편관' },
+  // 무(陽土) 기준
+  '무': { '갑':'편관', '을':'정관', '병':'편인', '정':'정인', '무':'비견', '기':'겁재', '경':'식신', '신':'상관', '임':'편재', '계':'정재' },
+  // 기(陰土) 기준
+  '기': { '갑':'정관', '을':'편관', '병':'정인', '정':'편인', '무':'겁재', '기':'비견', '경':'상관', '신':'식신', '임':'정재', '계':'편재' },
+  // 경(陽金) 기준
+  '경': { '갑':'편재', '을':'정재', '병':'편관', '정':'정관', '무':'편인', '기':'정인', '경':'비견', '신':'겁재', '임':'식신', '계':'상관' },
+  // 신(陰金) 기준
+  '신': { '갑':'정재', '을':'편재', '병':'정관', '정':'편관', '무':'정인', '기':'편인', '경':'겁재', '신':'비견', '임':'상관', '계':'식신' },
+  // 임(陽水) 기준
+  '임': { '갑':'식신', '을':'상관', '병':'편재', '정':'정재', '무':'편관', '기':'정관', '경':'편인', '신':'정인', '임':'비견', '계':'겁재' },
+  // 계(陰水) 기준
+  '계': { '갑':'상관', '을':'식신', '병':'정재', '정':'편재', '무':'정관', '기':'편관', '경':'정인', '신':'편인', '임':'겁재', '계':'비견' }
+};
+
+// 지지 → 천간 변환 (지지 안에 숨은 천간 = 지장간 본기)
+const V31_BRANCH_TO_STEM_MAIN = {
+  '자':'계', '축':'기', '인':'갑', '묘':'을', '진':'무', '사':'병',
+  '오':'정', '미':'기', '신':'경', '유':'신', '술':'무', '해':'임'
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 🌀 [V31 Chunk 6.2] V31_LUCK_PHASE_12 — 12운성 12단계
+// ────────────────────────────────────────────────────────────────────────────────
+//
+// 12운성(運星) 명리학 표준:
+//   장생(長生) - 목욕(沐浴) - 관대(冠帶) - 임관(臨官) - 제왕(帝旺) - 쇠(衰)
+//   - 병(病) - 사(死) - 묘(墓) - 절(絶) - 태(胎) - 양(養)
+
+const V31_LUCK_PHASE_12 = {
+  장생: {
+    name: '장생(長生)',
+    short: '장생',
+    icon: '🌱',
+    phase: '시작',
+    meaning: '새로운 시작과 활기 — 봄의 새싹처럼 가능성이 깨어나는 시기',
+    strength: 'high',
+    advice: '새 도전을 시작하기 좋은 흐름 — 적극 행동',
+    period: '청년기 (20-30대) 흐름과 같음'
+  },
+  목욕: {
+    name: '목욕(沐浴)',
+    short: '목욕',
+    icon: '💧',
+    phase: '단장',
+    meaning: '꾸미고 단장하는 흐름 — 변화와 멋, 그리고 도화살이 함께',
+    strength: 'medium',
+    advice: '유혹과 변덕 주의 — 감정 조절 필요',
+    period: '20대 초반 흐름'
+  },
+  관대: {
+    name: '관대(冠帶)',
+    short: '관대',
+    icon: '👔',
+    phase: '성숙',
+    meaning: '관모를 쓴 청년의 흐름 — 사회 진출 + 책임 시작',
+    strength: 'high',
+    advice: '새 역할에 적응하며 정체성 확립',
+    period: '20대 후반 - 30대 초'
+  },
+  임관: {
+    name: '임관(臨官)',
+    short: '임관',
+    icon: '⚔️',
+    phase: '진취',
+    meaning: '관직에 임하는 흐름 — 큰 책임을 맡고 적극 활동',
+    strength: 'very_high',
+    advice: '리더십 발휘 + 큰 일 진행',
+    period: '30대 흐름'
+  },
+  제왕: {
+    name: '제왕(帝旺)',
+    short: '제왕',
+    icon: '👑',
+    phase: '절정',
+    meaning: '왕좌의 절정 — 인생 최고점 + 권력 + 명예',
+    strength: 'peak',
+    advice: '교만 주의 — 절정 후 쇠퇴 시작 유념',
+    period: '40대 흐름'
+  },
+  쇠: {
+    name: '쇠(衰)',
+    short: '쇠',
+    icon: '🍂',
+    phase: '쇠퇴',
+    meaning: '절정 후 자연스러운 쇠퇴 — 안정 + 성숙한 판단',
+    strength: 'medium',
+    advice: '경험 활용 + 후배 양성',
+    period: '50대 흐름'
+  },
+  병: {
+    name: '병(病)',
+    short: '병',
+    icon: '🤒',
+    phase: '병약',
+    meaning: '심신이 약해지는 흐름 — 휴식과 회복이 필요',
+    strength: 'low',
+    advice: '건강 + 신체 관리 우선',
+    period: '60대 흐름'
+  },
+  사: {
+    name: '사(死)',
+    short: '사',
+    icon: '🌑',
+    phase: '정리',
+    meaning: '활동 정지 + 정신적 깊이 — 죽음이 아닌 마무리 시기',
+    strength: 'very_low',
+    advice: '내면 성찰 + 학문/예술 깊이',
+    period: '70대 흐름'
+  },
+  묘: {
+    name: '묘(墓)',
+    short: '묘',
+    icon: '🏛️',
+    phase: '저장',
+    meaning: '저장과 보관의 시기 — 재물 비축 + 학문 정리',
+    strength: 'low',
+    advice: '저축 + 자료 정리 + 가족 보호',
+    period: '말년 흐름'
+  },
+  절: {
+    name: '절(絶)',
+    short: '절',
+    icon: '🌀',
+    phase: '단절',
+    meaning: '단절 후 새로운 시작 — 무의식적 전환',
+    strength: 'transition',
+    advice: '큰 변화 시기 — 유연성 발휘',
+    period: '전환기 흐름'
+  },
+  태: {
+    name: '태(胎)',
+    short: '태',
+    icon: '🥚',
+    phase: '잉태',
+    meaning: '새 생명의 잉태 — 미래의 가능성',
+    strength: 'low',
+    advice: '준비 + 기다림 + 학습',
+    period: '준비기 흐름'
+  },
+  양: {
+    name: '양(養)',
+    short: '양',
+    icon: '🌾',
+    phase: '양육',
+    meaning: '양육과 성장 — 보호 받으며 자라는 흐름',
+    strength: 'medium',
+    advice: '학습 + 멘토 활용 + 안정',
+    period: '유년기 흐름'
+  }
+};
+
+// 일간 + 지지 → 12운성 매핑 (10×12 = 120칸)
+const V31_LUCK_PHASE_LOOKUP = {
+  '갑': { '해':'장생', '자':'목욕', '축':'관대', '인':'임관', '묘':'제왕', '진':'쇠', '사':'병', '오':'사', '미':'묘', '신':'절', '유':'태', '술':'양' },
+  '을': { '오':'장생', '사':'목욕', '진':'관대', '묘':'임관', '인':'제왕', '축':'쇠', '자':'병', '해':'사', '술':'묘', '유':'절', '신':'태', '미':'양' },
+  '병': { '인':'장생', '묘':'목욕', '진':'관대', '사':'임관', '오':'제왕', '미':'쇠', '신':'병', '유':'사', '술':'묘', '해':'절', '자':'태', '축':'양' },
+  '정': { '유':'장생', '신':'목욕', '미':'관대', '오':'임관', '사':'제왕', '진':'쇠', '묘':'병', '인':'사', '축':'묘', '자':'절', '해':'태', '술':'양' },
+  '무': { '인':'장생', '묘':'목욕', '진':'관대', '사':'임관', '오':'제왕', '미':'쇠', '신':'병', '유':'사', '술':'묘', '해':'절', '자':'태', '축':'양' },
+  '기': { '유':'장생', '신':'목욕', '미':'관대', '오':'임관', '사':'제왕', '진':'쇠', '묘':'병', '인':'사', '축':'묘', '자':'절', '해':'태', '술':'양' },
+  '경': { '사':'장생', '오':'목욕', '미':'관대', '신':'임관', '유':'제왕', '술':'쇠', '해':'병', '자':'사', '축':'묘', '인':'절', '묘':'태', '진':'양' },
+  '신': { '자':'장생', '해':'목욕', '술':'관대', '유':'임관', '신':'제왕', '미':'쇠', '오':'병', '사':'사', '진':'묘', '묘':'절', '인':'태', '축':'양' },
+  '임': { '신':'장생', '유':'목욕', '술':'관대', '해':'임관', '자':'제왕', '축':'쇠', '인':'병', '묘':'사', '진':'묘', '사':'절', '오':'태', '미':'양' },
+  '계': { '묘':'장생', '인':'목욕', '축':'관대', '자':'임관', '해':'제왕', '술':'쇠', '유':'병', '신':'사', '미':'묘', '오':'절', '사':'태', '진':'양' }
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 📜 [V31 Chunk 6.3] V31_GYEOK_GUK_MATRIX — 격국(格局) 8격
+// ────────────────────────────────────────────────────────────────────────────────
+//
+// 격국 명리학 표준 8격:
+//   1. 정관격 (正官格)
+//   2. 편관격 (偏官格) - 칠살격
+//   3. 정재격 (正財格)
+//   4. 편재격 (偏財格)
+//   5. 정인격 (正印格)
+//   6. 편인격 (偏印格)
+//   7. 식신격 (食神格)
+//   8. 상관격 (傷官格)
+
+const V31_GYEOK_GUK_MATRIX = {
+  정관격: {
+    name: '정관격(正官格)',
+    short: '정관격',
+    nature: '명예 · 조직 · 안정',
+    description: '월령에 정관이 자리잡아 명예와 안정을 추구하는 격국',
+    strong_point: '책임감 + 조직 적응력 + 사회적 신뢰',
+    weak_point: '경직성 + 융통성 부족',
+    yongShin: '재(財) · 인(印)',  // 정관격의 용신
+    suitable_career: '공무원, 대기업 임원, 법조계, 교육자',
+    fortune: '꾸준한 안정 흐름 + 명예'
+  },
+  편관격: {
+    name: '편관격(偏官格)',
+    short: '편관격',
+    nature: '도전 · 권위 · 추진',
+    description: '월령에 편관(칠살)이 자리잡아 강한 추진력과 도전 정신의 격국',
+    strong_point: '결단력 + 위기 극복 + 카리스마',
+    weak_point: '스트레스 + 대인 충돌',
+    yongShin: '식(食) · 인(印)',
+    suitable_career: '군인, 경찰, 검사, 외과의, 사업가',
+    fortune: '큰 성공 또는 큰 시련 (양극)'
+  },
+  정재격: {
+    name: '정재격(正財格)',
+    short: '정재격',
+    nature: '저축 · 배우자 · 정직',
+    description: '월령에 정재가 자리잡아 안정된 재물과 가정의 격국',
+    strong_point: '신용 + 저축 + 가정 안정',
+    weak_point: '인색함 + 도전 부족',
+    yongShin: '관(官) · 인(印)',
+    suitable_career: '회계사, 은행원, 공무원, 안정 직군',
+    fortune: '꾸준한 재물 + 안정 가정'
+  },
+  편재격: {
+    name: '편재격(偏財格)',
+    short: '편재격',
+    nature: '활동 · 사업 · 기회',
+    description: '월령에 편재가 자리잡아 큰 재물 흐름과 활동력의 격국',
+    strong_point: '사업 수완 + 인맥 + 큰 기회',
+    weak_point: '재물 분산 + 변동성',
+    yongShin: '관(官) · 식(食)',
+    suitable_career: '사업가, 영업, 금융, 무역, 유통',
+    fortune: '큰 재물 + 변동 흐름'
+  },
+  정인격: {
+    name: '정인격(正印格)',
+    short: '정인격',
+    nature: '학문 · 보호 · 인덕',
+    description: '월령에 정인이 자리잡아 학문과 인덕의 격국',
+    strong_point: '학습 능력 + 보호받음 + 인덕',
+    weak_point: '의존성 + 게으름',
+    yongShin: '재(財) · 관(官)',
+    suitable_career: '학자, 교사, 공무원, 연구원',
+    fortune: '학문 성취 + 안정 흐름'
+  },
+  편인격: {
+    name: '편인격(偏印格)',
+    short: '편인격',
+    nature: '직관 · 예술 · 신비',
+    description: '월령에 편인(효신)이 자리잡아 예술적 직관의 격국',
+    strong_point: '창의력 + 영적 감수성 + 통찰',
+    weak_point: '고독 + 변덕 + 부정적',
+    yongShin: '재(財) · 식(食)',
+    suitable_career: '예술가, 작가, 철학, 종교, 연구',
+    fortune: '독특한 성취 + 굴곡 흐름'
+  },
+  식신격: {
+    name: '식신격(食神格)',
+    short: '식신격',
+    nature: '표현 · 즐거움 · 안정',
+    description: '월령에 식신이 자리잡아 표현력과 안정된 행복의 격국',
+    strong_point: '낙천성 + 창의 + 안정 수입',
+    weak_point: '안일함 + 추진력 부족',
+    yongShin: '재(財) · 비겁(比劫)',
+    suitable_career: '예술, 요리, 교육, 서비스, 의료',
+    fortune: '꾸준한 즐거움 + 안정 흐름'
+  },
+  상관격: {
+    name: '상관격(傷官格)',
+    short: '상관격',
+    nature: '재능 · 비판 · 혁신',
+    description: '월령에 상관이 자리잡아 독창적 재능과 혁신의 격국',
+    strong_point: '창의력 + 사회 변혁 + 강한 표현',
+    weak_point: '관(官)과의 충돌 + 명예 손상',
+    yongShin: '재(財) · 인(印)',
+    suitable_career: '예술가, 방송, IT, 혁신가, 변호사',
+    fortune: '큰 재능 발휘 + 굴곡 흐름'
+  }
+};
+
+// ────────────────────────────────────────────────────────────────────────────────
+// ⚔️ [V31 Chunk 6.4] V31_SHIN_SAL_MATRIX — 신살(神殺) 5개
+// ────────────────────────────────────────────────────────────────────────────────
+//
+// 신살 명리학 핵심 5개:
+//   1. 천을귀인 (天乙貴人) - 최고 귀인
+//   2. 도화 (桃花) - 매력 / 인기
+//   3. 역마 (驛馬) - 이동 / 변화
+//   4. 양인 (羊刃) - 강한 추진 / 위험
+//   5. 공망 (空亡) - 비어있음 / 좌절
+
+const V31_SHIN_SAL_MATRIX = {
+  천을귀인: {
+    name: '천을귀인(天乙貴人)',
+    short: '천을귀인',
+    icon: '🌟',
+    nature: '최고 길성',
+    meaning: '하늘이 보호하는 귀인 — 어려움 시 도와주는 귀한 인연 만남',
+    effect: '위기 극복 + 인덕 + 명예 향상',
+    advice: '귀인 만남에 감사 + 베풀고 살면 더욱 강해짐',
+    rare: 'high'
+  },
+  도화: {
+    name: '도화살(桃花殺)',
+    short: '도화',
+    icon: '🌸',
+    nature: '인기/매력',
+    meaning: '매력과 인기가 강한 살 — 이성에게 인기 + 예술적 끼',
+    effect: '인기 + 매력 + 예술 재능 / 단, 유혹 주의',
+    advice: '재능 활용 + 절제 필요 (관계 흐름 주의)',
+    rare: 'medium'
+  },
+  역마: {
+    name: '역마살(驛馬殺)',
+    short: '역마',
+    icon: '🐎',
+    nature: '이동/변화',
+    meaning: '이동과 변화가 많은 살 — 출장/여행/이주 흐름',
+    effect: '활동성 + 새 환경 적응 + 글로벌 흐름',
+    advice: '변화 즐기기 + 안정 추구 시 정착 노력',
+    rare: 'medium'
+  },
+  양인: {
+    name: '양인(羊刃)',
+    short: '양인',
+    icon: '⚔️',
+    nature: '강력/위험',
+    meaning: '날카로운 칼날과 같은 살 — 강한 추진력 + 위험 양면',
+    effect: '결단력 + 추진력 + 단, 다툼/사고 주의',
+    advice: '에너지 통제 + 차분함 유지 (특히 운전/도구 사용 주의)',
+    rare: 'medium'
+  },
+  공망: {
+    name: '공망(空亡)',
+    short: '공망',
+    icon: '🌑',
+    nature: '비어있음',
+    meaning: '비어있는 흐름 — 노력해도 결과가 잘 안 보이는 시기',
+    effect: '좌절감 + 정신적 공허 / 단, 종교/예술/봉사로 승화 가능',
+    advice: '결과보다 과정 + 봉사/수행 흐름 추천',
+    rare: 'low'
+  }
+};
+
+// 천을귀인 매핑 (일간 → 천을귀인 지지)
+const V31_CHEONUL_LOOKUP = {
+  '갑': ['축', '미'], '무': ['축', '미'], '경': ['축', '미'],
+  '을': ['자', '신'], '기': ['자', '신'],
+  '병': ['해', '유'], '정': ['해', '유'],
+  '임': ['묘', '사'], '계': ['묘', '사'],
+  '신': ['오', '인']
+};
+
+// 도화 매핑 (년지/일지 → 도화 지지)
+const V31_DOHWA_LOOKUP = {
+  '인': '묘', '오': '묘', '술': '묘',  // 인오술 → 묘
+  '신': '유', '자': '유', '진': '유',  // 신자진 → 유
+  '사': '오', '유': '오', '축': '오',  // 사유축 → 오
+  '해': '자', '묘': '자', '미': '자'   // 해묘미 → 자
+};
+
+// 역마 매핑
+const V31_YEOKMA_LOOKUP = {
+  '인': '신', '오': '신', '술': '신',
+  '신': '인', '자': '인', '진': '인',
+  '사': '해', '유': '해', '축': '해',
+  '해': '사', '묘': '사', '미': '사'
+};
+
+// 양인 매핑 (일간 → 양인 지지)
+const V31_YANGIN_LOOKUP = {
+  '갑': '묘', '병': '오', '무': '오', '경': '유', '임': '자',
+  '을': '인', '정': '사', '기': '사', '신': '신', '계': '해'
+};
+
+// 공망 매핑 (일주 60갑자 → 공망 2개)
+// 60갑자가 10개씩 6순(旬)으로 나뉘며, 각 순의 마지막 2지지가 공망
+const V31_GONGMANG_LOOKUP = {
+  // 갑자순 (갑자~계유) 공망: 술해
+  '갑자':['술','해'], '을축':['술','해'], '병인':['술','해'], '정묘':['술','해'], '무진':['술','해'],
+  '기사':['술','해'], '경오':['술','해'], '신미':['술','해'], '임신':['술','해'], '계유':['술','해'],
+  // 갑술순 공망: 신유
+  '갑술':['신','유'], '을해':['신','유'], '병자':['신','유'], '정축':['신','유'], '무인':['신','유'],
+  '기묘':['신','유'], '경진':['신','유'], '신사':['신','유'], '임오':['신','유'], '계미':['신','유'],
+  // 갑신순 공망: 오미
+  '갑신':['오','미'], '을유':['오','미'], '병술':['오','미'], '정해':['오','미'], '무자':['오','미'],
+  '기축':['오','미'], '경인':['오','미'], '신묘':['오','미'], '임진':['오','미'], '계사':['오','미'],
+  // 갑오순 공망: 진사
+  '갑오':['진','사'], '을미':['진','사'], '병신':['진','사'], '정유':['진','사'], '무술':['진','사'],
+  '기해':['진','사'], '경자':['진','사'], '신축':['진','사'], '임인':['진','사'], '계묘':['진','사'],
+  // 갑진순 공망: 인묘
+  '갑진':['인','묘'], '을사':['인','묘'], '병오':['인','묘'], '정미':['인','묘'], '무신':['인','묘'],
+  '기유':['인','묘'], '경술':['인','묘'], '신해':['인','묘'], '임자':['인','묘'], '계축':['인','묘'],
+  // 갑인순 공망: 자축
+  '갑인':['자','축'], '을묘':['자','축'], '병진':['자','축'], '정사':['자','축'], '무오':['자','축'],
+  '기미':['자','축'], '경신':['자','축'], '신유':['자','축'], '임술':['자','축'], '계해':['자','축']
+};
+
+// ════════════════════════════════════════════════════════════════════════════════
+// [V31 Chunk 6.1-6.4 데이터 끝] — 다음: 추론 함수 + PRO 콘텐츠 정밀화
+// ════════════════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════════════════
+// 🔬 [V31 Chunk 6.5] 추론 함수 — 사주 데이터 → 정밀 분석
+// ════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 십성(十星) 분포 정밀 계산
+ * @param {Object} sajuData - v31ExtractSaju 결과
+ * @returns {Object} { distribution: {비견:0, 겁재:1, ...}, dominant: '편재', sub: ['정관'], analysis: '...' }
+ */
+function v31CalcTenStars(sajuData) {
+  const dayMaster = sajuData.meta.dayMaster;  // 일간 (예: '을')
+  const lookupTable = V31_TEN_STARS_LOOKUP[dayMaster];
+  
+  if (!lookupTable) {
+    return { 
+      distribution: {}, 
+      dominant: null, 
+      analysis: '일간 인식 실패' 
+    };
+  }
+  
+  // 분포 초기화
+  const distribution = {
+    비견: 0, 겁재: 0, 식신: 0, 상관: 0,
+    편재: 0, 정재: 0, 편관: 0, 정관: 0,
+    편인: 0, 정인: 0
+  };
+  
+  // 4주 천간 + 지장간 본기 검사
+  const pillars = [sajuData.pillars.year, sajuData.pillars.month, sajuData.pillars.day, sajuData.pillars.hour];
+  
+  for (const pillar of pillars) {
+    if (!pillar) continue;
+    
+    // 천간 십성
+    const stem = pillar.stem;
+    if (stem && lookupTable[stem]) {
+      distribution[lookupTable[stem]] += 1;
+    }
+    
+    // 지지 본기 십성 (지장간 단순화 - 본기만)
+    const branch = pillar.branch;
+    const branchMain = V31_BRANCH_TO_STEM_MAIN[branch];
+    if (branchMain && lookupTable[branchMain]) {
+      distribution[lookupTable[branchMain]] += 0.7;  // 지장간 본기 가중치 0.7
+    }
+  }
+  
+  // 일간 자체는 비견 (제외 또는 1로 고정)
+  // 위 루프에서 일주 천간이 일간이면 비견으로 카운트되지만, 정확하게는 일간 자체는 분석 대상 아님
+  // 사주에서 일간은 "나" 이므로 분포에서 제외 — 0.5만 차감
+  if (distribution.비견 > 0) {
+    distribution.비견 = Math.max(0, distribution.비견 - 1);
+  }
+  
+  // 가장 강한 십성 (dominant)
+  const sorted = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
+  const dominant = sorted[0][1] > 0 ? sorted[0][0] : null;
+  const sub = sorted.slice(1, 3).filter(([k, v]) => v > 0).map(([k, v]) => k);
+  
+  // 분석 텍스트 생성
+  let analysis = '';
+  if (dominant) {
+    const domInfo = V31_TEN_STARS_MATRIX[dominant];
+    analysis = `당신의 사주는 ${domInfo.name}이 가장 강한 흐름입니다 — ${domInfo.meaning}`;
+    if (sub.length > 0) {
+      analysis += `. 보조 흐름은 ${sub.map(s => V31_TEN_STARS_MATRIX[s].short).join(', ')} 입니다.`;
+    }
+  } else {
+    analysis = '십성 분포가 매우 고르게 형성되어 있어 균형형 사주입니다.';
+  }
+  
+  return { distribution, dominant, sub, analysis };
+}
+
+/**
+ * 12운성 정밀 계산 (4주 각각의 운성)
+ * @param {Object} sajuData
+ * @returns {Object} { year:'장생', month:'제왕', day:'관대', hour:'병', dominant: '제왕', meaning: '...' }
+ */
+function v31CalcLuckPhase(sajuData) {
+  const dayMaster = sajuData.meta.dayMaster;
+  const lookupTable = V31_LUCK_PHASE_LOOKUP[dayMaster];
+  
+  if (!lookupTable) {
+    return { error: '일간 인식 실패' };
+  }
+  
+  const phases = {
+    year: lookupTable[sajuData.pillars.year?.branch] || null,
+    month: lookupTable[sajuData.pillars.month?.branch] || null,
+    day: lookupTable[sajuData.pillars.day?.branch] || null,
+    hour: lookupTable[sajuData.pillars.hour?.branch] || null
+  };
+  
+  // 가장 강한 단계 (제왕 > 임관 > 관대 > 장생 > 양 > 묘 > 쇠 > 병 > 목욕 > 사 > 태 > 절)
+  const strengthOrder = {
+    '제왕':10, '임관':9, '관대':8, '장생':7, '양':6, '묘':5,
+    '쇠':4, '병':3, '목욕':3, '사':2, '태':2, '절':1
+  };
+  
+  let dominant = null;
+  let maxStrength = -1;
+  for (const [pos, phase] of Object.entries(phases)) {
+    if (phase && (strengthOrder[phase] || 0) > maxStrength) {
+      maxStrength = strengthOrder[phase];
+      dominant = phase;
+    }
+  }
+  
+  // 일주 운성 (일주 본인의 흐름 - 가장 중요)
+  const dayPhase = phases.day;
+  
+  // 분석 텍스트
+  let analysis = '';
+  if (dayPhase) {
+    const phaseInfo = V31_LUCK_PHASE_12[dayPhase];
+    analysis = `당신의 일주는 ${phaseInfo.name} 단계로, ${phaseInfo.meaning}. ${phaseInfo.advice}.`;
+  }
+  
+  return {
+    year: phases.year,
+    month: phases.month,
+    day: phases.day,
+    hour: phases.hour,
+    dayPhase,
+    dominant,
+    analysis
+  };
+}
+
+/**
+ * 격국(格局) 추론 — 월령 기반
+ * @param {Object} sajuData
+ * @param {Object} tenStars - v31CalcTenStars 결과
+ * @returns {Object} { gyeokGuk: '편재격', info: {...}, analysis: '...' }
+ */
+function v31InferGyeokGuk(sajuData, tenStars) {
+  const dayMaster = sajuData.meta.dayMaster;
+  const monthBranch = sajuData.pillars.month?.branch;
+  
+  if (!monthBranch || !V31_BRANCH_TO_STEM_MAIN[monthBranch]) {
+    return { gyeokGuk: null, analysis: '월지 인식 실패' };
+  }
+  
+  // 월지 본기 → 일간 → 십성 (격국의 본질)
+  const monthMainStem = V31_BRANCH_TO_STEM_MAIN[monthBranch];
+  const lookupTable = V31_TEN_STARS_LOOKUP[dayMaster];
+  if (!lookupTable) {
+    return { gyeokGuk: null, analysis: '일간 인식 실패' };
+  }
+  
+  const monthSipSung = lookupTable[monthMainStem];
+  
+  // 격국 매핑 (월령 십성 → 격국)
+  const gyeokGukMap = {
+    정관: '정관격', 편관: '편관격',
+    정재: '정재격', 편재: '편재격',
+    정인: '정인격', 편인: '편인격',
+    식신: '식신격', 상관: '상관격',
+    비견: '록겁격',  // 비견/겁재는 격국 아님 → 록겁격으로 처리
+    겁재: '록겁격'
+  };
+  
+  let gyeokGukName = gyeokGukMap[monthSipSung];
+  
+  // 록겁격은 V31_GYEOK_GUK_MATRIX에 없으므로 dominant 십성으로 대체
+  let info = V31_GYEOK_GUK_MATRIX[gyeokGukName];
+  if (!info && tenStars.dominant) {
+    gyeokGukName = gyeokGukMap[tenStars.dominant];
+    info = V31_GYEOK_GUK_MATRIX[gyeokGukName];
+  }
+  
+  if (!info) {
+    return {
+      gyeokGuk: null,
+      analysis: '격국 분류 어려운 특수 사주 — 종합 흐름으로 해석'
+    };
+  }
+  
+  return {
+    gyeokGuk: gyeokGukName,
+    info,
+    analysis: `${info.name} — ${info.description}. 본 격국의 강한 점은 ${info.strong_point}.`
+  };
+}
+
+/**
+ * 신살(神殺) 검출
+ * @param {Object} sajuData
+ * @returns {Object} { detected: ['천을귀인', '도화'], analysis: '...' }
+ */
+function v31DetectShinSal(sajuData) {
+  const dayMaster = sajuData.meta.dayMaster;
+  const yearBranch = sajuData.pillars.year?.branch;
+  const monthBranch = sajuData.pillars.month?.branch;
+  const dayBranch = sajuData.pillars.day?.branch;
+  const hourBranch = sajuData.pillars.hour?.branch;
+  const dayGanzhi = sajuData.pillars.day?.ganzhi;
+  
+  const branches = [yearBranch, monthBranch, dayBranch, hourBranch].filter(Boolean);
+  const detected = [];
+  
+  // 1. 천을귀인 검출 (일간 기준)
+  const cheonulBranches = V31_CHEONUL_LOOKUP[dayMaster] || [];
+  if (cheonulBranches.some(b => branches.includes(b))) {
+    detected.push({
+      name: '천을귀인',
+      info: V31_SHIN_SAL_MATRIX.천을귀인
+    });
+  }
+  
+  // 2. 도화 검출 (년지/일지 기준)
+  const dohwaBranches = [
+    V31_DOHWA_LOOKUP[yearBranch],
+    V31_DOHWA_LOOKUP[dayBranch]
+  ].filter(Boolean);
+  if (dohwaBranches.some(b => branches.includes(b))) {
+    detected.push({
+      name: '도화',
+      info: V31_SHIN_SAL_MATRIX.도화
+    });
+  }
+  
+  // 3. 역마 검출 (년지/일지 기준)
+  const yeokmaBranches = [
+    V31_YEOKMA_LOOKUP[yearBranch],
+    V31_YEOKMA_LOOKUP[dayBranch]
+  ].filter(Boolean);
+  if (yeokmaBranches.some(b => branches.includes(b))) {
+    detected.push({
+      name: '역마',
+      info: V31_SHIN_SAL_MATRIX.역마
+    });
+  }
+  
+  // 4. 양인 검출 (일간 기준)
+  const yanginBranch = V31_YANGIN_LOOKUP[dayMaster];
+  if (yanginBranch && branches.includes(yanginBranch)) {
+    detected.push({
+      name: '양인',
+      info: V31_SHIN_SAL_MATRIX.양인
+    });
+  }
+  
+  // 5. 공망 검출 (일주 기준)
+  const gongmangBranches = V31_GONGMANG_LOOKUP[dayGanzhi] || [];
+  if (gongmangBranches.some(b => branches.includes(b))) {
+    detected.push({
+      name: '공망',
+      info: V31_SHIN_SAL_MATRIX.공망
+    });
+  }
+  
+  // 분석 텍스트
+  let analysis;
+  if (detected.length === 0) {
+    analysis = '주요 신살이 검출되지 않은 평이한 흐름입니다.';
+  } else if (detected.length >= 3) {
+    const names = detected.map(d => d.info.short).join(', ');
+    analysis = `${names} 등 ${detected.length}개 신살이 검출된 특별한 흐름입니다.`;
+  } else {
+    const names = detected.map(d => d.info.short).join(', ');
+    analysis = `${names} 신살이 검출되어 흐름의 특징이 명확합니다.`;
+  }
+  
+  return { detected, count: detected.length, analysis };
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// [V31 Chunk 6.5 추론 함수 끝] — 다음: PRO 콘텐츠 생성 함수 정밀화
+// ════════════════════════════════════════════════════════════════════════════════
+
+
 // ════════════════════════════════════════════════════════════════════════════════
 
 // 📈 주식/코인 메트릭

@@ -11106,43 +11106,49 @@ function renderSajuResult(data) {
                 ${data.pro.tenStars ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">⭐ ${data.pro.tenStars.title || '십성 분석'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.tenStars.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.tenStars.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.deepInsight ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">🔮 ${data.pro.deepInsight.title || '깊이 통찰'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.deepInsight.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.deepInsight.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.hiddenRisk ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(231,76,60,0.08); border-left:3px solid #e74c3c; border-radius:0 6px 6px 0;">
                     <div style="color:#FF8870; font-size:0.84rem; font-weight:800; margin-bottom:6px;">⚠ ${data.pro.hiddenRisk.title || '숨은 리스크'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.hiddenRisk.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.hiddenRisk.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.timingPrecision ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(46,204,113,0.08); border-left:3px solid #2ecc71; border-radius:0 6px 6px 0;">
                     <div style="color:#5DD68A; font-size:0.84rem; font-weight:800; margin-bottom:6px;">⏱ ${data.pro.timingPrecision.title || '타이밍 정밀'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.timingPrecision.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.timingPrecision.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.luckPhase12 ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">🌀 ${data.pro.luckPhase12.title || '12운성'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.luckPhase12.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.luckPhase12.content || ''}</div>
+                </div>` : ''}
+                
+                ${data.pro.shinSal ? `
+                <div style="margin-bottom:12px; padding:12px; background:rgba(255,165,80,0.08); border-left:3px solid #FFB870; border-radius:0 6px 6px 0;">
+                    <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">⚔️ ${data.pro.shinSal.title || '신살'}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.shinSal.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.familyPackage ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(155,89,182,0.08); border-left:3px solid #9b59b6; border-radius:0 6px 6px 0;">
                     <div style="color:#C39BD3; font-size:0.84rem; font-weight:800; margin-bottom:6px;">👨‍👩‍👧 ${data.pro.familyPackage.title || '가족 사주'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.familyPackage.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.familyPackage.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.yearlyOutlook ? `
                 <div style="padding:12px; background:rgba(52,152,219,0.08); border-left:3px solid #3498db; border-radius:0 6px 6px 0;">
                     <div style="color:#7FCDFF; font-size:0.84rem; font-weight:800; margin-bottom:6px;">📅 ${data.pro.yearlyOutlook.title || '연운 흐름'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65;">${data.pro.yearlyOutlook.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.yearlyOutlook.content || ''}</div>
                 </div>` : ''}
             </div>
             ` : ''}
