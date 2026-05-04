@@ -782,7 +782,155 @@
             }
         }
 
-        /* ─── 📦 4 GRID 미세 조정 (히어로 강조 자연스럽게) ─── */
+        /* ═══════════════════════════════════════════════════════════════
+         * [V31 #138 + #139] 사주 보조 카드 — saju-aux-* (메인 4박스 아래)
+         *   사장님 명령 #139:
+         *     ① 좌 15% + 우 15% = 가로 30% 축소 (480 → 336px)
+         *     ② 상하 합 10% 축소 (padding 12 → 10)
+         *
+         *   효과: 메인 4박스 480px 대비 70% 가로폭 (보조성 강화)
+         * ═══════════════════════════════════════════════════════════════ */
+        .saju-aux-card {
+            position: relative;
+            max-width: 336px;                    /* [#139] 480 × 0.7 = 336 (좌우 각 15% 축소) */
+            margin: 12px auto 16px;              /* [#139] 상하 마진 약간 축소 */
+            padding: 10px 16px 10px 16px;        /* [#139] 상하 padding 12→10 (10% 축소) */
+            background: linear-gradient(135deg, 
+                rgba(212,175,55,0.10) 0%, 
+                rgba(205,46,58,0.04) 50%, 
+                rgba(0,71,160,0.06) 100%);
+            border: 1.5px solid rgba(212,175,55,0.45);   /* 메인보다 약하게 */
+            border-radius: 12px;                 /* 14 → 12 (작은 카드에 비례) */
+            cursor: pointer;
+            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 12px;                           /* 14 → 12 (작은 카드에 비례) */
+            text-align: left;
+            box-shadow: 
+                0 2px 10px rgba(212,175,55,0.10),
+                0 0 0 1px rgba(212,175,55,0.08) inset;
+        }
+
+        .saju-aux-card:hover {
+            transform: translateY(-1px);
+            border-color: rgba(212,175,55,0.7);
+            box-shadow: 
+                0 4px 14px rgba(212,175,55,0.18),
+                0 0 0 1px rgba(212,175,55,0.13) inset;
+        }
+
+        /* 보조 카드 배지 (NEW + 990원) */
+        .saju-aux-badges {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            z-index: 2;
+        }
+
+        /* 태극 SVG — 작게 (#139: 48 → 40) */
+        .saju-aux-taegeuk {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+        }
+        .saju-aux-taegeuk svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 3px rgba(212,175,55,0.22));
+        }
+
+        /* 정보 영역 — 가로 길게 (한 줄에 더 많이) */
+        .saju-aux-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;                            /* 3 → 2 (작은 카드 비례) */
+        }
+
+        .saju-aux-title {
+            font-size: 0.88rem;                  /* [#139] 0.95 → 0.88 (보조성) */
+            font-weight: 800;
+            color: #FFE08A;
+            letter-spacing: 0.02em;
+        }
+
+        .saju-aux-divider {
+            display: none;
+        }
+
+        .saju-aux-sub {
+            font-size: 0.68rem;                  /* [#139] 0.72 → 0.68 */
+            color: rgba(232,232,238,0.7);
+            line-height: 1.35;
+        }
+
+        .saju-aux-features {
+            font-size: 0.62rem;                  /* [#139] 0.66 → 0.62 */
+            color: rgba(212,175,55,0.85);
+            font-weight: 600;
+            margin-top: 1px;
+        }
+
+        /* CTA — 보조 카드 (작은 펄스) */
+        .saju-aux-cta {
+            background: linear-gradient(135deg, rgba(212,175,55,0.85), rgba(255,217,112,0.85));
+            color: #1a1a1a;
+            font-size: 0.7rem;                   /* [#139] 0.74 → 0.7 */
+            font-weight: 800;
+            padding: 5px 12px;                   /* [#139] 6 14 → 5 12 */
+            border: none;
+            border-radius: 16px;                 /* 18 → 16 */
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            flex-shrink: 0;
+            align-self: flex-end;
+            margin-top: 3px;
+            box-shadow: 0 2px 7px rgba(212,175,55,0.28);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .saju-aux-cta:hover {
+            transform: scale(1.04);
+            box-shadow: 0 3px 11px rgba(212,175,55,0.45);
+        }
+
+        /* 모바일 반응형 — 사주 보조 카드 (#139 추가 축소) */
+        @media (max-width: 480px) {
+            .saju-aux-card {
+                max-width: 92%;                  /* 모바일에선 화면의 92% (모바일 4박스도 동일) */
+                padding: 9px 12px;
+                gap: 10px;
+                margin: 10px auto 14px;
+            }
+            .saju-aux-taegeuk {
+                width: 34px;
+                height: 34px;
+            }
+            .saju-aux-title {
+                font-size: 0.82rem;
+            }
+            .saju-aux-sub {
+                font-size: 0.62rem;
+            }
+            .saju-aux-features {
+                font-size: 0.56rem;
+            }
+            .saju-aux-cta {
+                font-size: 0.64rem;
+                padding: 4px 9px;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+         * [V31 #138] 메인 4박스 강조 — 테두리 굵게
+         * ═══════════════════════════════════════════════════════════════ */
         .category-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -795,7 +943,8 @@
         .cat-card {
             position: relative;
             background: rgba(255,255,255,0.025);
-            border: 1px solid rgba(212,175,55,0.18);
+            /* [V31 #138] 사장님 명령 — 메인 4박스 테두리 굵게 (1px → 2px, 강조) */
+            border: 2px solid rgba(212,175,55,0.55);
             border-radius: 12px;
             padding: 12px 8px 10px 8px;
             cursor: pointer;
@@ -806,17 +955,27 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            /* [V31 #138] 메인 강조 그림자 */
+            box-shadow: 
+                0 2px 10px rgba(212,175,55,0.10),
+                0 0 0 1px rgba(212,175,55,0.05) inset;
         }
 
         .cat-card:hover {
-            background: rgba(212,175,55,0.06);
-            border-color: rgba(212,175,55,0.45);
-            transform: scale(1.02);
+            background: rgba(212,175,55,0.08);
+            border-color: rgba(212,175,55,0.85);   /* 0.45 → 0.85 강조 */
+            transform: scale(1.03);
+            box-shadow: 
+                0 4px 16px rgba(212,175,55,0.25),
+                0 0 0 1px rgba(212,175,55,0.15) inset;
         }
 
         .cat-card.active {
-            background: rgba(212,175,55,0.10);
-            border-color: rgba(212,175,55,0.65);
+            background: rgba(212,175,55,0.12);
+            border-color: rgba(212,175,55,0.95);   /* 0.65 → 0.95 강조 */
+            box-shadow: 
+                0 4px 18px rgba(212,175,55,0.32),
+                0 0 0 1px rgba(212,175,55,0.25) inset;
         }
 
         .cat-card .cat-icon {
@@ -2219,15 +2378,52 @@
             <span class="ko">무엇을 점사 받으시겠습니까?</span>
         </div>
 
+
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 🌟 HERO — 사주 신탁 (메인 히어로 / 객단가 핵심)   -->
+        <!-- 📦 4 GRID — 보조 카테고리 (2x2)                  -->
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <div class="saju-hero-card" onclick="selectCategory('saju', this)">
-            <!-- NEW 붉은 점 + PRO 골드 배지 (절대 위치 — 우측 상단) -->
-            <div class="saju-hero-badges">
+        <div class="category-grid" id="category-grid">
+            <!-- 💘 연애 -->
+            <div class="cat-card" data-cat="love" onclick="selectCategory('love', this)">
+                <span class="cat-badge cat-badge-pro">PRO</span>
+                <div class="cat-icon">💘</div>
+                <div class="cat-title">연애·관계운</div>
+                <div class="cat-sub">상대 마음 / 재회 / 궁합</div>
+            </div>
+
+            <!-- 📈 투자 -->
+            <div class="cat-card" data-cat="stock" onclick="selectCategory('stock', this)">
+                <span class="cat-badge cat-badge-pro">PRO</span>
+                <div class="cat-icon" style="filter: hue-rotate(140deg) saturate(1.3) drop-shadow(0 0 6px rgba(231,76,60,0.4));">📈</div>
+                <div class="cat-title">투자 신탁</div>
+                <div class="cat-sub">주식 / 코인 타이밍</div>
+            </div>
+
+            <!-- 🏠 부동산 -->
+            <div class="cat-card" data-cat="realestate" onclick="selectCategory('realestate', this)">
+                <span class="cat-badge cat-badge-pro">PRO</span>
+                <div class="cat-icon">🏠</div>
+                <div class="cat-title">부동산</div>
+                <div class="cat-sub">매수 / 매도 전략</div>
+            </div>
+
+            <!-- ✨ 일반 운세 -->
+            <div class="cat-card" data-cat="general" onclick="selectCategory('general', this)">
+                <span class="cat-badge cat-badge-mixed">FREE · PRO</span>
+                <div class="cat-icon">✨</div>
+                <div class="cat-title">일반 운세</div>
+                <div class="cat-sub">오늘 / 전반 / 신년</div>
+            </div>
+        </div>
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- ☯ 보조 — 사주 체험 (990원 / 가로 풀와이드)   -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div class="saju-aux-card" onclick="selectCategory('saju', this)">
+            <!-- [V31 #138] NEW + 990원 체험 (PRO 라벨 제거 — 사장님 명령) -->
+            <div class="saju-aux-badges">
                 <span class="badge-new-dot"></span>
                 <span class="badge-new-text">NEW</span>
-                <span class="badge-pro-gold">PRO</span>
+                <span class="badge-pro-gold">990원</span>
             </div>
 
             <!-- ━━━ 좌측: 태극 청홍 SVG (사장님 명령 — 정확한 표준 + 밝은 청홍) ━━━ -->
@@ -2239,7 +2435,7 @@
                 ✅ 적색: #E63946 ~ #FF6B7A (그라디언트로 깊이 + 밝기)
                 ✅ 청색: #1D4ED8 ~ #4F8BF7 (그라디언트로 깊이 + 밝기)
             -->
-            <div class="saju-hero-taegeuk">
+            <div class="saju-aux-taegeuk">
                 <!--
                     [V31 #127] 표준 태극 SVG (사장님 진단: 청색 물고기 머리 깨짐)
                     
@@ -2287,52 +2483,15 @@
             </div>
 
             <!-- ━━━ 우측: 정보 영역 (타이틀 + 부제 + 특징 + CTA) ━━━ -->
-            <div class="saju-hero-info">
-                <div class="saju-hero-title">사주 신탁</div>
-                <div class="saju-hero-divider"></div>
-                <div class="saju-hero-sub">생년월일시 기반 정밀 분석</div>
-                <div class="saju-hero-features">4주 · 오행 · 십성 · 대운</div>
+            <div class="saju-aux-info">
+                <div class="saju-aux-title">☯ 사주 체험</div>
+                <div class="saju-aux-divider"></div>
+                <div class="saju-aux-sub">생년월일시 기반 4주 명식 + 오행 분석</div>
+                <div class="saju-aux-features">990원 · 가벼운 체험</div>
 
-                <button class="saju-hero-cta" type="button" onclick="event.stopPropagation(); selectCategory('saju', this.closest('.saju-hero-card'));">
-                    ☯ 사주 신탁 시작
+                <button class="saju-aux-cta" type="button" onclick="event.stopPropagation(); selectCategory('saju', this.closest('.saju-aux-card'));">
+                    체험 시작 →
                 </button>
-            </div>
-        </div>
-
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 📦 4 GRID — 보조 카테고리 (2x2)                  -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <div class="category-grid" id="category-grid">
-            <!-- 💘 연애 -->
-            <div class="cat-card" data-cat="love" onclick="selectCategory('love', this)">
-                <span class="cat-badge cat-badge-pro">PRO</span>
-                <div class="cat-icon">💘</div>
-                <div class="cat-title">연애·관계운</div>
-                <div class="cat-sub">상대 마음 / 재회 / 궁합</div>
-            </div>
-
-            <!-- 📈 투자 -->
-            <div class="cat-card" data-cat="stock" onclick="selectCategory('stock', this)">
-                <span class="cat-badge cat-badge-pro">PRO</span>
-                <div class="cat-icon" style="filter: hue-rotate(140deg) saturate(1.3) drop-shadow(0 0 6px rgba(231,76,60,0.4));">📈</div>
-                <div class="cat-title">투자 신탁</div>
-                <div class="cat-sub">주식 / 코인 타이밍</div>
-            </div>
-
-            <!-- 🏠 부동산 -->
-            <div class="cat-card" data-cat="realestate" onclick="selectCategory('realestate', this)">
-                <span class="cat-badge cat-badge-pro">PRO</span>
-                <div class="cat-icon">🏠</div>
-                <div class="cat-title">부동산</div>
-                <div class="cat-sub">매수 / 매도 전략</div>
-            </div>
-
-            <!-- ✨ 일반 운세 -->
-            <div class="cat-card" data-cat="general" onclick="selectCategory('general', this)">
-                <span class="cat-badge cat-badge-mixed">FREE · PRO</span>
-                <div class="cat-icon">✨</div>
-                <div class="cat-title">일반 운세</div>
-                <div class="cat-sub">오늘 / 전반 / 신년</div>
             </div>
         </div>
 
@@ -3711,7 +3870,19 @@ function setSituation(btn, type, domain) {
             localStorage.removeItem('oracleSessionToken');
         }
     } catch(e) {
-        console.warn('결제 상태 복원 실패 (네트워크):', e.message);
+        // [V31 #139] graceful 처리 — Warning → Info
+        // 네트워크 실패 / Worker 미배포 / CORS 등은 사용자 흐름에 영향 없음
+        // (isPaidUser는 false 유지, 토큰은 살려둠 → 다음 로드 시 재시도)
+        const isNetworkError = (e.message || '').includes('Failed to fetch') 
+                             || (e.message || '').includes('NetworkError')
+                             || (e.message || '').includes('ERR_');
+        if (isNetworkError) {
+            // 빨간 Warning 대신 가벼운 Info 로그
+            console.info('ℹ️ 결제 상태 복원 보류 — 다음 페이지 로드 시 재시도');
+        } else {
+            // 그 외 예외는 디버그용으로만 표시
+            console.debug('[restore] 예외:', e.message);
+        }
     }
 })();
 
@@ -11052,10 +11223,10 @@ function renderSajuResult(data) {
                     <strong style="color:#FFE08A;">일주 본질:</strong><br>${text.dayEssence}
                 </div>
                 <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.7; margin-bottom:8px;">
-                    <strong style="color:#FFE08A;">오행 균형:</strong><br>${text.balancePhrase}
+                    <strong style="color:#FFE08A;">${text.balanceLabel || '오행 균형'}:</strong><br>${text.balancePhrase}
                 </div>
                 <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.7;">
-                    <strong style="color:#FFE08A;">신강 본질:</strong><br>${text.strengthPhrase}
+                    <strong style="color:#FFE08A;">${text.strengthLabel || '본질 흐름'}:</strong><br>${text.strengthPhrase}
                 </div>
             </div>
 

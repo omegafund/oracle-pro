@@ -6670,6 +6670,29 @@ function v31GenerateText(sajuData, judgeResult) {
   const scenarioLabel = V31_SCENARIO_LABELS[category]?.[scenarioKey];
   const labelText = scenarioLabel?.ko || scenarioKey;
 
+  // ── 6.5 [V31 #138] 동적 라벨 — 모순 버그 수정 ──
+  // 오행 라벨: 균형이면 "오행 균형", 편중이면 "오행 분포"
+  let balanceLabel = '오행 균형';
+  if (balanceKey !== 'balanced') {
+    // 화/금이 거의 0 등 심한 편중 시
+    if (elRange >= 2.5) {
+      balanceLabel = '오행 편중';
+    } else {
+      balanceLabel = '오행 분포';
+    }
+  }
+
+  // 신강/신약 라벨: strength.level에 따라 동적
+  let strengthLabel = '신강 본질';
+  switch (strength.level) {
+    case 'extra_strong': strengthLabel = '신왕 본질'; break;
+    case 'strong':       strengthLabel = '신강 본질'; break;
+    case 'balanced':     strengthLabel = '균형 본질'; break;
+    case 'weak':         strengthLabel = '신약 본질'; break;
+    case 'extra_weak':   strengthLabel = '극신약 본질'; break;
+    default:             strengthLabel = '본질 흐름';
+  }
+
   // ── 7. 종합 결과 ──
   return {
     // 헤더
@@ -6680,6 +6703,10 @@ function v31GenerateText(sajuData, judgeResult) {
     dayEssence: dayEssence,
     balancePhrase: balancePhrase,
     strengthPhrase: strengthPhrase,
+
+    // [V31 #138] 동적 라벨 — 모순 버그 수정
+    balanceLabel: balanceLabel,
+    strengthLabel: strengthLabel,
 
     // 매트릭스 (V28.B 통합 처리)
     tldr: enforcedTldr,
@@ -6756,18 +6783,36 @@ function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
 
     // ★ [V31 #137] 십성 정밀 분석
     const dominantSipsung = tenStars.dominant;
+    const dominantTie = tenStars.dominantTie || [dominantSipsung];
     const subSipsung = tenStars.sub || [];
     let tenStarsContent = '';
+    let tenStarsTitle = '';
     
     if (dominantSipsung) {
       const domInfo = V31_TEN_STARS_MATRIX[dominantSipsung];
       const domCount = tenStars.distribution[dominantSipsung].toFixed(1);
       
-      tenStarsContent = `당신의 사주는 ${domInfo.name}이 가장 강한 흐름입니다 (${domCount}점)\n\n`;
-      tenStarsContent += `▸ 본질: ${domInfo.meaning}\n`;
-      tenStarsContent += `▸ 강한 점: ${domInfo.strong}\n`;
-      tenStarsContent += `▸ 주의 점: ${domInfo.weak}\n`;
-      tenStarsContent += `▸ 적합 직업: ${domInfo.job}\n`;
+      // ★ [V31 #138] 동점 처리 — 양강세
+      if (dominantTie.length > 1) {
+        const tieNames = dominantTie.map(s => V31_TEN_STARS_MATRIX[s].name).join(' + ');
+        tenStarsTitle = `⭐ 십성 정밀 분석 — ${tieNames} 양강세`;
+        tenStarsContent = `당신의 사주는 ${tieNames}이 함께 강한 양강세 흐름입니다 (${domCount}점 동률)\n\n`;
+        // 두 십성의 본질을 모두 설명
+        for (const tieKey of dominantTie) {
+          const tInfo = V31_TEN_STARS_MATRIX[tieKey];
+          tenStarsContent += `▸ ${tInfo.name}: ${tInfo.meaning}\n`;
+        }
+        tenStarsContent += `\n▸ 강한 점: ${domInfo.strong}\n`;
+        tenStarsContent += `▸ 주의 점: ${domInfo.weak}\n`;
+        tenStarsContent += `▸ 적합 직업: ${domInfo.job}\n`;
+      } else {
+        tenStarsTitle = `⭐ 십성 정밀 분석 — ${dominantSipsung}`;
+        tenStarsContent = `당신의 사주는 ${domInfo.name}이 가장 강한 흐름입니다 (${domCount}점)\n\n`;
+        tenStarsContent += `▸ 본질: ${domInfo.meaning}\n`;
+        tenStarsContent += `▸ 강한 점: ${domInfo.strong}\n`;
+        tenStarsContent += `▸ 주의 점: ${domInfo.weak}\n`;
+        tenStarsContent += `▸ 적합 직업: ${domInfo.job}\n`;
+      }
       
       if (subSipsung.length > 0) {
         const subList = subSipsung.map(s => {
@@ -6785,11 +6830,12 @@ function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
         .join(' · ');
       tenStarsContent += `\n\n📊 십성 분포: ${distribStr}`;
     } else {
+      tenStarsTitle = '⭐ 십성 정밀 분석 — 균형형';
       tenStarsContent = '십성 분포가 매우 고르게 형성된 균형형 사주입니다.';
     }
     
     proContent.tenStars = {
-      title: `⭐ 십성 정밀 분석 — ${dominantSipsung || '균형형'}`,
+      title: tenStarsTitle,
       content: tenStarsContent,
       data: tenStars  // 디버그/추가 활용용
     };
@@ -7880,16 +7926,41 @@ function v31CalcTenStars(sajuData) {
     distribution.비견 = Math.max(0, distribution.비견 - 1);
   }
   
-  // 가장 강한 십성 (dominant)
-  const sorted = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
-  const dominant = sorted[0][1] > 0 ? sorted[0][0] : null;
-  const sub = sorted.slice(1, 3).filter(([k, v]) => v > 0).map(([k, v]) => k);
+  // 가장 강한 십성 (dominant) — [V31 #138] 동점 처리
+  const sorted = Object.entries(distribution)
+    .filter(([k, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
   
-  // 분석 텍스트 생성
+  let dominant = null;
+  let dominantTie = []; // 동점 검출 (1.7 = 1.7 같은 경우)
+  
+  if (sorted.length > 0) {
+    const topScore = sorted[0][1];
+    // 최고점과 같은 점수를 가진 모든 십성 (소수점 오차 0.05 허용)
+    dominantTie = sorted
+      .filter(([k, v]) => Math.abs(v - topScore) < 0.05)
+      .map(([k]) => k);
+    dominant = dominantTie[0]; // 첫번째를 대표로 (동점 정보는 dominantTie로 보존)
+  }
+  
+  // sub은 dominant tie를 제외한 나머지 상위 2개
+  const sub = sorted
+    .filter(([k]) => !dominantTie.includes(k))
+    .slice(0, 2)
+    .filter(([k, v]) => v > 0)
+    .map(([k]) => k);
+  
+  // 분석 텍스트 생성 — 동점 시 양강세 표기
   let analysis = '';
   if (dominant) {
-    const domInfo = V31_TEN_STARS_MATRIX[dominant];
-    analysis = `당신의 사주는 ${domInfo.name}이 가장 강한 흐름입니다 — ${domInfo.meaning}`;
+    if (dominantTie.length > 1) {
+      // ★ [V31 #138] 양강세 표기 (정재+정관 1.7 동점 등)
+      const tieNames = dominantTie.map(s => V31_TEN_STARS_MATRIX[s].name).join(' + ');
+      analysis = `당신의 사주는 ${tieNames}이 함께 강한 양강세 흐름입니다`;
+    } else {
+      const domInfo = V31_TEN_STARS_MATRIX[dominant];
+      analysis = `당신의 사주는 ${domInfo.name}이 가장 강한 흐름입니다 — ${domInfo.meaning}`;
+    }
     if (sub.length > 0) {
       analysis += `. 보조 흐름은 ${sub.map(s => V31_TEN_STARS_MATRIX[s].short).join(', ')} 입니다.`;
     }
@@ -7897,7 +7968,7 @@ function v31CalcTenStars(sajuData) {
     analysis = '십성 분포가 매우 고르게 형성되어 있어 균형형 사주입니다.';
   }
   
-  return { distribution, dominant, sub, analysis };
+  return { distribution, dominant, dominantTie, sub, analysis };
 }
 
 /**
