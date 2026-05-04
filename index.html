@@ -862,6 +862,43 @@
         }
         /* ═══ V31 #123 HERO + GRID 끝 ═══ */
 
+        /* ═══════════════════════════════════════════════════════════════
+         * [V31 #124] 사주 입력 필드 강화 — 사장님 명령 (테두리 명확화)
+         *   AS-IS: rgba(212,175,55,0.3) — 검은 배경에 거의 안 보임
+         *   TO-BE: rgba(212,175,55,0.65) 황금 + focus 시 녹색 (#2ecc71)
+         *   효과: 구획 분리 명확 + 입력 가능 영역 즉시 인지
+         * ═══════════════════════════════════════════════════════════════ */
+        .saju-input {
+            color-scheme: dark;
+        }
+
+        .saju-input:hover {
+            border-color: rgba(212,175,55,0.95) !important;
+            background: rgba(0,0,0,0.6) !important;
+            box-shadow: 0 0 0 2px rgba(212,175,55,0.15) inset, 0 0 8px rgba(212,175,55,0.2) !important;
+        }
+
+        .saju-input:focus {
+            border-color: #2ecc71 !important;
+            background: rgba(0,0,0,0.6) !important;
+            box-shadow: 0 0 0 2px rgba(46,204,113,0.25) inset, 0 0 12px rgba(46,204,113,0.3) !important;
+            color: #fff !important;
+        }
+
+        /* placeholder 색상 강화 */
+        .saju-input::placeholder {
+            color: rgba(255,224,138,0.5);
+            font-weight: 600;
+        }
+
+        /* select option 다크 배경 */
+        .saju-input option {
+            background: #0a0a14;
+            color: #FFE08A;
+            padding: 8px;
+        }
+        /* ═══ V31 #124 입력 필드 강화 끝 ═══ */
+
         .cat-card {
             position: relative;
             background: linear-gradient(135deg, rgba(212,175,55,0.06), rgba(155,89,182,0.04));
@@ -10311,6 +10348,21 @@ function showSajuInputModal() {
     // 기존 모달 제거
     const existing = document.getElementById('sajuInputModal');
     if (existing) existing.remove();
+
+    // 입력 필드 공통 스타일 (사장님 명령: 녹색/황금색 테두리 명확화)
+    const _sajuFieldStyle = `
+        width:100%;
+        padding:11px 12px;
+        background:rgba(0,0,0,0.5);
+        border:2px solid rgba(212,175,55,0.65);
+        border-radius:8px;
+        color:#FFE08A;
+        font-size:0.92rem;
+        font-weight:700;
+        outline:none;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 0 1px rgba(212,175,55,0.1) inset;
+    `;
     const modal = document.createElement('div');
     modal.id = 'sajuInputModal';
     modal.className = 'pay-modal-overlay';
@@ -10320,7 +10372,7 @@ function showSajuInputModal() {
                 <div style="font-size:2.4rem; margin-bottom:6px;">☯</div>
                 <h2 style="color:#FFD970; font-size:1.2rem; margin:4px 0;">사주 신탁</h2>
                 <div style="color:rgba(255,255,255,0.6); font-size:0.78rem;">
-                    글로벌 1위 정확도 — V31 통합 엔진
+                    절기 · 간지 · 오행 정밀 분석
                 </div>
             </div>
 
@@ -10355,13 +10407,16 @@ function showSajuInputModal() {
                 </label>
                 <div style="display:flex; gap:6px;">
                     <input type="number" id="sajuYear" placeholder="1990" min="1900" max="2030"
-                           style="flex:1; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.92rem; text-align:center;">
+                           class="saju-input"
+                           style="flex:1; padding:11px 12px; background:rgba(0,0,0,0.5); border:2px solid rgba(212,175,55,0.65); border-radius:8px; color:#FFE08A; font-size:0.92rem; font-weight:700; text-align:center; outline:none; transition:all 0.2s ease; box-shadow:0 0 0 1px rgba(212,175,55,0.1) inset;">
                     <input type="number" id="sajuMonth" placeholder="1" min="1" max="12"
-                           style="width:72px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.92rem; text-align:center;">
+                           class="saju-input"
+                           style="width:72px; padding:11px 8px; background:rgba(0,0,0,0.5); border:2px solid rgba(212,175,55,0.65); border-radius:8px; color:#FFE08A; font-size:0.92rem; font-weight:700; text-align:center; outline:none; transition:all 0.2s ease; box-shadow:0 0 0 1px rgba(212,175,55,0.1) inset;">
                     <input type="number" id="sajuDay" placeholder="1" min="1" max="31"
-                           style="width:72px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.92rem; text-align:center;">
+                           class="saju-input"
+                           style="width:72px; padding:11px 8px; background:rgba(0,0,0,0.5); border:2px solid rgba(212,175,55,0.65); border-radius:8px; color:#FFE08A; font-size:0.92rem; font-weight:700; text-align:center; outline:none; transition:all 0.2s ease; box-shadow:0 0 0 1px rgba(212,175,55,0.1) inset;">
                 </div>
-                <div style="font-size:0.7rem; color:rgba(255,255,255,0.5); margin-top:4px;">
+                <div style="font-size:0.7rem; color:rgba(255,255,255,0.5); margin-top:5px; text-align:center;">
                     년 / 월 / 일 (1900~2030)
                 </div>
             </div>
@@ -10371,7 +10426,8 @@ function showSajuInputModal() {
                 <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
                     🕐 출생 시간 <span style="font-weight:400; color:rgba(255,255,255,0.5);">(선택 / 모르면 비워두기)</span>
                 </label>
-                <select id="sajuHour" style="width:100%; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.88rem;">
+                <select id="sajuHour" class="saju-input"
+                        style="width:100%; padding:11px 12px; background:rgba(0,0,0,0.5); border:2px solid rgba(212,175,55,0.65); border-radius:8px; color:#FFE08A; font-size:0.88rem; font-weight:700; outline:none; transition:all 0.2s ease; box-shadow:0 0 0 1px rgba(212,175,55,0.1) inset; cursor:pointer;">
                     <option value="">시간 모름 (3주 분석)</option>
                     <option value="0">자시 (00:00 ~ 00:59)</option>
                     <option value="1">축시 (01:00 ~ 02:59)</option>
@@ -10409,19 +10465,14 @@ function showSajuInputModal() {
                 <label style="display:block; color:#FFE08A; font-size:0.82rem; font-weight:700; margin-bottom:6px;">
                     🎯 점사 영역
                 </label>
-                <select id="sajuCategory" style="width:100%; padding:10px; background:rgba(0,0,0,0.4); border:1px solid rgba(212,175,55,0.3); border-radius:6px; color:#fff; font-size:0.88rem;">
+                <select id="sajuCategory" class="saju-input"
+                        style="width:100%; padding:11px 12px; background:rgba(0,0,0,0.5); border:2px solid rgba(212,175,55,0.65); border-radius:8px; color:#FFE08A; font-size:0.88rem; font-weight:700; outline:none; transition:all 0.2s ease; box-shadow:0 0 0 1px rgba(212,175,55,0.1) inset; cursor:pointer;">
                     <option value="saju">☯ 사주 본질 (전체)</option>
                     <option value="fortune">✨ 일반 운세</option>
                     <option value="love">💘 연애 / 관계</option>
                     <option value="stock">📈 투자 / 재물</option>
                     <option value="realestate">🏠 부동산</option>
                 </select>
-            </div>
-
-            <!-- 안내 -->
-            <div style="margin-bottom:14px; padding:10px; background:rgba(46,204,113,0.08); border-left:2px solid #2ecc71; border-radius:0 4px 4px 0; font-size:0.74rem; color:rgba(232,232,238,0.85); line-height:1.55;">
-                <strong style="color:#2ecc71;">★ V31 사주 엔진</strong><br>
-                절기 + 간지 100% 정확 검증 / 두 사주 anchor 8/8 PASS / V25.22 정신 통합
             </div>
 
             <!-- 버튼 -->
@@ -10479,11 +10530,10 @@ async function runSajuOracle() {
     showSajuLoadingScreen();
 
     try {
-        const WORKER_URL = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL)
-            ? CONFIG.WORKER_URL
-            : (window.WORKER_URL || '/');
-        
-        const response = await fetch(`${WORKER_URL}saju/oracle`, {
+        // [V31 #124 결함 수정] 기존 worker URL 패턴 사용 (WORKER_BASE_URL과 동일)
+        const SAJU_API = 'https://tarot-api.omegafund01.workers.dev';
+
+        const response = await fetch(`${SAJU_API}/saju/oracle`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
