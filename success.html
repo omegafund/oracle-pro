@@ -2,71 +2,204 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>결제 완료 — ZEUS ORACLE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결제 처리 중 - ZEUS TAROT</title>
     <style>
-        body { background:#0A0A14; color:#D4AF37; font-family:'Inter',sans-serif;
-               display:flex; align-items:center; justify-content:center;
-               min-height:100vh; margin:0; text-align:center; }
-        .wrap { padding:32px 20px; }
-        .icon { font-size:3rem; margin-bottom:16px; }
-        h2 { font-size:1.2rem; font-weight:800; letter-spacing:0.1em;
-             margin-bottom:8px; color:#F1C40F; }
-        p  { font-size:0.85rem; color:rgba(255,255,255,0.6); margin-bottom:24px; }
-        .spinner { width:32px; height:32px; border:3px solid rgba(212,175,55,0.2);
-                   border-top-color:#D4AF37; border-radius:50%;
-                   animation:spin 0.8s linear infinite; margin:0 auto 16px; }
-        @keyframes spin { to { transform:rotate(360deg); } }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: linear-gradient(135deg, #0a0a14 0%, #14142a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #fff;
+            padding: 20px;
+        }
+        .success-card {
+            text-align: center;
+            max-width: 360px;
+            padding: 36px 28px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(212,175,55,0.4);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(212,175,55,0.2);
+        }
+        .icon {
+            font-size: 3.4rem;
+            margin-bottom: 12px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.95; }
+        }
+        h1 {
+            color: #FFD970;
+            font-size: 1.3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            letter-spacing: 0.02em;
+        }
+        .sub {
+            color: rgba(255,255,255,0.78);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 22px;
+        }
+        .spinner {
+            width: 36px;
+            height: 36px;
+            margin: 16px auto;
+            border: 3px solid rgba(212,175,55,0.2);
+            border-top: 3px solid #FFD970;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .manual-btn {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 11px 22px;
+            background: linear-gradient(135deg, #D4AF37, #FFD970);
+            color: #000;
+            text-decoration: none;
+            font-size: 0.84rem;
+            font-weight: 900;
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(212,175,55,0.4);
+            transition: all 0.2s ease;
+        }
+        .manual-btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 6px 18px rgba(212,175,55,0.6);
+        }
+        .info {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="spinner"></div>
-    <div class="icon">⚡</div>
-    <h2>결제 완료 — 봉인 해제 중</h2>
-    <p>잠시 후 신탁 결과로 이동합니다…</p>
-</div>
-<script>
-// [V23.7] Toss 결제 완료 → index.html?paid=ok&paymentKey=...로 리다이렉트
-(function() {
-    const params = new URLSearchParams(window.location.search);
-    const paymentKey = params.get('paymentKey') || '';
-    const orderId    = params.get('orderId')    || '';
-    const amount     = params.get('amount')     || '';
+    <div class="success-card">
+        <div class="icon">✨</div>
+        <h1>결제 완료</h1>
+        <div class="sub">
+            점사 결과로 자동 이동 중입니다...<br>
+            <span style="font-size:0.78rem; opacity:0.75;">잠시만 기다려주세요</span>
+        </div>
+        <div class="spinner"></div>
+        <a id="manualBtn" href="/" class="manual-btn">직접 이동하기 →</a>
+        <div class="info">
+            ※ 결제 완료 후 자동으로 점사 결과를 보여드립니다.<br>
+            ※ 사주 결제 시 PRO 콘텐츠가 자동으로 노출됩니다.
+        </div>
+    </div>
 
-    // Worker에 결제 검증 요청
-    const WORKER_URL = 'https://tarot-api.omegafund01.workers.dev';
-
-    fetch(WORKER_URL + '/confirm-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentKey, orderId, amount })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success || data.ok) {
-            // 결제 검증 성공 → 토큰 저장 후 결과 화면으로
-            if (data.token || paymentKey) {
-                localStorage.setItem('oracleSessionToken', data.token || 'PAID_' + Date.now());
+    <script>
+        // ════════════════════════════════════════════════════════════
+        // [V31 #131] ZEUS TAROT 결제 완료 처리 — 타로 + 사주 통합 호환
+        //
+        // 토스페이먼츠 successUrl 호출 → 이 페이지 도달
+        // 받는 파라미터: paymentKey, orderId, amount, paymentType (toss 표준)
+        //
+        // 처리 흐름:
+        //   1. 결제 토큰을 localStorage에 저장 (메인에서 isPaidUser 인식)
+        //   2. 워커에 결제 검증 요청 (선택 — 실패해도 진행)
+        //   3. 1.5초 후 메인으로 ?paid=ok 리다이렉트
+        //   4. 5초 후 자동 이동 안 됐으면 수동 버튼 강조
+        // ════════════════════════════════════════════════════════════
+        (async function() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const paymentKey = params.get('paymentKey');
+                const orderId = params.get('orderId');
+                const amount = params.get('amount');
+                
+                // ── Step 1: 결제 토큰 localStorage 저장 ──
+                // 메인 페이지에서 isPaidUser=true 인식용 + 사주 자동 복원 트리거
+                if (paymentKey && orderId) {
+                    try {
+                        localStorage.setItem('paid_token', JSON.stringify({
+                            paymentKey, orderId, amount,
+                            savedAt: Date.now()
+                        }));
+                        console.log('✅ 결제 토큰 저장 완료');
+                    } catch(e) {
+                        console.warn('paid_token 저장 실패 (localStorage 미지원?):', e);
+                    }
+                    
+                    // ── Step 2: 워커 결제 검증 (선택 — 실패해도 진행) ──
+                    try {
+                        const API = 'https://tarot-api.omegafund01.workers.dev';
+                        const verifyRes = await fetch(API + '/verify-toss', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                paymentKey, 
+                                orderId, 
+                                amount: parseInt(amount) || 0
+                            })
+                        });
+                        if (verifyRes.ok) {
+                            console.log('✅ 결제 검증 완료');
+                        }
+                    } catch(e) {
+                        console.warn('결제 검증 네트워크 오류 (그래도 진행):', e);
+                    }
+                }
+                
+                // ── Step 3: 메인 페이지로 ?paid=ok 리다이렉트 (1.5초 후) ──
+                // baseUrl 안전 계산 (omegafund.github.io / 또는 /index.html 모두 호환)
+                setTimeout(() => {
+                    let basePath = window.location.pathname;
+                    
+                    // success.html 제거 → 부모 경로
+                    basePath = basePath.replace(/\/success\.html$/i, '/');
+                    
+                    // 안전: 빈 문자열이면 루트로
+                    if (!basePath || basePath === '') basePath = '/';
+                    
+                    // 안전: 슬래시로 끝나지 않으면 추가
+                    if (!basePath.endsWith('/')) basePath += '/';
+                    
+                    const redirectUrl = window.location.origin + basePath + '?paid=ok';
+                    console.log('🔄 메인 페이지 이동:', redirectUrl);
+                    window.location.href = redirectUrl;
+                }, 1500);
+                
+                // ── Step 4: 5초 후에도 자동 이동 안 됐으면 수동 버튼 강조 ──
+                setTimeout(() => {
+                    const btn = document.getElementById('manualBtn');
+                    if (btn) {
+                        btn.style.animation = 'pulse 1s ease-in-out infinite';
+                        btn.textContent = '👉 여기를 눌러 이동';
+                        btn.style.background = 'linear-gradient(135deg, #FFD970, #FFE08A)';
+                        // 수동 버튼 href를 ?paid=ok 포함으로 업데이트
+                        let basePath = window.location.pathname.replace(/\/success\.html$/i, '/');
+                        if (!basePath || basePath === '') basePath = '/';
+                        if (!basePath.endsWith('/')) basePath += '/';
+                        btn.href = window.location.origin + basePath + '?paid=ok';
+                    }
+                }, 5000);
+                
+            } catch (e) {
+                console.error('success.html 처리 오류:', e);
+                // 오류 시 5초 후 자동으로 홈으로 (?paid=ok 포함)
+                setTimeout(() => {
+                    let basePath = window.location.pathname.replace(/\/success\.html$/i, '/');
+                    if (!basePath || basePath === '') basePath = '/';
+                    if (!basePath.endsWith('/')) basePath += '/';
+                    window.location.href = window.location.origin + basePath + '?paid=ok';
+                }, 5000);
             }
-        }
-    })
-    .catch(() => {
-        // 검증 실패해도 토큰은 저장 (결제 완료 플래그)
-        localStorage.setItem('oracleSessionToken', 'PAID_' + Date.now());
-    })
-    .finally(() => {
-        // 항상 결과 화면으로 이동 (paid=ok 파라미터 전달)
-        const base = window.location.pathname.replace('/success.html', '') || '/';
-        window.location.replace(base + '/index.html?paid=ok');
-    });
-
-    // 네트워크 지연 방어 — 3초 후 강제 이동
-    setTimeout(() => {
-        const base = window.location.pathname.replace('/success.html', '') || '/';
-        window.location.replace(base + '/index.html?paid=ok');
-    }, 3000);
-})();
-</script>
+        })();
+    </script>
 </body>
 </html>
