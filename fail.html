@@ -2,27 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>결제 실패 — ZEUS ORACLE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결제 실패 - ZEUS TAROT</title>
     <style>
-        body { background:#0A0A14; color:#E74C3C; font-family:'Inter',sans-serif;
-               display:flex; align-items:center; justify-content:center;
-               min-height:100vh; margin:0; text-align:center; }
-        .wrap { padding:32px 20px; }
-        h2 { font-size:1.1rem; font-weight:800; margin-bottom:8px; }
-        p  { font-size:0.82rem; color:rgba(255,255,255,0.55); margin-bottom:24px; }
-        a  { display:inline-block; padding:12px 28px;
-             background:linear-gradient(135deg,#D4AF37,#F1C40F);
-             color:#000; border-radius:30px; font-weight:900;
-             font-size:0.88rem; text-decoration:none; }
+        body {
+            background: linear-gradient(135deg, #0a0a14 0%, #14142a 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            font-family: -apple-system, sans-serif; color: #fff; padding: 20px; margin: 0;
+        }
+        .card { text-align: center; max-width: 360px; padding: 36px 28px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(231,76,60,0.4);
+            border-radius: 16px; }
+        h1 { color: #FF8870; font-size: 1.2rem; margin: 12px 0; }
+        .sub { color: rgba(255,255,255,0.7); font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 11px 22px; background: linear-gradient(135deg, #D4AF37, #FFD970);
+            color: #000; text-decoration: none; font-size: 0.84rem; font-weight: 900; border-radius: 8px; }
     </style>
 </head>
 <body>
-<div class="wrap">
-    <div style="font-size:2.5rem; margin-bottom:16px;">⚠️</div>
-    <h2>결제가 완료되지 않았습니다</h2>
-    <p>취소하셨거나 오류가 발생했습니다.<br>다시 시도해 주세요.</p>
-    <a href="javascript:history.back()">← 돌아가기</a>
-</div>
+    <div class="card">
+        <div style="font-size:3rem;">⚠</div>
+        <h1>결제 실패</h1>
+        <div class="sub">결제가 완료되지 않았습니다.<br>다시 시도해주세요.</div>
+        <a href="/" class="btn">홈으로 돌아가기</a>
+    </div>
 </body>
 </html>
