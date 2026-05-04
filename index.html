@@ -929,6 +929,39 @@
         }
 
         /* ═══════════════════════════════════════════════════════════════
+         * [V31 #140] 결제 모달 — 사주 컨텍스트 시 990원만 노출
+         *   사장님 명령:
+         *     "990원 통일했는데 결제창은 모든 가격이 뿌려진다 — 중대 에러"
+         *   해결:
+         *     사주 카드 클릭 → window._sajuPaymentContext = true
+         *     → 결제 모달 .pay-plan-saju 클래스 → 990원 외 버튼 숨김
+         *     → 990원 버튼은 메인 CTA 톤으로 강조
+         * ═══════════════════════════════════════════════════════════════ */
+        @keyframes sajuPaidPulse {
+            0%, 100% { box-shadow: 0 2px 10px rgba(212,175,55,0.10); }
+            50%      { box-shadow: 0 6px 28px rgba(255,217,112,0.85), 0 0 0 3px rgba(212,175,55,0.6) inset; }
+        }
+        .pay-plan-list.pay-plan-saju .pay-plan-btn:not([data-plan="trial"]) {
+            display: none !important;
+        }
+        /* 사주 컨텍스트 990원 버튼 — 보조 → 메인 CTA 톤 */
+        .pay-plan-list.pay-plan-saju .pay-plan-btn[data-plan="trial"] {
+            background: linear-gradient(135deg, #D4AF37, #FFD970) !important;
+            color: #1a1a1a !important;
+            border: 1.5px solid rgba(212,175,55,0.85) !important;
+            box-shadow: 0 4px 14px rgba(212,175,55,0.35) !important;
+            padding: 16px 14px !important;
+        }
+        .pay-plan-list.pay-plan-saju .pay-plan-btn[data-plan="trial"] span {
+            color: #1a1a1a !important;
+            opacity: 1 !important;
+        }
+        .pay-plan-list.pay-plan-saju .pay-plan-btn[data-plan="trial"] div:last-child {
+            color: rgba(0,0,0,0.75) !important;
+            opacity: 0.85 !important;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
          * [V31 #138] 메인 4박스 강조 — 테두리 굵게
          * ═══════════════════════════════════════════════════════════════ */
         .category-grid {
@@ -4052,7 +4085,26 @@ function setSituation(btn, type, domain) {
 
     try {
         const raw = localStorage.getItem('pendingOracle');
-        if (!raw) return;
+        if (!raw) {
+            // [V31 #140] 결제 후 복원할 데이터 없음 — 친절한 안내 추가
+            //   사장님 진단 #140: "결제하면 홈뷰 중간 점사창으로 이동" — 중대 에러
+            //   원인 후보: 사주 컨텍스트가 아닌 결제(9900/199000)였거나 sajuPendingResult 누락
+            //   해결: 990원 통일 (다른 가격 비공개) + 폴백 시 친절한 안내
+            console.warn('⚠ [V31 #140] 결제 완료(?paid=ok) — sajuPendingResult/pendingOracle 둘 다 없음');
+            console.warn('  → 사주 컨텍스트 누락 가능 (990원 사주 결제 흐름이 아니었거나 데이터 만료)');
+            // isPaidUser 강제 설정 (결제는 완료된 상태이므로)
+            isPaidUser = true;
+            try { localStorage.setItem('proUnlocked', 'true'); } catch(e) {}
+            // 친절한 안내 (홈뷰 그대로 두지 말고 명확하게)
+            setTimeout(() => {
+                const sajuCard = document.querySelector('.saju-aux-card');
+                if (sajuCard) {
+                    sajuCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    sajuCard.style.animation = 'sajuPaidPulse 1.5s ease-in-out 3';
+                }
+            }, 500);
+            return;
+        }
         const pending = JSON.parse(raw);
         if (!pending || !pending.savedAt) return;
 
@@ -11413,7 +11465,7 @@ function showPayModal() {
                     letter-spacing: 0.02em;">
             ⚠️ 위 동의 체크 후 아래 버튼이 활성화됩니다 ↓
         </div>
-        <div style="margin-bottom:14px; display:flex; flex-direction:column; gap:10px;">
+        <div class="pay-plan-list ${isSajuContext ? 'pay-plan-saju' : ''}" style="margin-bottom:14px; display:flex; flex-direction:column; gap:10px;">
             <!-- 🧪 990원 체험권 (보조 — 약하게) -->
             <button class="pay-plan-btn" data-plan="trial" data-amount="990" onclick="startTossPayment('trial', 'card')" style="
                 display:block; width:100%; padding:13px 14px;
