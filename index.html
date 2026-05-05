@@ -2274,6 +2274,20 @@
             var params = new URLSearchParams(window.location.search);
             if (params.get('paid') !== 'ok') return;
             
+            // [V31 #150] 사주/타로 컨텍스트 구분 (간섭 차단)
+            //   사장님 진단: "타로 점사창에 ☯ 태극 개입 — 사주/타로 간섭"
+            //   해결: localStorage.sajuPaymentContext 확인하여 아이콘/메시지 분기
+            var isSajuContext = false;
+            try {
+                isSajuContext = localStorage.getItem('sajuPaymentContext') === 'true';
+            } catch(e) {}
+            
+            var icon = isSajuContext ? '☯' : '✦';
+            var title = isSajuContext ? 'PRO 사주 신탁 불러오는 중' : '프리미엄 신탁 불러오는 중';
+            var subtitle = isSajuContext 
+                ? '결제 완료 — 잠시만 기다려주세요<br>곧 정밀 사주 점사가 펼쳐집니다'
+                : '결제 완료 — 잠시만 기다려주세요<br>곧 신탁이 펼쳐집니다';
+            
             // [V31 #147] 사장님 진단: "결제 후 홈뷰 도돌이 처음부터 안 고쳐짐"
             //   원인: body 그려진 후 JS가 overlay를 만들기 전 잠깐 노출
             //   해결: html 자체에 inline style로 즉시 검은 배경 적용 (DOM 그려지기 전)
@@ -2287,7 +2301,7 @@
             document.write([
                 '<style id="paidOverlayStyle">',
                 '  html, body { background: #0a0612 !important; }',
-                '  body > * { visibility: hidden !important; }',  // ← #147 모든 콘텐츠 가림
+                '  body > * { visibility: hidden !important; }',
                 '  body > #paidEarlyOverlay { visibility: visible !important; }',
                 '  body > script { visibility: visible !important; }',
                 '  #paidEarlyOverlay {',
@@ -2316,9 +2330,9 @@
                 '  }',
                 '</style>',
                 '<div id="paidEarlyOverlay">',
-                '  <div class="saju-symbol">☯</div>',
-                '  <div class="title">PRO 신탁 불러오는 중</div>',
-                '  <div class="subtitle">결제 완료 — 잠시만 기다려주세요<br>곧 정밀 점사가 펼쳐집니다</div>',
+                '  <div class="saju-symbol">' + icon + '</div>',
+                '  <div class="title">' + title + '</div>',
+                '  <div class="subtitle">' + subtitle + '</div>',
                 '</div>'
             ].join('\n'));
             
@@ -3947,25 +3961,31 @@ function setSituation(btn, type, domain) {
 // 토큰이 있으면 Worker에 검증 요청 → 유효 시 isPaidUser = true
 (async () => {
     // ════════════════════════════════════════════════════════════════════════
-    // [V31 #148 결정적 강제 청소] 사장님 진단: 타로 프리패스 (3번 보고 후에도)
+    // [V31 #148/#150 결정적 강제 청소] 사장님 진단: 타로 프리패스 + 정지 결함
     //   원인: 사장님 누적 테스트 중 워커 발급 진짜 HMAC 토큰이 localStorage 잔존
     //         → page load 시 워커 verify 통과 → isPaidUser=true 영구
-    //         → 모든 점사 결제 우회 (가짜 PAID_xxx 아니라 진짜 토큰이라 #147 청소 안 됨)
     //
     //   해결: V31 #148 마이그레이션 flag — 1회성 누적 잔재 강제 청소
-    //         사장님이 #148 배포 후 첫 진입 시 모든 결제 토큰 자동 삭제
-    //         → 깨끗한 상태에서 정상 결제 흐름 검증 가능
+    //         ★ #150 보강: ?paid=ok URL 있으면 청소 스킵
+    //         (success.html이 방금 저장한 진짜 토큰 보호)
     // ════════════════════════════════════════════════════════════════════════
     try {
         const v148Migrated = localStorage.getItem('v31_148_migration');
-        if (v148Migrated !== 'done') {
-            // 모든 결제 관련 잔재 강제 정리
+        const urlHasPaidOk = new URLSearchParams(window.location.search).get('paid') === 'ok';
+        
+        // [V31 #150] ?paid=ok 진입 시에는 청소 스킵 — success.html 토큰 보호
+        if (v148Migrated !== 'done' && !urlHasPaidOk) {
+            // 모든 결제 관련 잔재 강제 정리 (정상 진입 시에만)
             localStorage.removeItem('oracleSessionToken');
             localStorage.removeItem('paid_token');
             localStorage.removeItem('proUnlocked');
             localStorage.setItem('v31_148_migration', 'done');
             console.warn('🧹 [V31 #148] 1회성 강제 청소 — 모든 결제 토큰 잔재 제거');
             console.warn('  → 정상 결제 흐름 검증 가능 상태');
+        } else if (urlHasPaidOk) {
+            // 결제 완료 진입 — 청소 안 함, 마이그레이션 플래그만 표시
+            localStorage.setItem('v31_148_migration', 'done');
+            console.log('✅ [V31 #150] ?paid=ok 진입 — 토큰 청소 스킵 (success.html 토큰 보호)');
         }
     } catch(e) {}
     
@@ -4110,17 +4130,26 @@ function setSituation(btn, type, domain) {
     // 토큰 없이 ?paid=ok URL만 도달한 경우 → 사용자 안내 (백도어 차단)
     if (isPaidParam && !hasToken) {
         console.warn('  ⚠ [V31 #149] ?paid=ok URL 도달했으나 결제 토큰 없음 → 결제 미완료로 처리');
-        // early overlay 정리 (사용자가 홈 화면에서 다시 결제 진행 가능)
+        
+        // [V31 #150] 정지 결함 차단 — paidOverlayStyle 즉시 제거 (body visibility 복원)
+        //   사장님 진단: "PRO 신탁 불러오는 중 화면에서 정지"
+        //   원인: setTimeout 안에서만 paidOverlayStyle 제거 → 일부 시점 정지 가능
+        //   해결: paidOverlayStyle 즉시 제거 + overlay 페이드아웃 동시
+        const es = document.getElementById('paidOverlayStyle');
+        if (es) es.remove();  // ← 즉시 제거 (body visibility 복원)
+        
+        // overlay 자체는 부드러운 페이드아웃으로 (시각 연속성)
         const eo = document.getElementById('paidEarlyOverlay');
         if (eo) {
             eo.style.transition = 'opacity 0.3s ease';
             eo.style.opacity = '0';
             setTimeout(function() {
                 eo.remove();
-                const es = document.getElementById('paidOverlayStyle');
-                if (es) es.remove();
             }, 300);
         }
+        // html 배경 복원 (head inline style)
+        document.documentElement.style.background = '';
+        
         return;  // 백도어 차단 — 사주/타로 분기 진입 차단
     }
     
@@ -4429,6 +4458,20 @@ function setSituation(btn, type, domain) {
 
         // 결과창으로 즉시 전환 (홈뷰 숨기고 결과뷰 노출)
         console.log('✅ 점사 상태 복원 중...');
+        
+        // [V31 #150] 타로 분기 진입 시 early overlay 즉시 정리 (정지 차단)
+        //   사장님 진단: "PRO 신탁 불러오는 중에서 정지"
+        //   해결: paidOverlayStyle 즉시 제거 → body visibility 복원 + 결과 화면 노출
+        const earlyStyleTaro = document.getElementById('paidOverlayStyle');
+        if (earlyStyleTaro) earlyStyleTaro.remove();
+        document.documentElement.style.background = '';
+        const earlyOverlayTaro = document.getElementById('paidEarlyOverlay');
+        if (earlyOverlayTaro) {
+            earlyOverlayTaro.style.transition = 'opacity 0.3s ease';
+            earlyOverlayTaro.style.opacity = '0';
+            setTimeout(function() { earlyOverlayTaro.remove(); }, 300);
+        }
+        
         setTimeout(() => {
             try {
                 // 홈뷰 숨기고 result-view 노출
@@ -11594,7 +11637,12 @@ function renderSajuResult(data) {
         const loading = document.getElementById('sajuPostPayLoading');
         if (loading) loading.remove();
         
-        // [V31 #144] 결제 후 early overlay 제거 (PRO 결과 표시 직전)
+        // [V31 #144 + #150] 결제 후 early overlay 제거 (PRO 결과 표시 직전)
+        //   #150: paidOverlayStyle 즉시 제거 → body visibility 복원 보장
+        const styleElEarly = document.getElementById('paidOverlayStyle');
+        if (styleElEarly) styleElEarly.remove();  // 즉시 제거
+        document.documentElement.style.background = '';  // html 배경 복원
+        
         const earlyOverlay = document.getElementById('paidEarlyOverlay');
         if (earlyOverlay) {
             // 부드러운 페이드아웃 (300ms) 후 제거
@@ -11602,8 +11650,6 @@ function renderSajuResult(data) {
             earlyOverlay.style.opacity = '0';
             setTimeout(function() {
                 earlyOverlay.remove();
-                const styleEl = document.getElementById('paidOverlayStyle');
-                if (styleEl) styleEl.remove();
             }, 300);
         }
         
