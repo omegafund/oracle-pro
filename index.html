@@ -12,9 +12,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V31_165_2026-05-05">
+    <meta name="version" content="V31_166_2026-05-05">
     
-    <title>ZEUS · Tarot Oracle [V31 #165]</title>
+    <title>ZEUS · Tarot Oracle [V31 #166]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -12859,16 +12859,20 @@ function showPayModal() {
         </div>`;
 
     // 기존 계좌이체 섹션 (폴백 — 접힌 상태)
-    // [V31 #161 사장님 결정] 계좌이체는 990원 → 3900원 1일권 단일
-    //   사장님 데이터적 결정: "990원 이체할 바엔 3900원 1일권"
-    //   근거:
-    //     ① 계좌이체 수수료 1000원 = 990원 결제 시 사용자 손해
-    //     ② 매출 효율: 3900원 = 990원의 4배
-    //     ③ 처리 부담: 990원과 3900원 동일
-    //   → 계좌이체는 사주/타로 모두 3900원 단일 (1일권)
-    //   → 토스/카카오/네이버는 990원 체험권 OK (수수료 없음)
-    const sajuAmount = 3900;  // 계좌이체 = 3900원 단일 (사주/타로 공통)
-    const sajuTossAmount = 3900;
+    // ════════════════════════════════════════════════════════════════════════
+    // [V31 #166 사장님 법적 리스크 차단] 사주 계좌이체 990원 통일
+    //   사장님 진단: "990원 표시인데 3900원 결제 = 사기/민원 소송 리스크"
+    //   법적 근거:
+    //     ① 표시광고법 위반 (가격 표시-결제 불일치)
+    //     ② 전자상거래법 제13조 (정확한 가격 표시 의무)
+    //     ③ 민사소송 가능 (사용자 손해배상 청구)
+    //   해결:
+    //     ① 사주 계좌이체 = 990원 단일 (표시-결제 일치)
+    //     ② 타로 계좌이체 = 3900원 (cfg.amount 그대로 — 표시도 3900원)
+    //     ③ 990원 계좌이체 수수료는 운영 부담으로 흡수 (법적 리스크 회피)
+    // ════════════════════════════════════════════════════════════════════════
+    const sajuAmount = isSajuContext ? 990 : cfg.amount;  // 사주=990원, 타로=cfg(3900원)
+    const sajuTossAmount = isSajuContext ? 990 : cfg.amount;
     const amountFmt = sajuAmount.toLocaleString('ko-KR');
     
     // [V20.1 + V31 #159] 토스 송금 버튼 — 사주 컨텍스트 시 990원
@@ -13093,7 +13097,7 @@ function showPayModal() {
                                    onblur="this.style.boxShadow='inset 0 1px 4px rgba(0,0,0,0.1), 0 0 12px rgba(255,215,0,0.35)'; this.style.borderColor='#FFD700';" />
                         </div>
 
-                        <button onclick="zeusClaimSubmit('day')" style="
+                        <button onclick="zeusClaimSubmit('${isSajuContext ? 'trial' : 'day'}')" style="
                                 width:100%; padding:11px;
                                 background: linear-gradient(135deg, #2ecc71, #27ae60);
                                 color:#fff; border:none; border-radius:7px;
@@ -13369,6 +13373,18 @@ function zeusClaimMarkTossClick() {
 async function zeusClaimSubmit(plan) {
     const senderName = document.getElementById('zeusSenderName')?.value?.trim() || '';
     const resultDiv = document.getElementById('zeusClaimResult');
+
+    // [V31 #166] 사주 컨텍스트면 sajuPaidPlan localStorage 저장 (PRO 타이틀 동적)
+    //   사장님 진단: "990원 결제 후 30일 이용권 표시"
+    //   해결: zeusClaimSubmit 진입 시 plan 저장 → fetch 시 사용
+    try {
+        const isSajuCtx = (window._sajuPaymentContext === true) 
+                       || (localStorage.getItem('sajuPaymentContext') === 'true');
+        if (isSajuCtx) {
+            localStorage.setItem('sajuPaidPlan', plan);
+            console.log('✅ [V31 #166] zeusClaimSubmit 사주 plan 저장:', plan);
+        }
+    } catch(e) {}
 
     // 0. 입력 검증
     if (!senderName || senderName.length < 2) {
