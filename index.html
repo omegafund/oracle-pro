@@ -12,9 +12,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V31_169_2026-05-05">
+    <meta name="version" content="V31_170_2026-05-05">
     
-    <title>ZEUS · Tarot Oracle [V31 #169]</title>
+    <title>ZEUS · Tarot Oracle [V31 #170]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -12048,27 +12048,37 @@ function renderSajuResult(data) {
         return refined;
     }
     
-    function applyRealityCorrection(originalTldr, lifeState) {
+    // [V31 #163 + #164 + #170] 현실 보정 문장 (사장님 안 — 핵심 교체)
+    //   기존: "중기 균형 사주 흐름입니다"
+    //   #164: NORMAL 상태에도 항상 "구조적 균형" 표현 적용
+    //   #170: flow별 동적 문구 (사장님 갑(목) 사주 검증 결함 해결)
+    //         → 상승 flow에 "행동이 멈추면..." 문구 부적합
+    //         → flow별 적합한 문구 동적 적용
+    function applyRealityCorrection(originalTldr, lifeState, flow) {
         if (!originalTldr) return '구조적 흐름이 있으나, 현실 행동이 운을 작동시킵니다';
         
-        // 워커 응답이 옛 텍스트면 자동 정제
+        const PATTERN = /(중기|단기|장기)?\s*균형\s*(사주\s*)?흐름입니다\.?/g;
+        
+        // WITHDRAWN/OVERLOAD는 lifeState 우선
         if (lifeState === 'WITHDRAWN') {
-            return originalTldr.replace(
-                /(중기|단기|장기)?\s*균형\s*(사주\s*)?흐름입니다\.?/g,
-                '구조적으로는 균형이지만, 현재는 정체 상태로 작동할 가능성이 높습니다'
-            );
+            return originalTldr.replace(PATTERN,
+                '구조적으로는 균형이지만, 현재는 정체 상태로 작동할 가능성이 높습니다');
         }
         if (lifeState === 'OVERLOAD') {
-            return originalTldr.replace(
-                /(중기|단기|장기)?\s*균형\s*(사주\s*)?흐름입니다\.?/g,
-                '구조적으로는 균형이지만, 현재는 과부하 상태로 흐름이 막힐 수 있습니다'
-            );
+            return originalTldr.replace(PATTERN,
+                '구조적으로는 균형이지만, 현재는 과부하 상태로 흐름이 막힐 수 있습니다');
         }
-        // [V31 #164] NORMAL 상태에도 사장님 안 적용 — "구조적 균형 → 행동 활성화"
-        return originalTldr.replace(
-            /(중기|단기|장기)?\s*균형\s*(사주\s*)?흐름입니다\.?/g,
-            '구조적으로는 균형이지만, 행동이 멈추면 흐름도 멈춥니다'
-        );
+        
+        // [V31 #170] flow별 동적 문구 (사장님 사주 검증 결함 해결)
+        const flowMessages = {
+            '정체': '구조적으로는 균형이지만, 행동이 멈추면 흐름도 멈춥니다',
+            '상승': '구조적으로 균형 + 상승 흐름 — 행동이 가속을 결정합니다',
+            '전환': '구조적으로는 균형이지만, 전환 시점 — 신중한 행동이 결정적입니다',
+            '균형': '구조적 균형이 유지됩니다 — 일관된 행동이 흐름을 단단히 합니다'
+        };
+        
+        const message = flowMessages[flow] || flowMessages['균형'];
+        return originalTldr.replace(PATTERN, message);
     }
     
     // [V31 #163] 행동 강제 3개 (사장님 안 — 매출 80% 결정)
@@ -12530,12 +12540,14 @@ function renderSajuResult(data) {
                 const lifeState = detectLifeState(elements, dayMaster);
                 const yongshinData = YONGSHIN_MATRIX[yongshinKey] || YONGSHIN_MATRIX['火'];
                 
-                // 현실 보정 — 사장님 안 핵심 교체
-                const correctedTldr = applyRealityCorrection(text.tldr || '', lifeState);
+                // [V31 #170] sajuState 먼저 계산 (flow 추출용)
+                const sajuState = detectSajuState(elements, text.meta?.pillars || {});
+                
+                // [V31 #170] 현실 보정 — flow별 동적 문구 (사장님 검증 결함 해결)
+                const correctedTldr = applyRealityCorrection(text.tldr || '', lifeState, sajuState.flow);
                 
                 // [V31 #165] 압박 문장 엔진 (사장님 안 + 클로드 5가지 보완)
                 //   사주 → state → action → constraint + result + support
-                const sajuState = detectSajuState(elements, text.meta?.pillars || {});
                 const constraint = buildConstraint(sajuState, text.meta?.pillars || {});
                 
                 return `
