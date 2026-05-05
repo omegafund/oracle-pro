@@ -12,9 +12,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V31_167_2026-05-05">
+    <meta name="version" content="V31_168_2026-05-05">
     
-    <title>ZEUS · Tarot Oracle [V31 #167]</title>
+    <title>ZEUS · Tarot Oracle [V31 #168]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -12255,10 +12255,44 @@ function renderSajuResult(data) {
             forceTrigger = `이번 주 1회의 ${actionKeyword}이 흐름의 키입니다`;
         }
         
+        // ════════════════════════════════════════════════════════════════
+        // [V31 #168 사장님 안 + 클로드 보완 4가지] 실행 결과 피드백
+        //   사장님 핵심: 실행 ↔ 미실행 대조 (행동 동기 ↑)
+        //   클로드 보완:
+        //     ① "확률" → "흐름" 표현 (법적 안전 — 측정 표현 회피)
+        //     ② 사주별 동적 결과 (state.flow 기반)
+        //     ③ 시각 강화 (실행 녹색 / 미실행 회색)
+        //     ④ 위치 [4/6] 강제 트리거 다음
+        // ════════════════════════════════════════════════════════════════
+        let executionFeedback = { onAct: '', onSkip: '' };
+        
+        if (state.flow === '정체') {
+            executionFeedback = {
+                onAct: '정체 흐름이 시작 흐름으로 점화됩니다',
+                onSkip: '정체 흐름이 그대로 유지됩니다'
+            };
+        } else if (state.flow === '상승') {
+            executionFeedback = {
+                onAct: '상승 흐름이 가속됩니다',
+                onSkip: '상승 흐름이 둔화될 수 있습니다'
+            };
+        } else if (state.flow === '전환') {
+            executionFeedback = {
+                onAct: '전환점을 안전하게 통과합니다',
+                onSkip: '전환 시점을 놓칠 수 있습니다'
+            };
+        } else {
+            executionFeedback = {
+                onAct: '현재 흐름이 더 단단해집니다',
+                onSkip: '현재 흐름 유지 (변화 없음)'
+            };
+        }
+        
         return {
             pressure,
             support: sup,
-            forceTrigger,  // [V31 #167] 강제 시점 추가
+            forceTrigger,  // [V31 #167] 강제 시점
+            executionFeedback,  // [V31 #168] 실행 결과 피드백
             actionType: action,
             state
         };
@@ -12466,6 +12500,40 @@ function renderSajuResult(data) {
                         <div style="color:#FFD970; font-size:0.78rem; font-weight:900; margin-bottom:6px; letter-spacing:0.04em;">🎯 강제 트리거 (행동 시점)</div>
                         <div style="color:#FFE08A; font-size:0.92rem; line-height:1.6; font-weight:800; padding:6px 0;">
                             👉 ${constraint.forceTrigger}
+                        </div>
+                    </div>
+                    
+                    <!-- ═══════════════════════════════════════════════════════
+                         [V31 #168 사장님 안 + 클로드 보완 4가지]
+                         📊 실행 결과 피드백 — 행동 ↔ 미실행 대조
+                           ① "확률" → "흐름" 표현 (법적 안전)
+                           ② 사주별 동적 결과 (state.flow)
+                           ③ 시각 강화 (실행 녹색 / 미실행 회색 — 부담감 X)
+                           ④ 위치 — 강제 트리거 다음
+                         ═══════════════════════════════════════════════════════ -->
+                    <div style="margin-top:10px; padding:13px 14px; background:rgba(0,0,0,0.30); border:1.5px solid rgba(212,175,55,0.4); border-radius:8px;">
+                        <div style="color:#FFD970; font-size:0.78rem; font-weight:900; margin-bottom:9px; letter-spacing:0.04em;">📊 실행 결과 피드백</div>
+                        
+                        <!-- 실행 시 (녹색 — 긍정 강조) -->
+                        <div style="display:flex; align-items:flex-start; gap:8px; padding:9px 10px; margin-bottom:6px; background:rgba(46,204,113,0.10); border-left:3px solid #2ecc71; border-radius:0 5px 5px 0;">
+                            <span style="flex-shrink:0; color:#2ecc71; font-size:0.95rem; font-weight:900; line-height:1.4;">✅</span>
+                            <div style="flex:1;">
+                                <div style="color:#7ad188; font-size:0.74rem; font-weight:800; margin-bottom:2px;">실행 시</div>
+                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.55; font-weight:700;">
+                                    → ${constraint.executionFeedback.onAct}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 미실행 시 (회색 — 중립, 부담감 X) -->
+                        <div style="display:flex; align-items:flex-start; gap:8px; padding:9px 10px; background:rgba(150,150,150,0.10); border-left:3px solid rgba(150,150,150,0.5); border-radius:0 5px 5px 0;">
+                            <span style="flex-shrink:0; color:rgba(180,180,180,0.9); font-size:0.95rem; font-weight:900; line-height:1.4;">⏸</span>
+                            <div style="flex:1;">
+                                <div style="color:rgba(180,180,180,0.85); font-size:0.74rem; font-weight:800; margin-bottom:2px;">미실행 시</div>
+                                <div style="color:rgba(220,220,220,0.78); font-size:0.84rem; line-height:1.55;">
+                                    → ${constraint.executionFeedback.onSkip}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
