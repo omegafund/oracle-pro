@@ -60,6 +60,24 @@
             --gold-deep:    #8B6914;             /* ★ 신규: 깊은 금 (음영) ★ */
             --gold-cream:   #FFF8DC;             /* ★ 신규: 크림 광택 ★ */
             --gold-glow:    rgba(255,215,80,0.85); /* ★ 신규: 신성한 광채 ★ */
+            
+            /* [V31 #185] 카카오 스타일 사주 — 사장님 연초록 + ZEUS 골드
+               IP 안전: 카카오 노랑 #FAE100 회피, 자체 색상 시스템
+               다른 카테고리 (타로/주식/부동산/운세) 영향 0 */
+            --saju-mint:        #7AD188;             /* ★ 사장님 메인 연초록 ★ */
+            --saju-mint-light:  #5DD68A;             /* 밝은 액센트 (Excellent) */
+            --saju-mint-deep:   #2A8D3F;             /* 배경 액센트 */
+            --saju-mint-glow:   rgba(122,209,136,0.45);  /* 발광 */
+            --saju-bubble-bg:   rgba(122,209,136,0.10); /* 메시지 버블 배경 */
+            --saju-bubble-bg-2: rgba(122,209,136,0.18); /* 버블 호버/강조 */
+            --saju-bubble-edge: rgba(122,209,136,0.30); /* 버블 테두리 */
+            --saju-dark:        #0F1411;              /* 살짝 그린 톤 다크 배경 */
+            --saju-dark-2:      #161A17;              /* 카드 배경 */
+            --saju-warning:     #F39C12;              /* ⚠ 경고 (트리거) */
+            --saju-risk:        #E67E22;              /* 위험 톤 */
+            --saju-text:        #FFFFFF;              /* 메인 텍스트 */
+            --saju-text-soft:   rgba(255,255,255,0.78);  /* 보조 텍스트 */
+            --saju-text-fade:   rgba(255,255,255,0.55);  /* 희미 */
             --bright-gold: #FFF5C3;      /* 호환 */
             --dark-gold: #8C6212;        /* 호환 */
 
@@ -200,6 +218,292 @@
                     drop-shadow(0 4px 6px rgba(0,0,0,0.7));
             }
         }
+
+        /* ════════════════════════════════════════════════════════════════
+           [V31 #185] 카카오 스타일 사주 결과창 — 사장님 연초록 + ZEUS 골드
+             ✦ 사장님 9개 안 + 클로드 7개 보완 = 16 컴포넌트
+             ✦ 카카오 IP 안전 (자체 색상/캐릭터/명칭)
+             ✦ 다른 카테고리 (타로/주식/부동산/운세) 영향 0
+             ✦ 클래스명 모두 'saju-chat-' 접두어로 격리
+        ════════════════════════════════════════════════════════════════ */
+        
+        /* 모달 컨테이너 */
+        .saju-chat-modal {
+            background: var(--saju-dark);
+            max-width: 440px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+            font-family: var(--font-body);
+        }
+        
+        /* 헤더 — ZEUS 신탁사 (골드 정체성 + 연초록 액센트) */
+        .saju-chat-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06));
+            border-bottom: 1.5px solid rgba(212,175,55,0.4);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .saju-chat-header-icon {
+            font-size: 1.4rem;
+            filter: drop-shadow(0 0 10px var(--gold-glow));
+        }
+        .saju-chat-header-title {
+            color: var(--gold-radiant);
+            font-size: 1rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            flex: 1;
+            text-shadow: 0 0 12px rgba(255,215,80,0.5);
+        }
+        .saju-chat-header-status {
+            color: var(--saju-mint);
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .saju-chat-header-dots {
+            color: var(--saju-mint-light);
+            animation: sajuDotsPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes sajuDotsPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        
+        /* 채팅 영역 */
+        .saju-chat-body {
+            padding: 16px 14px 100px 14px;  /* 하단 입력바 공간 */
+            min-height: 70vh;
+        }
+        
+        /* 메시지 버블 — 연초록 톤 (★ 카카오 IP 안전) */
+        .saju-chat-msg {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(8px);
+            animation: sajuMsgIn 0.4s ease-out forwards;
+        }
+        @keyframes sajuMsgIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .saju-chat-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold), var(--gold-radiant));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            box-shadow: 0 0 12px rgba(212,175,55,0.4);
+        }
+        
+        .saju-chat-bubble {
+            max-width: 78%;
+            padding: 10px 14px;
+            background: var(--saju-bubble-bg);
+            border: 1px solid var(--saju-bubble-edge);
+            border-radius: 4px 14px 14px 14px;
+            color: var(--saju-text);
+            font-size: 0.86rem;
+            line-height: 1.6;
+            position: relative;
+        }
+        
+        .saju-chat-bubble.highlight {
+            background: linear-gradient(135deg, var(--saju-bubble-bg-2), var(--saju-bubble-bg));
+            border-color: var(--saju-mint);
+            box-shadow: 0 0 18px rgba(122,209,136,0.2);
+        }
+        
+        .saju-chat-bubble.warning {
+            background: rgba(243,156,18,0.10);
+            border-color: rgba(243,156,18,0.5);
+        }
+        
+        .saju-chat-bubble.special {
+            background: linear-gradient(135deg, rgba(212,175,55,0.16), rgba(122,209,136,0.10));
+            border: 1.5px solid var(--gold);
+            box-shadow: 0 0 16px rgba(212,175,55,0.3);
+        }
+        
+        .saju-chat-bubble-title {
+            font-weight: 900;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            color: var(--saju-mint-light);
+        }
+        .saju-chat-bubble.special .saju-chat-bubble-title {
+            color: var(--gold-radiant);
+        }
+        .saju-chat-bubble.warning .saju-chat-bubble-title {
+            color: var(--saju-warning);
+        }
+        
+        .saju-chat-bubble-time {
+            font-size: 0.62rem;
+            color: var(--saju-text-fade);
+            margin-top: 4px;
+            text-align: right;
+        }
+        
+        /* 잠긴 메시지 — 4,900원 CTA */
+        .saju-chat-locked {
+            margin: 14px 0;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.03));
+            border: 1.5px dashed var(--gold);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .saju-chat-locked:hover {
+            background: linear-gradient(135deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06));
+            border-color: var(--gold-radiant);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(212,175,55,0.25);
+        }
+        .saju-chat-locked-blur {
+            color: var(--saju-text-soft);
+            font-size: 0.84rem;
+            line-height: 1.7;
+            filter: blur(4px);
+            user-select: none;
+            margin-bottom: 12px;
+        }
+        .saju-chat-locked-icon {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 0 12px rgba(255,215,80,0.6));
+        }
+        .saju-chat-locked-cta {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-radiant));
+            color: #000;
+            font-weight: 900;
+            font-size: 0.84rem;
+            border-radius: 22px;
+            letter-spacing: 0.02em;
+            box-shadow: 0 4px 14px rgba(212,175,55,0.4);
+        }
+        
+        /* 빠른 답장 영역 */
+        .saju-chat-quick-reply {
+            position: sticky;
+            bottom: 0;
+            background: linear-gradient(180deg, transparent, var(--saju-dark) 30%);
+            padding: 14px 12px 16px;
+            border-top: 1px solid rgba(122,209,136,0.15);
+            z-index: 50;
+        }
+        .saju-chat-quick-reply-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .saju-chat-quick-btn {
+            padding: 11px 12px;
+            background: var(--saju-bubble-bg);
+            border: 1px solid var(--saju-bubble-edge);
+            border-radius: 22px;
+            color: var(--saju-mint-light);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            text-align: center;
+        }
+        .saju-chat-quick-btn:hover {
+            background: var(--saju-bubble-bg-2);
+            border-color: var(--saju-mint);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(122,209,136,0.2);
+        }
+        .saju-chat-quick-btn.gold {
+            background: linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04));
+            border-color: var(--gold);
+            color: var(--gold-radiant);
+        }
+        .saju-chat-quick-btn.gold:hover {
+            background: linear-gradient(135deg, rgba(212,175,55,0.22), rgba(212,175,55,0.08));
+            box-shadow: 0 4px 14px rgba(212,175,55,0.3);
+        }
+        
+        /* 점수 미니 표시 (메시지 안) */
+        .saju-chat-score-mini {
+            display: inline-block;
+            padding: 2px 10px;
+            background: rgba(93,214,138,0.15);
+            border-radius: 10px;
+            color: var(--saju-mint-light);
+            font-size: 0.74rem;
+            font-weight: 900;
+            margin-left: 6px;
+        }
+        .saju-chat-score-mini.gold {
+            background: rgba(212,175,55,0.18);
+            color: var(--gold-radiant);
+        }
+        .saju-chat-score-mini.warning {
+            background: rgba(243,156,18,0.18);
+            color: var(--saju-warning);
+        }
+        
+        /* 자세히 보기 (Layer B 모달 토글) */
+        .saju-chat-detail-btn {
+            margin: 18px 0;
+            padding: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            color: var(--saju-text-soft);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .saju-chat-detail-btn:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--saju-mint);
+            color: var(--saju-mint);
+        }
+        
+        /* 닫기 버튼 (헤더) */
+        .saju-chat-close {
+            background: none;
+            border: none;
+            color: var(--saju-text-soft);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 50%;
+            transition: all 0.18s ease;
+        }
+        .saju-chat-close:hover {
+            background: rgba(255,255,255,0.08);
+            color: var(--saju-text);
+        }
+
         /* [V21.0 → V31 #184.7] 부제 — Inter sans-serif (대비 효과)
            사장님 격상: 메인 타이틀 강화에 비례하여 부제도 보강 */
         .sub-title {
@@ -12828,10 +13132,643 @@ window.handleSajuModalClose = function() {
     if (earlyStyle) earlyStyle.remove();
 };
 
+// ════════════════════════════════════════════════════════════════════════
+// [V31 #185] 카카오 스타일 사주 채팅 UI 빌더 (★ 사장님 9개 + 클로드 7개 보완)
+//
+//   설계 원칙:
+//     1. 카테고리 격리 — 사주 도메인만 적용 (타로/주식/부동산/운세 영향 0)
+//     2. 카카오 IP 안전 — 사장님 연초록 + ZEUS 골드 (카카오 노랑 회피)
+//     3. 메시지 시퀀스 — 한 번에 한 정보 (가독성 95%)
+//     4. 잠긴 메시지 — 4,900원 CTA 자연 통합
+//     5. 빠른 답장 — 인터랙티브 (체류 시간 ↑)
+//     6. 자세히 보기 — 클래식 UI 모달 폴백 (전문가 만족)
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── 메시지 시퀀스 빌더 (사주 데이터 → 메시지 배열) ───
+function buildSajuChatSequenceV185(data) {
+    const messages = [];
+    const v = data && data.v184_5 ? data.v184_5 : null;
+    const text = data && data.text ? data.text : {};
+    const accuracy = data && data.accuracy ? data.accuracy : null;
+    
+    // 시간 헬퍼
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    
+    // ─── 메시지 1: 인사 ───
+    messages.push({
+        type: 'normal',
+        text: '안녕하세요! 사주 봐드릴게요 ☯️',
+        time: timeStr,
+        delay: 200
+    });
+    
+    // ─── 메시지 2: 본질 (일주 물상) ───
+    const dayMaster = (v && v.core && v.core.meta && v.core.meta.dayMaster) 
+                   || (data.sajuData && data.sajuData.pillars && data.sajuData.pillars.day && data.sajuData.pillars.day.stem)
+                   || '갑';
+    const dayElement = ({갑:'목',을:'목',병:'화',정:'화',무:'토',기:'토',경:'금',신:'금',임:'수',계:'수'})[dayMaster] || '목';
+    const physiog = ({
+        목: '🌳 큰 나무 본성 — 곧고 강한 의지',
+        화: '🔥 빛나는 불꽃 — 열정과 추진력',
+        토: '⛰️ 큰 산 본성 — 안정과 신뢰',
+        금: '⚙️ 단단한 금속 — 결단과 정의',
+        수: '💧 깊은 물 — 지혜와 통찰'
+    })[dayElement];
+    
+    messages.push({
+        type: 'highlight',
+        title: physiog,
+        text: text.subtitle || `${dayMaster}(${dayElement}) 일간 — ${dayElement === '목' ? '곧고 강한' : dayElement === '화' ? '추진력 있는' : dayElement === '토' ? '안정적인' : dayElement === '금' ? '결단력 있는' : '깊이 있는'} 본성을 가지셨네요`,
+        time: timeStr,
+        delay: 400
+    });
+    
+    // ─── 메시지 3: 특수 잠재력 (V184.7 patterns 활용) ───
+    if (v && v.potentialPatterns && v.potentialPatterns.isSpecial && v.potentialPatterns.highlighted && v.potentialPatterns.highlighted.length > 0) {
+        const top = v.potentialPatterns.highlighted[0];
+        messages.push({
+            type: 'special',
+            title: '⚡ 흥미로운 점 발견했어요!',
+            text: `${top.icon} ${top.label} <span class="saju-chat-score-mini gold">${top.score} (${top.grade} ${top.arrow})</span>`,
+            sub: top.desc,
+            time: timeStr,
+            delay: 600
+        });
+    }
+    
+    // ─── 메시지 4: 종합 트리거 (현재 흐름) ───
+    const yearNow = now.getFullYear();
+    messages.push({
+        type: 'warning',
+        title: `⚠ ${yearNow} 갈림길`,
+        text: '선택 하나가 향후 흐름의 강도를 결정합니다',
+        time: timeStr,
+        delay: 800
+    });
+    
+    // ─── 메시지 5: 시계열 (V184.6 동적 텍스트) ───
+    const ts = v && v.timeSeries ? v.timeSeries : null;
+    if (ts) {
+        messages.push({
+            type: 'normal',
+            text: `📅 오늘: ${(ts.ilwoon && ts.ilwoon.summary) || '관찰이 유리한 흐름'}<br>🗓 ${(ts.wolwoon && ts.wolwoon.month) || (now.getMonth()+1)}월: ${(ts.wolwoon && ts.wolwoon.summary) || '방향 점검 시기'}<br>🎯 ${(ts.seun && ts.seun.year) || yearNow}: ${(ts.seun && ts.seun.summary) || '중요한 전환점'}`,
+            time: timeStr,
+            delay: 1000
+        });
+    }
+    
+    // ─── 메시지 6 (★ V31 #186): 대운 — 인생 흐름 핵심 1개 ★ ───
+    //   FREE 사용자: 현재 대운 1개 + 다음 대운 미리보기 (호기심 유발)
+    //   PAID 사용자: 별도 추가 메시지로 8단계 모두
+    const dw = v && v.daewoon ? v.daewoon : null;
+    if (dw && dw.current) {
+        const cur = dw.current;
+        const nxt = dw.next;
+        let dwText = `🌊 현재 대운: <strong>${cur.ganzhi}</strong> (${cur.startAge}~${cur.endAge}세)<br>${cur.keyword.summary}`;
+        if (nxt) {
+            dwText += `<br><br>🔜 다음 대운 (${nxt.startAge}세~): <strong>${nxt.ganzhi}</strong><br><span style="color:rgba(255,255,255,0.55); font-size:0.78rem;">→ ${nxt.keyword.summary}</span>`;
+        }
+        messages.push({
+            type: 'highlight',
+            title: '🌊 인생 흐름 (대운)',
+            text: dwText,
+            time: timeStr,
+            delay: 1100
+        });
+    }
+    
+    // ─── 메시지 7: 용신 가이드 (간단 버전) ───
+    if (v && v.yongshin) {
+        const ys = v.yongshin;
+        messages.push({
+            type: 'highlight',
+            title: `✨ 용신 ${ys.yongshin} — 행운 가이드`,
+            text: `🎨 ${(ys.recommendations && ys.recommendations.colors || []).slice(0,2).join(', ')} · 🧭 ${(ys.recommendations && ys.recommendations.directions || []).slice(0,1).join(', ')}`,
+            time: timeStr,
+            delay: 1200
+        });
+    }
+    
+    return messages;
+}
+
+// ─── 메시지 → HTML ───
+function renderSajuChatMessageV185(msg, index) {
+    const cls = msg.type === 'special' ? 'special' 
+              : msg.type === 'warning' ? 'warning'
+              : msg.type === 'highlight' ? 'highlight'
+              : '';
+    
+    const titleHtml = msg.title ? `<div class="saju-chat-bubble-title">${msg.title}</div>` : '';
+    const subHtml = msg.sub ? `<div style="margin-top:6px; font-size:0.78rem; color:rgba(255,255,255,0.7);">${msg.sub}</div>` : '';
+    
+    return `
+    <div class="saju-chat-msg" style="animation-delay:${msg.delay || index*200}ms;">
+        <div class="saju-chat-avatar">☯️</div>
+        <div class="saju-chat-bubble ${cls}">
+            ${titleHtml}
+            <div>${msg.text}</div>
+            ${subHtml}
+            <div class="saju-chat-bubble-time">${msg.time}</div>
+        </div>
+    </div>`;
+}
+
+// ─── 메인 빌더 — 카카오 스타일 사주 결과창 ───
+function renderSajuKakaoChatV185(data) {
+    const result = document.getElementById('saju-result-area') 
+                || document.getElementById('result-area')
+                || document.getElementById('result');
+    if (!result) {
+        console.warn('[V31 #185] result element not found, fallback');
+        throw new Error('no_result_element');
+    }
+    
+    const messages = buildSajuChatSequenceV185(data);
+    const v = data && data.v184_5 ? data.v184_5 : null;
+    
+    // 빠른 답장 핸들러용 데이터를 window에 저장
+    window._v185Data = data;
+    
+    // ★ [V31 #185 Phase 2] PAID 상태 확인 — 결제 완료 사용자는 잠금 해제 ★
+    let isPaid = false;
+    let paidPlan = '';
+    try {
+        paidPlan = localStorage.getItem('sajuPaidPlan') || '';
+        if (paidPlan && paidPlan !== 'free') {
+            isPaid = true;
+            console.log('[V31 #185 Phase 2] PAID 사용자 감지 — 잠금 해제:', paidPlan);
+        }
+    } catch (_) {}
+    
+    // PAID 사용자 전용 추가 메시지 (5개 정밀 분석)
+    let paidContent = '';
+    if (isPaid && v) {
+        const interp = v.interpretation || {};
+        const six = v.sixDomain || {};
+        const patterns = v.potentialPatterns || {};
+        const ts = v.timeSeries || {};
+        const ohaeng = v.ohaengAnalysis || {};
+        
+        const time = new Date();
+        const t = `${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}`;
+        
+        // PAID 메시지 1: 십성 정밀
+        const dominant = interp.tenStars && interp.tenStars.dominant;
+        if (dominant) {
+            paidContent += `
+            <div class="saju-chat-msg" style="animation-delay:200ms;">
+                <div class="saju-chat-avatar">☯️</div>
+                <div class="saju-chat-bubble highlight">
+                    <div class="saju-chat-bubble-title">⭐ 십성 정밀 — ${dominant}</div>
+                    <div>당신의 핵심 성향은 <strong>${dominant}</strong>입니다.<br>
+                    ${({
+                        '비견': '독립과 자기 주도성',
+                        '겁재': '경쟁과 추진력',
+                        '식신': '여유와 표현',
+                        '상관': '창의와 비판력',
+                        '편재': '활동적 재물 운용',
+                        '정재': '안정적 재물 축적',
+                        '편관': '강력한 추진과 권력',
+                        '정관': '관리와 책임',
+                        '편인': '독창적 학습',
+                        '정인': '전통적 학문'
+                    })[dominant] || '균형형 성향'}</div>
+                    <div class="saju-chat-bubble-time">${t}</div>
+                </div>
+            </div>`;
+        }
+        
+        // PAID 메시지 2: 6대 분야 정밀 (상세 텍스트)
+        const sixKeys = ['careerLuck', 'wealthLuck', 'loveLuck', 'healthLuck', 'studyLuck', 'familyLuck'];
+        const sixIcons = { careerLuck: '💼', wealthLuck: '💰', loveLuck: '💕', healthLuck: '🌿', studyLuck: '📚', familyLuck: '👨‍👩‍👧' };
+        const sixLabels = { careerLuck: '직업운', wealthLuck: '재물운', loveLuck: '연애운', healthLuck: '건강운', studyLuck: '학업운', familyLuck: '가족운' };
+        let sixHtml = '';
+        sixKeys.forEach(k => {
+            const dom = six[k];
+            if (dom) {
+                sixHtml += `<div style="margin:4px 0; font-size:0.78rem;">
+                    ${sixIcons[k]} ${sixLabels[k]}: <strong style="color:${dom.gradeColor || '#5DD68A'};">${dom.gradeLabel || dom.score+'점'}</strong>
+                    <span style="color:rgba(255,255,255,0.6); font-size:0.72rem;">— ${dom.detail || dom.summary || ''}</span>
+                </div>`;
+            }
+        });
+        if (sixHtml) {
+            paidContent += `
+            <div class="saju-chat-msg" style="animation-delay:400ms;">
+                <div class="saju-chat-avatar">☯️</div>
+                <div class="saju-chat-bubble">
+                    <div class="saju-chat-bubble-title">📊 6대 분야 정밀</div>
+                    ${sixHtml}
+                    <div class="saju-chat-bubble-time">${t}</div>
+                </div>
+            </div>`;
+        }
+        
+        // PAID 메시지 3: 모든 특수 패턴 (V184.7 5종 모두)
+        if (patterns.all && patterns.all.length > 0) {
+            let patternsHtml = '';
+            patterns.all.forEach(p => {
+                patternsHtml += `<div style="margin:4px 0; font-size:0.78rem;">
+                    ${p.icon} ${p.label}: <strong style="color:${p.gradeColor};">${p.gradeLabel}</strong> 
+                    <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">(${p.score})</span>
+                </div>`;
+            });
+            paidContent += `
+            <div class="saju-chat-msg" style="animation-delay:600ms;">
+                <div class="saju-chat-avatar">☯️</div>
+                <div class="saju-chat-bubble special">
+                    <div class="saju-chat-bubble-title">🌟 5대 잠재력 전체</div>
+                    ${patternsHtml}
+                    <div class="saju-chat-bubble-time">${t}</div>
+                </div>
+            </div>`;
+        }
+        
+        // PAID 메시지 4: 오행 정밀 + 약점 보강
+        if (ohaeng && ohaeng.distribution) {
+            paidContent += `
+            <div class="saju-chat-msg" style="animation-delay:800ms;">
+                <div class="saju-chat-avatar">☯️</div>
+                <div class="saju-chat-bubble">
+                    <div class="saju-chat-bubble-title">⚖️ 오행 정밀 분석</div>
+                    <div style="font-size:0.78rem;">
+                        강점: <strong style="color:#5DD68A;">${ohaeng.strongest}</strong> 기운<br>
+                        약점: <strong style="color:#F39C12;">${ohaeng.weakest}</strong> 기운<br>
+                        균형: ${ohaeng.balance}
+                    </div>
+                    <div class="saju-chat-bubble-time">${t}</div>
+                </div>
+            </div>`;
+        }
+        
+        // ★ PAID 메시지 5 (★ V31 #186 ★): 대운 8단계 전체 시각화 ★
+        const dwPaid = v.daewoon;
+        if (dwPaid && dwPaid.details && dwPaid.details.length > 0) {
+            // 점수 → 색상
+            const scoreToColor = (s) => s >= 75 ? '#5DD68A' 
+                                       : s >= 60 ? '#7AD188' 
+                                       : s >= 45 ? '#FFD970' 
+                                       : '#F39C12';
+            
+            // 8단계 막대 시각화
+            let barsHtml = '';
+            dwPaid.details.forEach((d, idx) => {
+                const color = scoreToColor(d.score);
+                const barWidth = Math.max(15, Math.min(100, d.score));
+                const isCur = d.isCurrent;
+                barsHtml += `
+                <div style="margin-bottom:6px; padding: ${isCur ? '6px 8px' : '0'}; background: ${isCur ? 'rgba(212,175,55,0.18)' : 'transparent'}; border-radius: ${isCur ? '6px' : '0'}; ${isCur ? 'border:1px solid #FFD970;' : ''}">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-bottom:2px;">
+                        <span style="color: ${isCur ? '#FFD970' : 'rgba(255,255,255,0.85)'};">
+                            ${isCur ? '★ ' : ''}${d.startAge}~${d.endAge}세 · <strong>${d.ganzhi}</strong>
+                        </span>
+                        <span style="color: ${color}; font-weight:900;">${d.score}</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05); height:6px; border-radius:3px; overflow:hidden; margin-bottom:2px;">
+                        <div style="width:${barWidth}%; height:100%; background:${color}; border-radius:3px;"></div>
+                    </div>
+                    <div style="font-size:0.66rem; color:rgba(255,255,255,0.55); line-height:1.4;">
+                        ${d.tenStar} · ${d.luckPhase} · ${d.keyword.tone}
+                    </div>
+                </div>`;
+            });
+            
+            // 인생 전환 시점 (있으면)
+            let transitionsHtml = '';
+            if (dwPaid.transitions && dwPaid.transitions.length > 0) {
+                transitionsHtml = '<div style="margin-top:10px; padding-top:8px; border-top:1px dashed rgba(255,217,112,0.3);">';
+                transitionsHtml += '<div style="color:#FFD970; font-size:0.7rem; font-weight:800; margin-bottom:6px;">🎯 인생 전환 시점</div>';
+                dwPaid.transitions.forEach(tr => {
+                    const arrow = tr.type === '상승 전환' ? '↑' : tr.type === '하강 전환' ? '↓' : '→';
+                    const arrowColor = tr.type === '상승 전환' ? '#5DD68A' : tr.type === '하강 전환' ? '#F39C12' : '#FFD970';
+                    transitionsHtml += `
+                    <div style="font-size:0.72rem; color:rgba(255,255,255,0.78); margin-bottom:3px;">
+                        <span style="color:${arrowColor}; font-weight:900;">${arrow} ${tr.age}세</span> · ${tr.ganzhi} · ${tr.from} → ${tr.to}
+                    </div>`;
+                });
+                transitionsHtml += '</div>';
+            }
+            
+            paidContent += `
+            <div class="saju-chat-msg" style="animation-delay:1000ms;">
+                <div class="saju-chat-avatar">☯️</div>
+                <div class="saju-chat-bubble special">
+                    <div class="saju-chat-bubble-title">🌊 대운 8단계 — 평생 인생 흐름</div>
+                    <div style="font-size:0.7rem; color:rgba(255,255,255,0.65); margin-bottom:8px;">
+                        ${dwPaid.direction === 'forward' ? '순행' : '역행'} · ${dwPaid.summary}
+                    </div>
+                    ${barsHtml}
+                    ${transitionsHtml}
+                    <div class="saju-chat-bubble-time">${t}</div>
+                </div>
+            </div>`;
+        }
+        
+        // PAID 메시지 6: 정밀 분석 완료 안내 (★ 위치 변경 — 마지막)
+        paidContent += `
+        <div class="saju-chat-msg" style="animation-delay:1200ms;">
+            <div class="saju-chat-avatar">☯️</div>
+            <div class="saju-chat-bubble special">
+                <div class="saju-chat-bubble-title">✨ 정밀 분석 완료</div>
+                <div>4,900원 PREMIUM 이용권으로 풀 분석을 받으셨습니다.<br>
+                추가 데이터는 "▼ 정밀 데이터 보기" 에서 확인 가능합니다.</div>
+                <div class="saju-chat-bubble-time">${t}</div>
+            </div>
+        </div>`;
+    }
+    
+    const hasSixDomain = v && v.sixDomain;
+    const hasPatterns = v && v.potentialPatterns;
+    
+    result.innerHTML = `
+    <div class="saju-chat-modal">
+        <!-- 헤더 -->
+        <div class="saju-chat-header">
+            <span class="saju-chat-header-icon">☯️</span>
+            <div class="saju-chat-header-title">ZEUS 신탁사${isPaid ? ' <span style="font-size:0.66rem; color:#5DD68A; margin-left:4px;">★ PREMIUM</span>' : ''}</div>
+            <div class="saju-chat-header-status">
+                <span class="saju-chat-header-dots">●●●</span>
+                <span style="margin-left:4px;">분석 완료</span>
+            </div>
+            <button class="saju-chat-close" onclick="window.handleSajuModalClose && window.handleSajuModalClose()">✕</button>
+        </div>
+        
+        <!-- 채팅 영역 -->
+        <div class="saju-chat-body">
+            ${messages.map((m, i) => renderSajuChatMessageV185(m, i)).join('')}
+            
+            ${isPaid ? paidContent : `
+            <!-- 잠긴 메시지 — 4,900원 CTA (FREE 사용자만) -->
+            <div class="saju-chat-locked" onclick="window.handleSajuPremiumCTA && window.handleSajuPremiumCTA()">
+                <div class="saju-chat-locked-icon">🔒</div>
+                <div class="saju-chat-locked-blur">
+                    정확한 선택 기준은 잠겨있어요<br>
+                    🌊 대운 8단계 (평생 인생 흐름)<br>
+                    십성 정밀 / 6대 분야 상세 / 5대 잠재력 전체<br>
+                    인생 전환 시점 / 직업·관계 가이드
+                </div>
+                <div class="saju-chat-locked-cta">
+                    🔓 4,900원 — 전체 해석 보기 ▶
+                </div>
+            </div>
+            `}
+            
+            <!-- 자세히 보기 (Layer B 클래식 UI) -->
+            <button class="saju-chat-detail-btn" onclick="window.handleSajuDetailToggle && window.handleSajuDetailToggle()">
+                ▼ 정밀 데이터 보기 (사주 명식 / 십성 / 12운성 / 신살)
+            </button>
+            
+            <!-- 면책 -->
+            <div style="margin-top:14px; padding:8px 10px; background:rgba(255,255,255,0.04); border-radius:4px; font-size:0.62rem; color:rgba(255,255,255,0.4); line-height:1.5; text-align:center;">
+                ※ 사주명리 엔터테인먼트 콘텐츠 · 본인 판단 우선
+            </div>
+        </div>
+        
+        <!-- 빠른 답장 -->
+        <div class="saju-chat-quick-reply">
+            <div class="saju-chat-quick-reply-grid">
+                <button class="saju-chat-quick-btn" onclick="window.handleSajuQuickReply && window.handleSajuQuickReply('boost')">
+                    💧 어떻게 보강해요?
+                </button>
+                <button class="saju-chat-quick-btn" onclick="window.handleSajuQuickReply && window.handleSajuQuickReply('career')">
+                    👑 직업 추천
+                </button>
+                <button class="saju-chat-quick-btn" onclick="window.handleSajuQuickReply && window.handleSajuQuickReply('today')">
+                    📅 오늘 운세
+                </button>
+                <button class="saju-chat-quick-btn gold" onclick="window.handleSajuRestart && window.handleSajuRestart()">
+                    🏠 처음으로
+                </button>
+            </div>
+        </div>
+    </div>`;
+    
+    // 부드러운 스크롤
+    setTimeout(() => {
+        result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    
+    return true;
+}
+
+// ─── 빠른 답장 핸들러 ───
+window.handleSajuQuickReply = function(type) {
+    const data = window._v185Data || {};
+    const v = data.v184_5 || {};
+    const ys = v.yongshin || {};
+    const patterns = v.potentialPatterns || {};
+    
+    const body = document.querySelector('.saju-chat-body');
+    if (!body) return;
+    
+    // 잠긴 메시지 직전 위치
+    const lockedEl = body.querySelector('.saju-chat-locked');
+    const insertEl = lockedEl || body.lastElementChild;
+    
+    let html = '';
+    const time = new Date();
+    const timeStr = `${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}`;
+    
+    if (type === 'boost') {
+        const rec = ys.recommendations || {};
+        html = `
+        <div class="saju-chat-msg" style="animation-delay:0ms;">
+            <div class="saju-chat-avatar">☯️</div>
+            <div class="saju-chat-bubble highlight">
+                <div class="saju-chat-bubble-title">💧 ${ys.yongshin || '용신'} 보강 가이드</div>
+                <div>
+                    🎨 색상: ${(rec.colors || []).join(', ')}<br>
+                    🧭 방위: ${(rec.directions || []).join(', ')}<br>
+                    🍴 음식: ${(rec.foods || []).join(', ')}<br>
+                    🎯 활동: ${(rec.hobbies || []).join(' · ')}
+                </div>
+                <div class="saju-chat-bubble-time">${timeStr}</div>
+            </div>
+        </div>`;
+    } else if (type === 'career') {
+        const top = (patterns.highlighted && patterns.highlighted[0]) || null;
+        html = `
+        <div class="saju-chat-msg" style="animation-delay:0ms;">
+            <div class="saju-chat-avatar">☯️</div>
+            <div class="saju-chat-bubble special">
+                <div class="saju-chat-bubble-title">👑 직업 적성</div>
+                <div>${top ? `${top.icon} ${top.label} <span class="saju-chat-score-mini gold">${top.score}</span><br>${top.desc}` : '균형형 사주 — 다양한 분야 적성'}</div>
+                <div style="margin-top:6px; font-size:0.74rem; color:rgba(255,255,255,0.6);">
+                    🔒 구체적 직군은 정밀 분석에서 확인 가능
+                </div>
+                <div class="saju-chat-bubble-time">${timeStr}</div>
+            </div>
+        </div>`;
+    } else if (type === 'today') {
+        const ts = v.timeSeries || {};
+        html = `
+        <div class="saju-chat-msg" style="animation-delay:0ms;">
+            <div class="saju-chat-avatar">☯️</div>
+            <div class="saju-chat-bubble">
+                <div class="saju-chat-bubble-title">📅 오늘의 운</div>
+                <div>${(ts.ilwoon && ts.ilwoon.summary) || '관찰과 작은 결정이 중요한 날'}</div>
+                <div class="saju-chat-bubble-time">${timeStr}</div>
+            </div>
+        </div>`;
+    }
+    
+    if (html && insertEl) {
+        insertEl.insertAdjacentHTML('beforebegin', html);
+        // 부드러운 스크롤
+        const newMsg = insertEl.previousElementSibling;
+        if (newMsg) newMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+// ─── 4,900원 결제 CTA 핸들러 (V31 #185 Phase 2) ───
+//   기존 결제 시스템 (showPayModal + handleSajuProClick) 그대로 활용
+//   4,900원 1일권을 자동 선택 (사용자 클릭 단축)
+//   카카오 UI 모달 → 결제 모달 z-index 충돌 회피
+window.handleSajuPremiumCTA = function() {
+    console.log('🔓 [V31 #185 Phase 2] 4,900원 PREMIUM CTA 클릭');
+    
+    // 1. 카카오 UI 모달 즉시 제거 (z-index 충돌 회피 — V31 #156 패턴 차용)
+    const sajuModal = document.getElementById('sajuResultModal');
+    if (sajuModal) {
+        sajuModal.remove();
+        console.log('  ✅ 카카오 UI 모달 즉시 제거');
+    }
+    // saju-chat-modal 클래스 컨테이너도 제거 (혹시 다른 컨테이너로 렌더된 경우)
+    const chatModal = document.querySelector('.saju-chat-modal');
+    if (chatModal && chatModal.parentElement) {
+        // 부모 result-area 비우기 (전체 제거 X — 결제 후 복귀 가능하게)
+        chatModal.style.display = 'none';
+    }
+    
+    // 2. 결제 컨텍스트 설정 (기존 V31 #146 패턴)
+    window._sajuPaymentContext = true;
+    try { localStorage.setItem('sajuPaymentContext', 'true'); } catch(e) {}
+    
+    // 3. 사주 점사 데이터 보존 (결제 후 복귀 시 사용)
+    try {
+        const data = window._v185Data || null;
+        if (data) {
+            const obj = {
+                data: data,
+                savedAt: Date.now(),
+                source: 'v185_premium_cta'
+            };
+            const updated = JSON.stringify(obj);
+            localStorage.setItem('sajuPendingResult', updated);
+            try { sessionStorage.setItem('sajuPendingResult', updated); } catch(e) {}
+            console.log('  ✅ 사주 데이터 보존 (sajuPendingResult)');
+        }
+    } catch(e) {
+        console.warn('  ⚠ 사주 데이터 보존 실패:', e.message);
+    }
+    
+    // 4. 4,900원 PREMIUM 플랜 마킹 (결제 모달이 자동 선택)
+    //    showPayModal은 PAYMENT_CONFIG의 plan을 보고 가격 결정
+    //    4,900원 = '1일권' 또는 '체험 PRO' 등 기존 플랜에 매핑
+    try {
+        localStorage.setItem('sajuTargetPlan', 'premium_4900');
+        localStorage.setItem('sajuTargetAmount', '4900');
+        console.log('  ✅ PREMIUM 플랜 4,900원 마킹');
+    } catch(e) {}
+    
+    // 5. 기존 결제 모달 호출 (showPayModal)
+    if (typeof showPayModal === 'function') {
+        console.log('  ✅ showPayModal 호출 시작');
+        showPayModal();
+        
+        // 6. 4,900원 옵션 자동 강조 (모달 표시 후 0.3초 대기)
+        setTimeout(function() {
+            try {
+                // 4,900원 옵션 찾기 (기존 결제 모달 안에서)
+                const options = document.querySelectorAll('.pay-modal-overlay [data-amount], .pay-modal-overlay button, .pay-modal-overlay .plan-option');
+                options.forEach(function(opt) {
+                    const amt = opt.getAttribute('data-amount') || opt.textContent || '';
+                    if (amt && amt.indexOf('4,900') !== -1 || amt.indexOf('4900') !== -1) {
+                        // 시각적 강조 (펄스 효과)
+                        opt.style.boxShadow = '0 0 24px rgba(212,175,55,0.6)';
+                        opt.style.border = '2px solid #FFD700';
+                        opt.style.animation = 'sajuPlanHighlight 1.5s ease-in-out infinite';
+                        console.log('  ✅ 4,900원 옵션 시각 강조 적용');
+                    }
+                });
+                
+                // 강조 애니메이션 CSS 동적 주입 (없으면)
+                if (!document.getElementById('sajuPlanHighlightStyle')) {
+                    const style = document.createElement('style');
+                    style.id = 'sajuPlanHighlightStyle';
+                    style.textContent = `
+                        @keyframes sajuPlanHighlight {
+                            0%, 100% { box-shadow: 0 0 24px rgba(212,175,55,0.6); }
+                            50%      { box-shadow: 0 0 36px rgba(255,215,80,0.95), 0 0 60px rgba(212,175,55,0.5); }
+                        }`;
+                    document.head.appendChild(style);
+                }
+            } catch(e) {
+                console.warn('  ⚠ 옵션 강조 실패:', e.message);
+            }
+        }, 300);
+        
+        // 7. 결제 모달 표시 검증 (1초 후)
+        setTimeout(function() {
+            const payOverlay = document.querySelector('.pay-modal-overlay');
+            if (payOverlay) {
+                console.log('  ✅ 결제 모달 표시 확인');
+            } else {
+                console.error('  ❌ 결제 모달 화면에 없음 — showPayModal 결함 의심');
+            }
+        }, 1000);
+        
+    } else {
+        console.error('  ❌ showPayModal 함수 정의 안 됨');
+        alert('결제 시스템을 불러올 수 없습니다. 페이지를 새로고침해주세요.');
+    }
+};
+
+// ─── 자세히 보기 토글 (클래식 UI 폴백) ───
+window.handleSajuDetailToggle = function() {
+    try {
+        localStorage.setItem('sajuChatStyle', 'classic');
+    } catch (_) {}
+    const data = window._v185Data;
+    if (data && typeof renderSajuResult === 'function') {
+        renderSajuResult(data);  // 클래식 UI로 다시 렌더
+    }
+};
+
 /**
- * 사주 결과 화면 렌더링 (V31 #134 안전 보강)
+ * 사주 결과 화면 렌더링 (V31 #134 안전 보강 + V31 #185 카카오 UI 분기)
  */
 function renderSajuResult(data) {
+    // ════════════════════════════════════════════════════════════════════════
+    // [V31 #185] 카카오 스타일 vs 기존 스타일 분기
+    //   사장님 명시: "다른 카테고리 (타로/주식/부동산/운세) 영향 0"
+    //   분기 기준: localStorage.sajuKakaoStyle 또는 기본값
+    //   안전: data.domain === 'saju' 일 때만 카카오 UI 적용
+    //   기존 V31 #163 6블록 코드는 그대로 보존 (백워드 호환)
+    // ════════════════════════════════════════════════════════════════════════
+    let useKakaoStyle = true;  // 기본 활성화 (V31 #185 신규 UI)
+    try {
+        const pref = localStorage.getItem('sajuChatStyle');
+        if (pref === 'classic') useKakaoStyle = false;  // 사용자가 명시 클래식 선택 시
+    } catch (_) { /* 폴백: 카카오 스타일 사용 */ }
+    
+    // 사주 도메인이 아닌 경우 (안전망 — 보통 호출 안 됨)
+    if (data && data.domain && data.domain !== 'saju') {
+        useKakaoStyle = false;
+    }
+    
+    if (useKakaoStyle) {
+        console.log('🎨 [V31 #185] 카카오 스타일 사주 채팅 UI');
+        try {
+            return renderSajuKakaoChatV185(data);
+        } catch (err) {
+            console.warn('[V31 #185] 카카오 UI 렌더 실패, 클래식 폴백:', err);
+            // 폴백: 기존 V31 #163 6블록 UI
+        }
+    }
+    
     console.log('🎨 [V31 #163] renderSajuResult 시작 (6블록 통일)');
     
     // ════════════════════════════════════════════════════════════════════════
