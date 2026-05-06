@@ -390,9 +390,13 @@ const CARD_FORTUNE_CONTEXT = {
   "Four of Pentacles":  { wealthScore: 65, wealthSig: "자산 보존·축적",       wealthRev: "과도한 보존·지출 회피",
                           healthScore: 60, healthSig: "안정 유지·보수적",     healthRev: "경직·유연성 부족",
                           careerScore: 65, careerSig: "직위 보전·안정",       careerRev: "변화 거부·정체" },
-  "Five of Pentacles":  { wealthScore: 25, wealthSig: "재정 위축·결핍",       wealthRev: "회복·도움 도착",
-                          healthScore: 35, healthSig: "건강 결핍·회복 필요",  healthRev: "회복 시작",
-                          careerScore: 30, careerSig: "직장 결핍·경제적 어려움", careerRev: "회복·기회 도착" },
+  // [V31 #183 사장님 결정 — 도메인별 톤 균형 조정]
+  //   결함: Five of Pentacles 역방향 wealthRev "회복·도움 도착" → INVESTMENT 도메인에서
+  //         "지금 진입 적기" 신호로 잘못 해석될 수 있음 (사장님 hmm 점사 결함 일부)
+  //   해결: 회복은 시작이지만 안정은 아직 — 신중 톤 추가
+  "Five of Pentacles":  { wealthScore: 25, wealthSig: "재정 위축·결핍",       wealthRev: "위축 해소 시작·신중 진입",
+                          healthScore: 35, healthSig: "건강 결핍·회복 필요",  healthRev: "회복 시작·안정 미확인",
+                          careerScore: 30, careerSig: "직장 결핍·경제적 어려움", careerRev: "회복 신호·기회 검증 필요" },
   "Six of Pentacles":   { wealthScore: 78, wealthSig: "자산 균형·관용 흐름",  wealthRev: "불균형 거래·손실",
                           healthScore: 70, healthSig: "도움받는 회복",        healthRev: "도움 부족·자력",
                           careerScore: 75, careerSig: "공정한 보상",         careerRev: "보상 불균형·재협상" },
@@ -629,7 +633,15 @@ function detectVolatilityGate(cardNames) {
     // [V25.21] 사장님 진단: 영어 + 내부 수치 노출 → 자연 한국어
     //   기존: "단일 극값 카드 감지 (Card: vol=40, unc=75) — game-changer 카드 단독 게이트"
     //   신규: "현재 카드 (Card)의 흐름 신호가 추세 재평가를 시사하는 구간"
-    reason = `현재 카드 (${extremeCardName})의 흐름 신호가 추세 재평가를 시사하는 구간으로 해석됩니다`;
+    //
+    // [V31 #182 사장님 결정 — Pattern A 근본 해결]
+    //   결함: extremeCardName이 PAST/PRESENT/FUTURE 어디든 들어갈 수 있는데
+    //         라벨은 "현재 카드"로 고정 → PAST가 극값일 때 잘못된 라벨 출력
+    //   해결: cardNames 배열 인덱스로 위치 라벨 동적 결정
+    const _extremeIdx = cardNames.indexOf(extremeCardName);
+    const _posLabels = ['과거', '현재', '미래'];
+    const _posLabel = (_extremeIdx >= 0 && _extremeIdx <= 2) ? _posLabels[_extremeIdx] : '현재';
+    reason = `${_posLabel} 카드 (${extremeCardName})의 흐름 신호가 추세 재평가를 시사하는 구간으로 해석됩니다`;
   } else if (isHighByAvg) {
     // [V25.21] 합산 평균 점수도 자연 한국어 — 내부 수치 ${composite}는 유지하되 톤 부드럽게
     reason = `변동성·리스크 카드 흐름이 우세한 구간으로 해석됩니다 (합산 ${Math.round(composite)}점)`;
@@ -1258,6 +1270,171 @@ const CARD_FLAVOR_REVERSED = {
   "Queen of Pentacles": "실용성 약화와 풍요 흔들림",
   "King of Pentacles":  "재정 권위 약화와 손실 위험"
 };
+
+// ══════════════════════════════════════════════════════════════════
+// [V31 #183 사장님 결정 — 도메인별 톤 분리 인프라]
+//   결함 진단:
+//     CARD_FLAVOR / CARD_FLAVOR_REVERSED는 도메인 무관 단일 텍스트
+//     같은 카드라도 LOVE/INVESTMENT/REALESTATE에서 다른 의미 필요
+//     예: Five of Pentacles 역 → LOVE=회복, INVESTMENT=신중 진입(긍정 과장 차단)
+//     예: The Hanged Man → REALESTATE=관점 전환(인내), STOCK=관망 신호
+//
+//   해결: CARD_FLAVOR_DOMAIN_OVERRIDE 도입
+//     - 도메인 특화 톤이 필요한 핵심 카드만 오버라이드
+//     - getCardFlavorByDomain() 함수로 라우팅
+//     - 매핑 없는 카드는 기존 CARD_FLAVOR/CARD_FLAVOR_REVERSED 사용 (호환성)
+//
+//   적용 도메인 키:
+//     'love'    : 연애·관계
+//     'invest'  : 주식·코인·부동산 (투자 도메인 통합)
+//     'fortune' : 운세 (재물·건강·커리어 등)
+//     null      : 기본 (도메인 무관)
+// ══════════════════════════════════════════════════════════════════
+const CARD_FLAVOR_DOMAIN_OVERRIDE = {
+  // ─── 핵심 도메인 충돌 카드 (사장님 라이브 검증 발견) ───
+  
+  "Five of Pentacles": {
+    up: {
+      love:    "결핍·고립감",
+      invest:  "수급 약화·심리 위축",
+      fortune: "재정 위축·관계 위축"
+    },
+    rev: {
+      love:    "결핍 회복과 도움의 도착",
+      invest:  "위축 해소 시작 — 안정은 미확인 (신중 진입)",  // ★ 핵심 정정
+      fortune: "위축 해소 신호 — 회복 검증 필요"
+    }
+  },
+  
+  "The Hanged Man": {
+    up: {
+      love:    "관계 일시 정지·새 시각 확보",
+      invest:  "관망 권장·신호 대기 구간",
+      fortune: "강제 멈춤·관점 전환의 시간"
+    },
+    rev: {
+      love:    "정체 종료와 새 시작의 신호",
+      invest:  "관망 종료·진입 신호 형성",
+      fortune: "정체 풀림·새 시작 신호"
+    }
+  },
+  
+  "Seven of Pentacles": {
+    up: {
+      love:    "관계 인내·중간 점검의 시간",
+      invest:  "포지션 인내·중간 점검 구간",
+      fortune: "노력 점검·결실 대기 구간"
+    },
+    rev: {
+      love:    "인내 한계·관계 재정의 필요",
+      invest:  "인내 한계·결과 지연 — 전략 재평가",
+      fortune: "노력 결실 지연·재평가 시기"
+    }
+  },
+  
+  "Six of Wands": {
+    up: {
+      love:    "관계 인정·서로 향한 확신",
+      invest:  "성과·시장 인정 흐름",
+      fortune: "성공 인정·승리 흐름"
+    },
+    rev: {
+      love:    "관계 인정 지연·기대 미충족",
+      invest:  "성과 인정 지연·재시도 필요",
+      fortune: "성공 지연·재시도 권장"
+    }
+  },
+  
+  "The Tower": {
+    up: {
+      love:    "관계 충격·기존 구조 해체",
+      invest:  "급변·붕괴 신호 (강한 변동성)",
+      fortune: "거짓 구조의 정화 충격"
+    },
+    rev: {
+      love:    "관계 충격 지연·잠재 위기",
+      invest:  "충격 지연·변동성 잠복 (감지 어려움)",
+      fortune: "충격 회피와 진실 직면 지연"
+    }
+  },
+  
+  "Wheel of Fortune": {
+    up: {
+      love:    "관계 운명적 전환점",
+      invest:  "시장 흐름 전환점 (기회+리스크 동반)",
+      fortune: "운명의 전환점에 서 있는 흐름"
+    },
+    rev: {
+      love:    "관계 정체·전환 보류",
+      invest:  "추세 정체·전환 신호 부재",
+      fortune: "운명 정체·전환 지연"
+    }
+  },
+  
+  "Eight of Wands": {
+    up: {
+      love:    "감정 빠른 전개·의사 표현 가속",
+      invest:  "추세 가속·빠른 전개 (모멘텀 강함)",
+      fortune: "흐름 가속·일 빠르게 진행"
+    },
+    rev: {
+      love:    "감정 전개 정체·소통 지연",
+      invest:  "추세 둔화·모멘텀 약화",
+      fortune: "흐름 정체·진행 지연"
+    }
+  },
+  
+  "Three of Cups": {
+    up: {
+      love:    "공동의 기쁨·축하의 시간",
+      invest:  "성과 공유·축하 흐름",
+      fortune: "공동의 기쁨·축하의 시간"
+    },
+    rev: {
+      love:    "기쁨 약화·모임 단절",
+      invest:  "성과 약화·기대치 미달",
+      fortune: "축하의 단절과 공감대 약화"
+    }
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// [V31 #183] getCardFlavorByDomain — 도메인별 톤 라우터
+//   인자:
+//     card       — 카드명 (예: "The Hanged Man")
+//     isReversed — true/false
+//     domain     — 'love' | 'invest' | 'fortune' | null
+//   반환:
+//     도메인 오버라이드 있으면 그것 사용, 없으면 기본 CARD_FLAVOR(_REVERSED) 사용
+//   호환:
+//     기존 CARD_FLAVOR / CARD_FLAVOR_REVERSED 호출하는 코드 그대로 작동
+//     새 도메인 톤이 필요한 곳에서만 이 함수 호출
+// ══════════════════════════════════════════════════════════════════
+function getCardFlavorByDomain(card, isReversed, domain) {
+  if (!card) return null;
+  const cardName = typeof card === 'string' ? card : (card.name || '');
+  
+  // 도메인 정규화 — stock/crypto/realestate → invest 통합
+  const _normDomain = (domain === 'stock' || domain === 'crypto' || domain === 'realestate') 
+                      ? 'invest' : domain;
+  
+  // 도메인 오버라이드 우선 시도
+  const override = CARD_FLAVOR_DOMAIN_OVERRIDE[cardName];
+  if (override && _normDomain) {
+    const dirKey = isReversed ? 'rev' : 'up';
+    if (override[dirKey] && override[dirKey][_normDomain]) {
+      return override[dirKey][_normDomain];
+    }
+  }
+  
+  // Fallback — 기존 도메인 무관 매핑
+  if (isReversed) {
+    return CARD_FLAVOR_REVERSED[cardName] || `${cardName} 역방향 흐름`;
+  }
+  return CARD_FLAVOR[cardName] || `${cardName} 흐름`;
+}
+
+// ══════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════
 // 🎯 [V22.4] getCardFlavor — 카드 + 역방향 → 정확한 의미 반환
@@ -8348,6 +8525,66 @@ function buildStockMetrics({ totalScore, riskScore, cleanCards, isLeverage, quer
     const isRev = revFlags[i] === true;
     if (isRev) {
       // [V19.11] 역방향: "[역]" 표기 + 의미 반전 안내
+      // [V31 #183] 카드별 차별화 — 일률 "정체·지연" 결함 해결
+      //   결함: 모든 역방향 카드를 동일하게 "정체·지연 — 본래 흐름이 가로막힌 상태"로 표기
+      //   해결: 카드 의미 반전형 매핑 우선, 매핑 없는 경우만 fallback 사용
+      const REVERSED_NARRATIVE_V183 = {
+        // ── 메이저 역방향 차별화 ──
+        'The Tower':         '붕괴 지연·잠복 위기 — 표면 안정 속 불안 잔존',
+        'The Hanged Man':    '정체·관점 막힘 — 새 시각 차단 상태',
+        'Death':             '변화 거부·마무리 지연 — 종료 회피 상태',
+        'The Sun':           '성공 지연·빛 가려짐 — 신뢰 흔들림',
+        'The Moon':          '안개 걷힘·진실 드러남 — 직관 명확화',
+        'The Star':          '희망 약화·회복 지연 — 신뢰 흔들림',
+        'The Devil':         '집착 약화·자유 가능 — 해방 흐름',
+        'The Hermit':        '고독 종료·사회 복귀 — 외부 노출',
+        'Judgement':         '각성 지연·재평가 보류 — 변화 회피',
+        'The World':         '완성 지연·마무리 미완 — 한 걸음 부족',
+        'Wheel of Fortune':  '운명 정체·전환 보류 — 흐름 동결',
+        'Justice':           '불공정·균형 흐트러짐 — 시정 필요',
+        'Temperance':        '조화 붕괴·극단 위험 — 균형 회복 시급',
+        'The Chariot':       '추진력 상실·방향 잃음 — 통제 약화',
+        'Strength':          '인내 한계·통제력 상실 — 폭발 위험',
+        'The Magician':      '주도권 상실·실행력 부족 — 행동 약화',
+        'The High Priestess':'직관 흐림·객관성 필요 — 정보 부족',
+        'The Empress':       '성장 정체·풍요 약화 — 자원 결핍',
+        'The Emperor':       '권위 약화·통제 상실 — 구조 와해',
+        'The Hierophant':    '전통 거부·새 길 모색 — 규범 이탈',
+        'The Lovers':        '관계 균열·갈등 발생 — 선택 회피',
+        'The Fool':          '성급함 자제·신중 회복 — 무모함 차단',
+        // ── Wands 역방향 차별화 ──
+        'Six of Wands':      '인정 지연·재시도 필요 — 성과 미흡',
+        'Eight of Wands':    '전개 정체·속도 둔화 — 가속 지연',
+        'Three of Wands':    '확장 지연·결과 보류 — 기다림 좌절',
+        'Two of Wands':      '계획 흔들림·결정 미루기 — 확장 정체',
+        'Ten of Wands':      '부담 경감·짐 내려놓음 — 부담 정리',
+        'Nine of Wands':     '방어 소진·경계 한계 — 마지막 분투',
+        // ── Cups 역방향 차별화 ──
+        'Three of Cups':     '기쁨 약화·모임 단절 — 공감대 약화',
+        'Two of Cups':       '균형 균열·끌림 약화 — 관계 흐트러짐',
+        'Ten of Cups':       '가족 균열·이상 깨짐 — 행복 흔들림',
+        'Seven of Cups':     '현실 직시·환상 깨짐 — 선택 명확화',
+        'Eight of Cups':     '정체 지속·떠나지 못함 — 보류 상태',
+        'Five of Cups':      '상실 극복·잔존 가치 발견 — 회복 시작',
+        // ── Swords 역방향 차별화 ──
+        'Three of Swords':   '상처 회복·치유 가능 — 통증 완화',
+        'Eight of Swords':   '구속 해방·자유 회복 — 속박 풀림',
+        'Nine of Swords':    '걱정 완화·불안 해소 — 안도 흐름',
+        'Ten of Swords':     '최악 통과·회복 시작 — 바닥 지남',
+        // ── Pentacles 역방향 차별화 ──
+        'Five of Pentacles': '결핍 회복·도움 도착 — 위축 해소',
+        'Seven of Pentacles':'인내 한계·결과 지연 — 노력 미흡',
+        'Six of Pentacles':  '균형 붕괴·불공정 심화 — 베풂 단절',
+        'Four of Pentacles': '집착 해소·흐름 회복 — 통제 풀림',
+        'Two of Pentacles':  '균형 붕괴·과부하 — 우선순위 혼란',
+        'Eight of Pentacles':'집중력 저하·노력 분산 — 학습 정체',
+        'Ten of Pentacles':  '유산 위기·안정 흔들림 — 가치 흐트러짐'
+      };
+      const _diffNarrative = REVERSED_NARRATIVE_V183[c];
+      if (_diffNarrative) {
+        return `${posLabels[i] || '?'}(${c} [역방향]): ${_diffNarrative}`;
+      }
+      // Fallback (매핑 없는 카드만)
       return `${posLabels[i] || '?'}(${c} [역방향]): ${m.flow}의 정체·지연 — 본래 흐름이 가로막힌 상태`;
     }
     return `${posLabels[i] || '?'}(${c}): ${m.flow} — ${m.signal}`;
@@ -9111,8 +9348,8 @@ function buildStockMetrics({ totalScore, riskScore, cleanCards, isLeverage, quer
         "Three of Pentacles": "협업 실패 — 개별 행동 권고",
         "Four of Pentacles": "집착 해소 — 흐름 회복",
         "Five of Pentacles": "결핍 회복 — 도움 도래",
-        "Six of Pentacles": "불공정 시정 — 균형 회복",
-        "Seven of Pentacles": "인내 종료 — 결과 도출",
+        "Six of Pentacles": "균형 붕괴 — 불공정 심화",
+        "Seven of Pentacles": "인내 한계 — 결과 지연",
         "Eight of Pentacles": "집중력 저하 — 노력 분산",
         "Nine of Pentacles": "독립 위협 — 의존 발생",
         "Ten of Pentacles": "유산 위기 — 안정 흔들림",
@@ -9599,9 +9836,30 @@ function buildRealEstateMetrics({ totalScore, riskScore, cleanCards, intent, pro
   //     • Five of Swords (정/역): 손실 확대 위험
   //     • Ten of Cups 역방향: 회복 시나리오 폐기
   // ══════════════════════════════════════════════════════════════
-  const URGENCY_CARDS_REV = ['Temperance', 'Eight of Wands', 'Wheel of Fortune', 'Ten of Cups', 'Justice'];
-  const URGENCY_CARDS_BOTH = ['The Hanged Man', 'Five of Swords', 'Ten of Wands'];
+  // [V31 #183 사장님 결정 — URGENCY_CARDS_REV 분류 정정]
+  //   결함 진단:
+  //     ❌ 'Wheel of Fortune' 역방향 = "운명 정체" → 정체 카드인데 URGENCY 분류 (모순)
+  //     ❌ 'Eight of Wands' 역방향 = "전개 정체" → 정체 카드인데 URGENCY 분류 (모순)
+  //   본질:
+  //     - "정체"는 "지금 즉시 행동" (URGENCY)가 아니라 "지금 멈춤" (STAGNATION)
+  //     - 두 카드 역방향 = 흐름이 막힌 상태 → 인내·관망 권장 톤
+  //   해결: 두 카드 역방향 → STAGNATION_CARDS_LOCK_REV로 이동
+  //   유지: Temperance 역(조화 붕괴), Justice 역(불공정), Ten of Cups 역(가족 균열)은 URGENCY 적합
+  const URGENCY_CARDS_REV = ['Temperance', 'Ten of Cups', 'Justice'];
+  // [V31 #182 사장님 결정 — Pattern D 근본 해결]
+  //   결함: The Hanged Man이 URGENCY_CARDS_BOTH에 잘못 분류됨
+  //   - CARD_FLAVOR(line 1091): "강제 멈춤의 새 관점 확보" (정체 카드)
+  //   - CARD_DECISION_MAP(line 964): "SELL" (보유 신호)
+  //   - 본질: 인내·관망 카드인데 "즉시 검토" 트리거 발동 → 부동산 양재역 점사 결함 출처
+  //   해결: The Hanged Man 제거 — 정체 카드는 STAGNATION_CARDS_LOCK에서 별도 처리
+  const URGENCY_CARDS_BOTH = ['Five of Swords', 'Ten of Wands'];
   const URGENCY_CARDS_FWD = ['Eight of Wands']; // 정방향도 빠른 행동
+  
+  // [V31 #182] 정체 카드 — URGENCY와 정반대 톤
+  const STAGNATION_CARDS_LOCK = ['The Hanged Man', 'Four of Cups', 'Eight of Cups', 'Four of Swords', 'Two of Swords'];
+  
+  // [V31 #183] 정체 카드 — 역방향 전용 (정방향에서는 추진 카드인데 역방향이 정체)
+  const STAGNATION_CARDS_LOCK_REV = ['Wheel of Fortune', 'Eight of Wands'];
   
   let isUrgent = false;
   let urgencyCardName = null;
@@ -9654,6 +9912,36 @@ function buildRealEstateMetrics({ totalScore, riskScore, cleanCards, intent, pro
   let splitFutureCardName = null;
   if (isSplit) {
     splitFutureCardName = cleanCards[2] + (revFlags[2] ? ' [역방향]' : '');
+  }
+  
+  // ══════════════════════════════════════════════════════════════
+  // [V31 #182 사장님 결정 — Pattern C 근본 해결]
+  //   결함: 같은 점사에서 isUrgent("즉시 검토") + 보류("신규 매수 보류") 
+  //         동시 출력 가능 (양재역 모아타운 점사 결함 출처)
+  //   해결: 정체 카드 우선 처리 — STAGNATION 카드가 미래에 있으면
+  //         - isUrgent 강제 무력화
+  //         - URGENCY 분기 거치지 않고 PATIENT_WATCH 분기로 라우팅
+  //
+  // [V31 #183 확장] STAGNATION_CARDS_LOCK_REV 추가 (역방향 전용)
+  //   - Wheel of Fortune 역 (운명 정체)
+  //   - Eight of Wands 역 (전개 정체)
+  // ══════════════════════════════════════════════════════════════
+  let isStagnationFuture = false;
+  let stagnationCardName = null;
+  if (typeof STAGNATION_CARDS_LOCK !== 'undefined' && STAGNATION_CARDS_LOCK.includes(cleanCards[2])) {
+    isStagnationFuture = true;
+    stagnationCardName = cleanCards[2] + (revFlags[2] ? ' [역방향]' : '');
+    // ★ 정체 카드 우선 — URGENCY 무력화
+    isUrgent = false;
+    urgencyCardName = null;
+  } else if (typeof STAGNATION_CARDS_LOCK_REV !== 'undefined' 
+             && STAGNATION_CARDS_LOCK_REV.includes(cleanCards[2]) 
+             && revFlags[2]) {
+    // [V31 #183] 역방향 전용 정체 카드 (Wheel of Fortune 역 / Eight of Wands 역)
+    isStagnationFuture = true;
+    stagnationCardName = cleanCards[2] + ' [역방향]';
+    isUrgent = false;
+    urgencyCardName = null;
   }
   // ══════════════════════════════════════════════════════════════
 
@@ -9890,7 +10178,16 @@ function buildRealEstateMetrics({ totalScore, riskScore, cleanCards, intent, pro
 
   // Decision Layer
   let reDecisionPosition, reDecisionStrategy;
-  if (isUrgent) {
+  // [V31 #182] 정체 카드 우선 처리 — Hanged Man 등
+  if (isStagnationFuture) {
+    if (intent === "sell") {
+      reDecisionPosition = `관점 전환 시점 (Patient Watch — ${stagnationCardName})`;
+      reDecisionStrategy = "현 호가 유지 + 시장 신호 관찰 — 인내가 결과를 만드는 구간";
+    } else {
+      reDecisionPosition = `신중 검토형 매수 (Patient Watch — ${stagnationCardName})`;
+      reDecisionStrategy = "급매·우량 매물 신중 탐색 + 관점 전환 시야 (성급한 결단 금지)";
+    }
+  } else if (isUrgent) {
     // [V24.9] URGENCY 발동 시 — 즉시 실행형 포지션
     if (intent === "sell") {
       reDecisionPosition = `즉시 실행형 매도 (Urgent Sell — ${urgencyCardName})`;
@@ -10184,7 +10481,13 @@ function buildRealEstateMetrics({ totalScore, riskScore, cleanCards, intent, pro
             "다음 성수기 대기 또는 능동적 흐름 점검이 고려될 수 있습니다"
           ]
         ) : (
-          isFutureDanger ? [
+          // [V31 #182 사장님 결정 — Pattern C 직접 출처 차단]
+          //   결함: isFutureDanger=false + netScore <= -3 + 정체 카드(Hanged Man 등) 동시 발생 시
+          //         "신규 매수 보류" + "Urgent Search" 정반대 메시지 동시 출력 가능
+          //   해결: 정체 카드 우선 — 일관된 "신중 탐색" 톤
+          (typeof isStagnationFuture !== 'undefined' && isStagnationFuture) ? [
+            "급매·우량 매물 신중 탐색", "관점 전환 시야 확보", "성급한 결단 회피"
+          ] : isFutureDanger ? [
             "신규 매수 대기 — 미래 충격 에너지 감지",
             "하락 신호 확인 후 저점 급매 선별 진입",
             "충분한 협상 여지 확보 후 결정"
@@ -10206,7 +10509,10 @@ function buildRealEstateMetrics({ totalScore, riskScore, cleanCards, intent, pro
       })(),
       // [V20.10] 🎯 Contract Layer — 계약 성사 구조 (NEW)
       contract: {
-        expectedWeeks: netScore >= 5 ? "4~6주"
+        // [V31 #182] 정체 카드 우선 — Hanged Man 등은 12~16주 시야 (인내·관점 전환)
+        expectedWeeks: (typeof isStagnationFuture !== 'undefined' && isStagnationFuture) 
+                       ? "12~16주 (관점 전환 단계 — 인내 우선)"
+                     : netScore >= 5 ? "4~6주"
                      : netScore >= 2 ? "6~10주"
                      : netScore >= 0 ? "8~12주"
                      : netScore >= -3 ? "10~16주"
@@ -15198,9 +15504,1427 @@ function buildFortuneMetrics({ totalScore, cleanCards, prompt, fortuneSubType, r
   };
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
+// [V31 #184] EXECUTION LAYER + 9중 안전망 통합 인프라
+// ══════════════════════════════════════════════════════════════════════════
+//
+// 사장님 결정: Option A (즉시 전면 전환) + 옵션 2 (사장님 PATCH + 클로드 미세 보완)
+//
+// 목적:
+//   1. 도돌이 현상(한 곳 수정 → 다른 곳 어긋남) 구조적 차단
+//   2. 도메인 4개(love/stock/realestate/fortune)가 같은 추상화 레이어 공유
+//   3. ★ 사장님 PATCH 9개 항목 통합 ★
+//   4. ★ 클로드 미세 보완 3종 추가 ★
+//
+// 안전 보장:
+//   - Feature Flag 기본 0% (배포 시 라이브 영향 0)
+//   - URL ?v184=1 사장님 검증 채널
+//   - Sticky bucketing (사용자 경험 일관성)
+//   - Circuit Breaker 자동 차단
+//   - Schema/Invariant 이중 검증
+//   - Regression Snapshot 자동 검증
+// ══════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────
+// 📦 [상수 정의] 4 개 추상화 레이어
+// ─────────────────────────────────────────
+
+const ACTION_FORCE_LEVEL_V184 = Object.freeze({
+  SOFT:     "SOFT",      // 선택적 (관망 가능)
+  NORMAL:   "NORMAL",    // 권장 (자연스러운 진행)
+  STRONG:   "STRONG",    // 지금 행동 필요
+  CRITICAL: "CRITICAL"   // 즉시 행동 (지연 시 기회 소멸)
+});
+
+const TIMING_TYPE_V184 = Object.freeze({
+  IMMEDIATE: "IMMEDIATE", // 24시간 내
+  SHORT:     "SHORT",     // 2~3일 내
+  FLEXIBLE:  "FLEXIBLE"   // 1주 이상 시야
+});
+
+const TERMINATION_RISK_V184 = Object.freeze({
+  LOW:    "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH:   "HIGH"
+});
+
+const FUTURE_WEIGHT_V184 = Object.freeze({
+  LOW:    0.8,
+  NORMAL: 1.0,
+  HIGH:   1.2
+});
+
+// ─────────────────────────────────────────
+// 📦 [매트릭스] 카드 → ACTION_FORCE_LEVEL 매핑
+//   78장 × 정/역 = 156개 (핵심 카드 우선 정의, 나머지는 NORMAL fallback)
+// ─────────────────────────────────────────
+
+const CARD_ACTION_LEVEL_MATRIX_V184 = {
+  // ── CRITICAL: 즉시 행동 카드 ──
+  "Eight of Wands":    { up: 'CRITICAL', rev: 'STRONG'  }, // 빠른 전개
+  "The Tower":         { up: 'CRITICAL', rev: 'STRONG'  }, // 급변
+  "Wheel of Fortune":  { up: 'STRONG',   rev: 'SOFT'    }, // 전환점
+  "Ten of Wands":      { up: 'STRONG',   rev: 'NORMAL'  }, // 부담 정리
+  "Five of Swords":    { up: 'STRONG',   rev: 'NORMAL'  }, // 갈등
+  "Death":             { up: 'STRONG',   rev: 'NORMAL'  }, // 종결
+  
+  // ── STRONG: 행동 권장 ──
+  "The Chariot":       { up: 'STRONG',   rev: 'SOFT'    }, // 추진
+  "The Magician":      { up: 'STRONG',   rev: 'SOFT'    }, // 실행
+  "Knight of Wands":   { up: 'STRONG',   rev: 'SOFT'    }, // 돌진
+  "Six of Wands":      { up: 'STRONG',   rev: 'SOFT'    }, // 승리·인정
+  "Three of Wands":    { up: 'STRONG',   rev: 'SOFT'    }, // 결과 도래
+  "The Sun":           { up: 'STRONG',   rev: 'SOFT'    }, // 명확한 성공
+  
+  // ── NORMAL: 자연스러운 진행 ──
+  "The Star":          { up: 'NORMAL',   rev: 'SOFT'    }, // 회복
+  "Ace of Cups":       { up: 'NORMAL',   rev: 'SOFT'    }, // 새 감정
+  "Two of Cups":       { up: 'NORMAL',   rev: 'SOFT'    }, // 끌림
+  "Knight of Pentacles":{up: 'NORMAL',   rev: 'SOFT'    }, // 꾸준한 진행
+  "Page of Wands":     { up: 'NORMAL',   rev: 'SOFT'    }, // 탐색
+  "The Lovers":        { up: 'NORMAL',   rev: 'SOFT'    }, // 선택
+  
+  // ── SOFT: 관망/인내 카드 ──
+  "The Hanged Man":    { up: 'SOFT',     rev: 'NORMAL'  }, // ★ 정체 카드
+  "Four of Cups":      { up: 'SOFT',     rev: 'NORMAL'  }, // 권태
+  "Eight of Cups":     { up: 'SOFT',     rev: 'NORMAL'  }, // 떠남
+  "Four of Swords":    { up: 'SOFT',     rev: 'NORMAL'  }, // 휴식
+  "Two of Swords":     { up: 'SOFT',     rev: 'NORMAL'  }, // 결정 회피
+  "Seven of Pentacles":{ up: 'SOFT',     rev: 'NORMAL'  }, // 인내
+  "The Hermit":        { up: 'SOFT',     rev: 'NORMAL'  }, // 고독
+  "The High Priestess":{ up: 'SOFT',     rev: 'NORMAL'  }, // 직관 대기
+  "The Moon":          { up: 'SOFT',     rev: 'NORMAL'  }, // 불확실
+  "Nine of Swords":    { up: 'SOFT',     rev: 'NORMAL'  }, // 걱정
+  "Ten of Swords":     { up: 'SOFT',     rev: 'STRONG'  }, // 바닥(역=회복)
+  "Five of Pentacles": { up: 'SOFT',     rev: 'NORMAL'  }, // 결핍
+  "Five of Cups":      { up: 'SOFT',     rev: 'NORMAL'  }  // 상실
+};
+
+// ─────────────────────────────────────────
+// 📦 [매트릭스] 미래 카드 → FUTURE_WEIGHT
+// ─────────────────────────────────────────
+
+const FUTURE_CARD_WEIGHT_MAP_V184 = {
+  // HIGH (1.2배) — 미래 영향 강한 카드
+  "Knight of Pentacles": FUTURE_WEIGHT_V184.HIGH,
+  "Ten of Wands":        FUTURE_WEIGHT_V184.HIGH,
+  "The World":           FUTURE_WEIGHT_V184.HIGH,
+  "The Sun":             FUTURE_WEIGHT_V184.HIGH,
+  "Six of Wands":        FUTURE_WEIGHT_V184.HIGH,
+  "The Star":            FUTURE_WEIGHT_V184.HIGH,
+  
+  // LOW (0.8배) — 미래 영향 약한 (정체) 카드
+  "The Hanged Man":      FUTURE_WEIGHT_V184.LOW,
+  "Four of Cups":        FUTURE_WEIGHT_V184.LOW,
+  "Two of Swords":       FUTURE_WEIGHT_V184.LOW,
+  "Four of Swords":      FUTURE_WEIGHT_V184.LOW
+};
+
+// ─────────────────────────────────────────
+// 🔧 [순수 함수] resolveStagnation
+//   V31 #182 STAGNATION_CARDS_LOCK / V31 #183 LOCK_REV 통합
+// ─────────────────────────────────────────
+
+function resolveStagnationV184(cards, revFlags) {
+  if (!cards || cards.length < 3) return false;
+  
+  const STAGNATION_LOCK = ['The Hanged Man', 'Four of Cups', 'Eight of Cups', 
+                           'Four of Swords', 'Two of Swords', 'Seven of Pentacles'];
+  const STAGNATION_LOCK_REV = ['Wheel of Fortune', 'Eight of Wands'];
+  
+  const future = cards[2];
+  const futureRev = revFlags && revFlags[2];
+  
+  if (STAGNATION_LOCK.includes(future)) return true;
+  if (STAGNATION_LOCK_REV.includes(future) && futureRev) return true;
+  
+  return false;
+}
+
+// ─────────────────────────────────────────
+// 🔧 [순수 함수] resolveTerminationRisk
+// ─────────────────────────────────────────
+
+function resolveTerminationRiskV184({ isStagnation, responseDelay, interactionCount, signalStrength }) {
+  // HIGH: 정체 + 반응 지연 + 상호작용 부족
+  if (isStagnation && responseDelay > 3 && interactionCount < 2) {
+    return TERMINATION_RISK_V184.HIGH;
+  }
+  // HIGH: 정체 + 신호 매우 약함
+  if (isStagnation && signalStrength === 'VERY_LOW') {
+    return TERMINATION_RISK_V184.HIGH;
+  }
+  // MEDIUM: 정체만 있음
+  if (isStagnation) {
+    return TERMINATION_RISK_V184.MEDIUM;
+  }
+  return TERMINATION_RISK_V184.LOW;
+}
+
+// ─────────────────────────────────────────
+// 🔧 [순수 함수] resolveActionForceLevel
+// ─────────────────────────────────────────
+
+function resolveActionForceLevelV184({ isStagnation, hasEmotion, terminationRisk, signalStrength, futureCard, futureCardRev }) {
+  // CRITICAL: 종료 리스크 매우 높음
+  if (terminationRisk === TERMINATION_RISK_V184.HIGH) {
+    return ACTION_FORCE_LEVEL_V184.CRITICAL;
+  }
+  
+  // STRONG: 정체 + 감정 존재 (행동 필요)
+  if (isStagnation && hasEmotion) {
+    return ACTION_FORCE_LEVEL_V184.STRONG;
+  }
+  
+  // 카드 매트릭스 우선 적용
+  if (futureCard) {
+    const matrix = CARD_ACTION_LEVEL_MATRIX_V184[futureCard];
+    if (matrix) {
+      return futureCardRev ? matrix.rev : matrix.up;
+    }
+  }
+  
+  // 신호 강도 기반
+  if (signalStrength === 'HIGH') {
+    return ACTION_FORCE_LEVEL_V184.NORMAL;
+  }
+  
+  return ACTION_FORCE_LEVEL_V184.SOFT;
+}
+
+// ─────────────────────────────────────────
+// 🔧 [순수 함수] resolveActionTrigger
+//   ★ 도메인별 4 분기 (love/invest/realestate/fortune) ★
+// ─────────────────────────────────────────
+
+function resolveActionTriggerV184({ isStagnation, hasEmotion, domain, terminationRisk }) {
+  // LOVE 도메인
+  if (domain === "love" && isStagnation && hasEmotion) {
+    return {
+      type: "CONTACT_ONCE",
+      message: "가벼운 접촉 1회로 반응을 확인하세요"
+    };
+  }
+  
+  // INVESTMENT 도메인 (stock/crypto)
+  if ((domain === "stock" || domain === "crypto") && terminationRisk === 'HIGH') {
+    return {
+      type: "POSITION_REVIEW",
+      message: "포지션 청산·축소를 즉시 검토하세요"
+    };
+  }
+  
+  // REALESTATE 도메인
+  if (domain === "realestate" && isStagnation) {
+    return {
+      type: "PATIENT_WATCH",
+      message: "급매·우량 매물 신중 탐색 — 관점 전환 시야"
+    };
+  }
+  
+  // FORTUNE 도메인
+  if (domain === "fortune" && terminationRisk === 'HIGH') {
+    return {
+      type: "URGENT_REVIEW",
+      message: "흐름 재정비가 필요한 시점입니다"
+    };
+  }
+  
+  // 기본
+  return {
+    type: "HOLD",
+    message: "현재는 관망이 유리합니다"
+  };
+}
+
+// ─────────────────────────────────────────
+// 🔧 [순수 함수] resolveTimingType
+// ─────────────────────────────────────────
+
+function resolveTimingTypeV184({ actionForceLevel, terminationRisk }) {
+  if (actionForceLevel === ACTION_FORCE_LEVEL_V184.CRITICAL) {
+    return TIMING_TYPE_V184.IMMEDIATE;
+  }
+  if (actionForceLevel === ACTION_FORCE_LEVEL_V184.STRONG) {
+    return TIMING_TYPE_V184.SHORT;
+  }
+  if (terminationRisk === TERMINATION_RISK_V184.MEDIUM) {
+    return TIMING_TYPE_V184.SHORT;
+  }
+  return TIMING_TYPE_V184.FLEXIBLE;
+}
+
+// ─────────────────────────────────────────
+// 🔧 [순수 함수] applyFutureWeight
+//   PAST/PRESENT/FUTURE 시간 가중치 (클로드 보완)
+// ─────────────────────────────────────────
+
+function applyFutureWeightV184(baseScore, futureCard) {
+  const weight = FUTURE_CARD_WEIGHT_MAP_V184[futureCard] || FUTURE_WEIGHT_V184.NORMAL;
+  return Math.max(0, Math.min(100, baseScore * weight));
+}
+
+// ─────────────────────────────────────────
+// 🔥 [메인 파이프라인] buildExecutionLayerV184
+//   사장님 설계 + 클로드 보완 통합
+// ─────────────────────────────────────────
+
+function buildExecutionLayerV184(context) {
+  const {
+    cards = [],
+    revFlags = [false, false, false],
+    domain = 'love',
+    hasEmotion = true,
+    signalStrength = 'NORMAL',
+    responseDelay = 0,
+    interactionCount = 1,
+    baseScore = 50
+  } = context || {};
+  
+  const futureCard = cards[2] || null;
+  const futureCardRev = revFlags[2] || false;
+  
+  // 1. 정체 감지 (헬퍼 통합)
+  const isStagnation = resolveStagnationV184(cards, revFlags);
+  
+  // 2. 종료 리스크
+  const terminationRisk = resolveTerminationRiskV184({
+    isStagnation, responseDelay, interactionCount, signalStrength
+  });
+  
+  // 3. 행동 강도
+  const actionForceLevel = resolveActionForceLevelV184({
+    isStagnation, hasEmotion, terminationRisk, signalStrength, futureCard, futureCardRev
+  });
+  
+  // 4. 도메인별 트리거
+  const actionTrigger = resolveActionTriggerV184({
+    isStagnation, hasEmotion, domain, terminationRisk
+  });
+  
+  // 5. 타이밍
+  const timingType = resolveTimingTypeV184({
+    actionForceLevel, terminationRisk
+  });
+  
+  // 6. 미래 가중치 적용
+  const weightedScore = applyFutureWeightV184(baseScore, futureCard);
+  
+  // ★ 표준 JSON 출력 (사장님 설계) ★
+  return {
+    execution: {
+      forceLevel: actionForceLevel,
+      action: actionTrigger,
+      timing: timingType
+    },
+    risk: {
+      termination: terminationRisk
+    },
+    score: {
+      weighted: weightedScore
+    },
+    // 내부 메타 (Invariant Rules에서 사용)
+    actionForceLevel,
+    actionTrigger,
+    timingType,
+    terminationRisk,
+    weightedScore,
+    _isStagnation: isStagnation,
+    _hasEmotion: hasEmotion,
+    _domain: domain
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 🛡 9중 안전망 (사장님 PATCH 9개 + 클로드 보완 3개)
+// ══════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────
+// 1️⃣ Global Circuit Breaker (사장님 PATCH)
+// ─────────────────────────────────────────
+
+class V184CircuitBreaker {
+  constructor() {
+    this.errors = 0;
+    this.diffs = 0;
+    this.total = 0;
+    this.windowStart = Date.now();
+  }
+  
+  record({ error, hasDiff }) {
+    this.total++;
+    if (error) this.errors++;
+    if (hasDiff) this.diffs++;
+    
+    // 5분 윈도우
+    if (Date.now() - this.windowStart > 5 * 60 * 1000) {
+      this.reset();
+    }
+  }
+  
+  shouldBreak() {
+    if (this.total < 50) return false;
+    const errorRate = this.errors / this.total;
+    const diffRate  = this.diffs / this.total;
+    return errorRate > 0.05 || diffRate > 0.30;
+  }
+  
+  reset() {
+    this.errors = 0;
+    this.diffs = 0;
+    this.total = 0;
+    this.windowStart = Date.now();
+  }
+  
+  getStats() {
+    return {
+      total: this.total,
+      errors: this.errors,
+      diffs: this.diffs,
+      errorRate: this.total > 0 ? this.errors / this.total : 0,
+      diffRate: this.total > 0 ? this.diffs / this.total : 0
+    };
+  }
+}
+
+// 글로벌 유지 (사장님 PATCH — globalThis 패턴)
+const v184CircuitBreaker = 
+  globalThis.__v184_cb || (globalThis.__v184_cb = new V184CircuitBreaker());
+
+// ─────────────────────────────────────────
+// 2️⃣ Stable Hash (사장님 PATCH)
+// ─────────────────────────────────────────
+
+function stableHashV184(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+// ─────────────────────────────────────────
+// 3️⃣ Feature Flag (사장님 PATCH — IP sticky bucketing)
+// ─────────────────────────────────────────
+
+function getFeatureFlagV184(env, request) {
+  const url = new URL(request.url);
+  
+  // URL param 강제 (사장님 검증용)
+  if (url.searchParams.get('v184') === '1')
+    return { use: true, source: 'url' };
+  if (url.searchParams.get('v184') === '0')
+    return { use: false, source: 'url' };
+  
+  // Percent-based rollout with sticky bucketing
+  const rolloutPct = parseInt((env && env.V184_ROLLOUT_PCT) || '0', 10);
+  
+  const key = 
+    request.headers.get('cf-connecting-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    `anon-${Date.now()}`;
+  
+  const userHash = stableHashV184(key) % 100;
+  
+  return {
+    use: userHash < rolloutPct,
+    source: 'rollout',
+    pct: rolloutPct
+  };
+}
+
+// ─────────────────────────────────────────
+// 4️⃣ Diff 비교 (사장님 PATCH — 별도 함수 분리)
+// ─────────────────────────────────────────
+
+function compareDiffV184(legacy, v184) {
+  if (!legacy || !v184) return false;
+  
+  return (
+    (legacy.forceLevel || legacy.actionForceLevel) !== v184.actionForceLevel ||
+    (legacy.timing || legacy.timingType) !== v184.timingType ||
+    (legacy.risk || legacy.terminationRisk) !== v184.terminationRisk ||
+    (legacy.action?.type || legacy.actionType) !== v184.actionTrigger?.type
+  );
+}
+
+// ─────────────────────────────────────────
+// 5️⃣ Timeout (사장님 PATCH — 40ms 현실화)
+// ─────────────────────────────────────────
+
+const V184_TIMEOUT_MS = 40;
+
+// ─────────────────────────────────────────
+// 6️⃣ Invariant Rules (사장님 PATCH — priority)
+// ─────────────────────────────────────────
+
+const INVARIANT_RULES_V184 = [
+  {
+    name: 'CRITICAL_NEEDS_HIGH_RISK',
+    priority: 1,
+    check: (r) =>
+      r.actionForceLevel === 'CRITICAL' && r.terminationRisk !== 'HIGH',
+    fix: (r) => ({ ...r, actionForceLevel: 'STRONG', execution: { ...r.execution, forceLevel: 'STRONG' } })
+  },
+  {
+    name: 'SOFT_INSUFFICIENT_FOR_STAGNATION',
+    priority: 2,
+    check: (r) =>
+      r.actionForceLevel === 'SOFT' && r._isStagnation && r._hasEmotion,
+    fix: (r) => ({ ...r, actionForceLevel: 'STRONG', execution: { ...r.execution, forceLevel: 'STRONG' } })
+  },
+  {
+    name: 'IMMEDIATE_NEEDS_HIGH_RISK',
+    priority: 3,
+    check: (r) =>
+      r.timingType === 'IMMEDIATE' && r.terminationRisk === 'LOW',
+    fix: (r) => ({ ...r, timingType: 'FLEXIBLE', execution: { ...r.execution, timing: 'FLEXIBLE' } })
+  },
+  {
+    name: 'CONTACT_ONLY_FOR_LOVE',
+    priority: 4,
+    check: (r) =>
+      r.actionTrigger?.type === 'CONTACT_ONCE' && r._domain !== 'love',
+    fix: (r) => {
+      const fallback = { type: 'HOLD', message: '관망 권장' };
+      return { ...r, actionTrigger: fallback, execution: { ...r.execution, action: fallback } };
+    }
+  },
+  {
+    name: 'WEIGHT_BOUNDS',
+    priority: 5,
+    check: (r) => r.weightedScore < 0 || r.weightedScore > 100,
+    fix: (r) => {
+      const bounded = Math.max(0, Math.min(100, r.weightedScore));
+      return { ...r, weightedScore: bounded, score: { ...r.score, weighted: bounded } };
+    }
+  }
+];
+
+function applyInvariantRulesV184(result) {
+  let fixed = result;
+  const violations = [];
+  
+  const sorted = [...INVARIANT_RULES_V184].sort(
+    (a, b) => a.priority - b.priority
+  );
+  
+  for (const rule of sorted) {
+    if (rule.check(fixed)) {
+      violations.push(rule.name);
+      fixed = rule.fix(fixed);
+    }
+  }
+  
+  if (violations.length > 0) {
+    fixed._invariantViolations = violations;
+  }
+  
+  return fixed;
+}
+
+// ─────────────────────────────────────────
+// 7️⃣ Schema Validation (사장님 PATCH — enum 검증)
+// ─────────────────────────────────────────
+
+function validateV184Schema(output) {
+  if (!output || !output.execution || !output.risk || !output.score) {
+    return { valid: false, missing: 'root fields' };
+  }
+  
+  const { execution, risk, score } = output;
+  
+  if (
+    typeof execution.forceLevel !== 'string' ||
+    !['SOFT', 'NORMAL', 'STRONG', 'CRITICAL'].includes(execution.forceLevel)
+  ) {
+    return { valid: false, missing: 'execution.forceLevel' };
+  }
+  
+  if (
+    typeof execution.timing !== 'string' ||
+    !['IMMEDIATE', 'SHORT', 'FLEXIBLE'].includes(execution.timing)
+  ) {
+    return { valid: false, missing: 'execution.timing' };
+  }
+  
+  if (!execution.action || typeof execution.action.type !== 'string') {
+    return { valid: false, missing: 'execution.action.type' };
+  }
+  
+  if (
+    typeof risk.termination !== 'string' ||
+    !['LOW', 'MEDIUM', 'HIGH'].includes(risk.termination)
+  ) {
+    return { valid: false, missing: 'risk.termination' };
+  }
+  
+  if (typeof score.weighted !== 'number' || isNaN(score.weighted)) {
+    return { valid: false, missing: 'score.weighted' };
+  }
+  
+  return { valid: true };
+}
+
+// ─────────────────────────────────────────
+// 8️⃣ applyScoreToDecision (사장님 PATCH — 핵심 가치)
+// ─────────────────────────────────────────
+
+function applyScoreToDecisionV184(result) {
+  const score = result.weightedScore ?? 50;
+  
+  // 점수 기반 강도 보정
+  if (score > 80 && result.actionForceLevel === 'SOFT') {
+    result.actionForceLevel = 'NORMAL';
+    if (result.execution) result.execution.forceLevel = 'NORMAL';
+  }
+  if (score < 30 && result.actionForceLevel === 'CRITICAL') {
+    result.actionForceLevel = 'STRONG';
+    if (result.execution) result.execution.forceLevel = 'STRONG';
+  }
+  
+  return result;
+}
+
+// ─────────────────────────────────────────
+// 🆕 [클로드 보완 B] Regression Snapshot Test
+// ─────────────────────────────────────────
+
+const REGRESSION_SNAPSHOTS_V184 = {
+  '산일전기_매도_변동성PAST': {
+    cards: ['Seven of Cups', 'Six of Wands', 'Ten of Wands'],
+    revFlags: [false, false, false],
+    domain: 'stock',
+    intent: 'sell',
+    expected: { 
+      // PAST가 변동성 카드여도 라벨은 "과거 카드"로 정확
+      forceLevelMin: 'NORMAL'
+    }
+  },
+  'hmm_매수_FivePentaclesRev': {
+    cards: ['The Fool', 'Five of Pentacles', 'Seven of Pentacles'],
+    revFlags: [false, true, true],
+    domain: 'stock',
+    intent: 'buy',
+    expected: {
+      // Five of Pentacles 역방향 = 신중 진입 (과긍정 차단)
+      forceLevelMax: 'NORMAL'
+    }
+  },
+  '양재역_부동산_HangedManFuture': {
+    cards: ['The Magician', 'Five of Pentacles', 'The Hanged Man'],
+    revFlags: [false, false, false],
+    domain: 'realestate',
+    intent: 'buy',
+    expected: {
+      // Hanged Man 미래 → 정체 카드 → CRITICAL/STRONG 금지
+      forceLevelMax: 'NORMAL',
+      actionType: 'PATIENT_WATCH'
+    }
+  },
+  'ㅅ차장_썸_KnightPentaclesFuture': {
+    cards: ['Queen of Wands', 'Judgement', 'Knight of Pentacles'],
+    revFlags: [false, true, false],
+    domain: 'love',
+    intent: 'thumb',
+    expected: {
+      // Knight of Pentacles 미래 → 꾸준한 진행 → NORMAL
+      forceLevelMin: 'SOFT',
+      forceLevelMax: 'STRONG'
+    }
+  }
+};
+
+const FORCE_LEVEL_RANK = { SOFT: 0, NORMAL: 1, STRONG: 2, CRITICAL: 3 };
+
+function runRegressionSnapshotV184() {
+  const results = [];
+  
+  for (const [name, snap] of Object.entries(REGRESSION_SNAPSHOTS_V184)) {
+    try {
+      const result = buildExecutionLayerV184({
+        cards: snap.cards,
+        revFlags: snap.revFlags,
+        domain: snap.domain,
+        hasEmotion: snap.domain === 'love',
+        signalStrength: 'NORMAL',
+        baseScore: 50
+      });
+      
+      const fixed = applyInvariantRulesV184(applyScoreToDecisionV184(result));
+      
+      let pass = true;
+      const failures = [];
+      
+      if (snap.expected.forceLevelMin) {
+        const minRank = FORCE_LEVEL_RANK[snap.expected.forceLevelMin];
+        const actualRank = FORCE_LEVEL_RANK[fixed.actionForceLevel];
+        if (actualRank < minRank) {
+          pass = false;
+          failures.push(`forceLevel ${fixed.actionForceLevel} < min ${snap.expected.forceLevelMin}`);
+        }
+      }
+      if (snap.expected.forceLevelMax) {
+        const maxRank = FORCE_LEVEL_RANK[snap.expected.forceLevelMax];
+        const actualRank = FORCE_LEVEL_RANK[fixed.actionForceLevel];
+        if (actualRank > maxRank) {
+          pass = false;
+          failures.push(`forceLevel ${fixed.actionForceLevel} > max ${snap.expected.forceLevelMax}`);
+        }
+      }
+      if (snap.expected.actionType && fixed.actionTrigger?.type !== snap.expected.actionType) {
+        pass = false;
+        failures.push(`actionType ${fixed.actionTrigger?.type} !== ${snap.expected.actionType}`);
+      }
+      
+      results.push({ name, pass, failures, actual: { 
+        forceLevel: fixed.actionForceLevel, 
+        actionType: fixed.actionTrigger?.type 
+      }});
+    } catch (err) {
+      results.push({ name, pass: false, failures: [String(err)] });
+    }
+  }
+  
+  const allPass = results.every(r => r.pass);
+  return { allPass, results, summary: `${results.filter(r => r.pass).length}/${results.length} PASS` };
+}
+
+// ─────────────────────────────────────────
+// 🆕 [클로드 보완 C] Diff Logger (Analytics 폴백)
+// ─────────────────────────────────────────
+
+async function logDiffAsyncV184(legacy, v184, context, env) {
+  try {
+    const hasDiff = compareDiffV184(legacy, v184);
+    const sample = hasDiff || Math.random() < 0.1; // 10% 샘플링
+    
+    if (!sample) return;
+    
+    const logData = {
+      type: hasDiff ? 'diff_detected' : 'sample',
+      timestamp: Date.now(),
+      hasDiff,
+      domain: context.domain,
+      intent: context.intent,
+      cards: context.cards,
+      revFlags: context.revFlags,
+      legacy_summary: { 
+        forceLevel: legacy.forceLevel || legacy.actionForceLevel,
+        timing: legacy.timing || legacy.timingType,
+        risk: legacy.risk || legacy.terminationRisk
+      },
+      v184_summary: {
+        forceLevel: v184.actionForceLevel,
+        timing: v184.timingType,
+        risk: v184.terminationRisk,
+        score: v184.weightedScore,
+        violations: v184._invariantViolations || []
+      }
+    };
+    
+    // Cloudflare Analytics Engine 우선
+    if (env && env.V184_ANALYTICS) {
+      env.V184_ANALYTICS.writeDataPoint({
+        blobs: [logData.type, logData.domain || '', logData.intent || ''],
+        doubles: [logData.v184_summary.score || 0],
+        indexes: [hasDiff ? '1' : '0']
+      });
+    } else {
+      // Fallback: console (로그 누적되지만 점사 차단 안 됨)
+      console.log('[V184 DIFF]', JSON.stringify(logData));
+    }
+  } catch (_err) {
+    // 로깅 실패가 점사 흐름 차단하지 않음
+  }
+}
+
+// ─────────────────────────────────────────
+// 🆕 [클로드 보완 A] buildLegacyOracle 어댑터
+//   기존 build*Oracle 함수의 출력을 V184 비교 가능 형식으로 변환
+// ─────────────────────────────────────────
+
+function buildLegacyOracleAdapterV184(legacyResult, context) {
+  // legacyResult는 기존 worker의 metrics 객체 형태
+  // V184 비교 형식으로 정규화
+  
+  const { domain = 'love', intent = 'buy' } = context || {};
+  
+  // 기존 시스템에서 actionForceLevel 추론
+  let forceLevel = 'NORMAL';
+  if (legacyResult) {
+    if (legacyResult.isUrgent || legacyResult.urgent) forceLevel = 'CRITICAL';
+    else if (legacyResult.isStagnationFuture) forceLevel = 'SOFT';
+    else if (legacyResult.totalScore >= 5) forceLevel = 'STRONG';
+    else if (legacyResult.totalScore <= -3) forceLevel = 'SOFT';
+  }
+  
+  return {
+    forceLevel,
+    timing: 'FLEXIBLE',
+    risk: legacyResult?.isUrgent ? 'HIGH' : 'LOW',
+    actionType: 'HOLD',
+    _isLegacyAdapter: true
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 🚀 메인 파이프라인 — buildOracleV184Safe
+//   사장님 PATCH 9개 + 클로드 보완 3개 통합
+// ══════════════════════════════════════════════════════════════════════════
+
+async function buildOracleV184Safe(context, env, request, ctx) {
+  // [Step 1] Feature Flag 체크
+  const flag = getFeatureFlagV184(env, request);
+  
+  // [Step 2] Circuit Breaker 체크
+  if (flag.use && v184CircuitBreaker.shouldBreak()) {
+    flag.use = false;
+    flag.source = 'circuit_breaker';
+  }
+  
+  // [Step 3] Legacy 어댑터 (기존 결과 형식 유지)
+  //   ★ 주의: 실제 worker.js의 build*Oracle 함수는 이 파이프라인 외부에서 호출
+  //   여기서는 V184 비교 데이터만 생성
+  const legacyForCompare = context._legacyResult 
+    ? buildLegacyOracleAdapterV184(context._legacyResult, context)
+    : null;
+  
+  if (!flag.use) {
+    return { 
+      _v184: { used: false, reason: flag.source, pct: flag.pct },
+      _legacyForCompare: legacyForCompare
+    };
+  }
+  
+  // [Step 4] V184 Shadow Execution + Timeout
+  try {
+    const v184Raw = await Promise.race([
+      Promise.resolve(buildExecutionLayerV184(context)),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('V184 timeout')), V184_TIMEOUT_MS)
+      )
+    ]);
+    
+    // [Step 5] Schema Validation
+    const schemaCheck = validateV184Schema(v184Raw);
+    if (!schemaCheck.valid) {
+      v184CircuitBreaker.record({ error: true, hasDiff: false });
+      return {
+        _v184: { used: false, reason: 'schema_invalid', missing: schemaCheck.missing }
+      };
+    }
+    
+    // [Step 6] ★ 클로드 보완 A: 순서 — Score 먼저, Invariant 마지막 ★
+    let v184Fixed = applyScoreToDecisionV184(v184Raw);
+    v184Fixed = applyInvariantRulesV184(v184Fixed);
+    
+    // [Step 7] Diff 비교 + 비동기 로깅
+    const hasDiff = legacyForCompare ? compareDiffV184(legacyForCompare, v184Fixed) : false;
+    
+    if (ctx && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(logDiffAsyncV184(legacyForCompare, v184Fixed, context, env));
+    } else if (legacyForCompare) {
+      // ctx 없을 때 sync (drop은 아니지만 응답 지연)
+      // 빠른 fire-and-forget
+      logDiffAsyncV184(legacyForCompare, v184Fixed, context, env).catch(() => {});
+    }
+    
+    // [Step 8] Circuit Breaker 통계
+    v184CircuitBreaker.record({ error: false, hasDiff });
+    
+    return {
+      ...v184Fixed,
+      _v184: { used: true, source: flag.source, pct: flag.pct, hasDiff }
+    };
+    
+  } catch (err) {
+    v184CircuitBreaker.record({ error: true, hasDiff: false });
+    return {
+      _v184: { used: false, reason: 'error', error: String(err) }
+    };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 🧪 [V31 #184] 자가 검증 — startup 시 Regression Snapshot 자동 실행
+// ══════════════════════════════════════════════════════════════════════════
+
+(function v184SelfTest() {
+  try {
+    const result = runRegressionSnapshotV184();
+    if (result.allPass) {
+      console.log(`[V31 #184] Self-test PASS: ${result.summary}`);
+    } else {
+      console.warn(`[V31 #184] Self-test FAIL: ${result.summary}`);
+      result.results.filter(r => !r.pass).forEach(r => {
+        console.warn(`  ❌ ${r.name}: ${r.failures.join(', ')}`);
+      });
+    }
+  } catch (err) {
+    console.warn('[V31 #184] Self-test error:', err);
+  }
+})();
+
+// ══════════════════════════════════════════════════════════════════════════
+// [V31 #184.5 FINAL+] 사주 안전 파이프라인 + Tier 1 카테고리
+//   사장님 골격 + 클로드 보완 + 사장님 9개 추가 보강 + Tier 1 카테고리
+//
+//   사장님 9개 보강:
+//     1. deepCompare (객체 깊이 비교)
+//     2. 윤달/음력 검증
+//     3. Invariant Rules 추가 2개 (TENSTAR_DAYMASTER + FIVE_ELEMENTS_BALANCE)
+//     4. Schema 타입+enum 검증 강화
+//     5. Circuit Breaker 사주 전용 (errorRate > 2%)
+//     6. normalizeInput (입력 정규화)
+//     7. Cloudflare 캐싱 (caches.default)
+//
+//   사장님 9개 추가 보강 (FINAL+):
+//     1. timezone 캐시 키 포함
+//     2. Cache-Control 헤더 제거 (Workers Cache 신뢰 X)
+//     3. Number.isInteger (year=0/NaN/소수 동시 방어)
+//     4. ohaeng total=0 NaN 방어 (균등 fallback)
+//     5. Regression null capture 제거 (정확값만)
+//     6. CB 자동 복구 (shouldBreak에서 reset)
+//     7. isValidDate (실제 날짜 유효성 — 2024-02-31 차단)
+//     8. Interpretation 부분 실패 보호 (개별 try-catch)
+//     9. 캐시 오염 방지 (성공 시에만 put)
+//
+//   Tier 1 카테고리 (옵션 1):
+//     - 오행 분석 (5원소 균형 + 차트 데이터)
+//     - 용신 (색/방위/숫자/음식/취미)
+//     - 6대 분야 (재물/직업/연애/건강/학업/가족)
+//     - 시계열 (대운/세운/월운/일운)
+// ══════════════════════════════════════════════════════════════════════════
+
+// ─── [Sec 1] 입력 정규화 + 실제 날짜 검증 (★ 보강 3, 7) ───
+function isValidDateV184_5(y, m, d) {
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y &&
+         dt.getMonth() === m - 1 &&
+         dt.getDate() === d;
+}
+
+function normalizeSajuInputV184_5(input) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('input must be object');
+  }
+  const yr = Number(input.year);
+  // ★ 보강 3: Number.isInteger로 정수+NaN+0+소수 동시 방어
+  if (!Number.isInteger(yr) || yr < 1900 || yr > 2099) {
+    throw new Error(`year out of range or invalid: ${input.year} (정수 1900~2099)`);
+  }
+  
+  const norm = {
+    year:    yr,
+    month:   Math.max(1, Math.min(12, Number(input.month) || 1)),
+    day:     Math.max(1, Math.min(31, Number(input.day) || 1)),
+    hour:    Math.max(0, Math.min(23, Number(input.hour) || 0)),
+    gender:  input.gender === 'F' ? 'F' : 'M',
+    isLunar: input.isLunar === true,
+    isLeapMonth: input.isLeapMonth === true,
+    timezone: input.timezone || 'Asia/Seoul'
+  };
+  
+  // ★ 보강 7: 실제 날짜 유효성 검증 (2024-02-31 차단)
+  if (!isValidDateV184_5(norm.year, norm.month, norm.day)) {
+    throw new Error(`invalid date: ${norm.year}-${norm.month}-${norm.day}`);
+  }
+  
+  return norm;
+}
+
+// ─── [Sec 2] deepCompare (★ 보강 1) ───
+function deepCompareV184_5(expected, actual) {
+  if (expected === null || actual === null) return expected === actual;
+  if (typeof expected !== 'object') return actual === expected;
+  if (typeof actual !== 'object') return false;
+  return Object.entries(expected).every(([k, v]) => {
+    if (typeof v === 'object' && v !== null) return deepCompareV184_5(v, actual[k]);
+    return actual[k] === v;
+  });
+}
+
+// ─── [Sec 3] 사주 전용 Circuit Breaker (★ 보강 5, FINAL+ 6) ───
+class SajuCircuitBreakerV184_5 {
+  constructor() { this.errors = 0; this.total = 0; this.windowStart = Date.now(); }
+  record({ error }) {
+    this.total++; if (error) this.errors++;
+    if (Date.now() - this.windowStart > 5 * 60 * 1000) this.reset();
+  }
+  shouldBreak() {
+    // ★ FINAL+ 6: shouldBreak에서도 시간 윈도우 자동 리셋 (트래픽 멈춰도 복구)
+    if (Date.now() - this.windowStart > 5 * 60 * 1000) {
+      this.reset();
+      return false;
+    }
+    if (this.total < 30) return false;
+    return (this.errors / this.total) > 0.02;  // 사주는 2% 엄격
+  }
+  reset() { this.errors = 0; this.total = 0; this.windowStart = Date.now(); }
+}
+const sajuCB_V184_5 = globalThis.__saju_cb_v184_5 
+  || (globalThis.__saju_cb_v184_5 = new SajuCircuitBreakerV184_5());
+
+// ─── [Sec 4] Schema Validation (★ 보강 4) ───
+const SAJU_TEN_STARS_ENUM = ['비견','겁재','식신','상관','편재','정재','편관','정관','편인','정인'];
+const SAJU_LUCK_PHASE_ENUM = ['장생','목욕','관대','임관','제왕','쇠','병','사','묘','절','태','양'];
+
+function validateSajuSchemaV184_5(core) {
+  if (!core?.pillars?.day) return { valid: false, missing: 'pillars.day' };
+  if (!core.meta?.dayMaster) return { valid: false, missing: 'meta.dayMaster' };
+  
+  const validGanzhi = /^[갑을병정무기경신임계][자축인묘진사오미신유술해]$/;
+  for (const [pos, p] of Object.entries(core.pillars)) {
+    if (p?.ganzhi && !validGanzhi.test(p.ganzhi)) {
+      return { valid: false, missing: `pillars.${pos}.ganzhi (잘못: ${p.ganzhi})` };
+    }
+  }
+  if (core.tenStars?.dominant && !SAJU_TEN_STARS_ENUM.includes(core.tenStars.dominant)) {
+    return { valid: false, missing: `tenStars.dominant invalid: ${core.tenStars.dominant}` };
+  }
+  if (core.luckPhase && !SAJU_LUCK_PHASE_ENUM.includes(core.luckPhase)) {
+    return { valid: false, missing: `luckPhase invalid: ${core.luckPhase}` };
+  }
+  if (core.ohaeng) {
+    for (const [el, val] of Object.entries(core.ohaeng)) {
+      if (typeof val !== 'number' || isNaN(val) || val < 0 || val > 8) {
+        return { valid: false, missing: `ohaeng.${el} invalid: ${val}` };
+      }
+    }
+  }
+  return { valid: true };
+}
+
+// ─── [Sec 5] Invariant Rules — 5개 (★ 보강 3) ───
+const SAJU_INVARIANT_RULES_V184_5 = [
+  {
+    name: 'TENSTAR_DAYMASTER_CONSISTENCY',
+    priority: 0,
+    check: (r) => !r.meta?.dayMaster || !r.tenStars,
+    fix: (r) => ({ ...r, tenStars: { dominant: '미상', distribution: {}, _fallback: true } })
+  },
+  {
+    name: 'LUCK_PHASE_VALID_ENUM',
+    priority: 1,
+    check: (r) => r.luckPhase && !SAJU_LUCK_PHASE_ENUM.includes(r.luckPhase),
+    fix: (r) => ({ ...r, luckPhase: '미상', _luckPhaseFallback: true })
+  },
+  {
+    name: 'FIVE_ELEMENTS_BALANCE',
+    priority: 2,
+    check: (r) => {
+      if (!r.ohaengPercent) return false;
+      const sum = Object.values(r.ohaengPercent).reduce((a,b)=>a+b, 0);
+      return Math.abs(sum - 100) > 1;
+    },
+    fix: (r) => {
+      const total = Object.values(r.ohaengPercent).reduce((a,b)=>a+b, 0);
+      if (!total) return r;
+      const normalized = {};
+      for (const k in r.ohaengPercent) {
+        normalized[k] = Math.round((r.ohaengPercent[k] / total) * 100);
+      }
+      return { ...r, ohaengPercent: normalized };
+    }
+  },
+  {
+    name: 'GYEOK_SHINSAL_NOTE',
+    priority: 3,
+    check: (r) => r.gyeokGuk === '정인격' && (r.shinSal || []).includes('역마살'),
+    fix: (r) => ({ ...r, _conflictNote: '정인격(학문 안정) + 역마살(이동) — 균형 시기' })
+  },
+  {
+    name: 'TEN_STARS_DISTRIBUTION_BOUNDS',
+    priority: 4,
+    check: (r) => r.tenStars?.distribution && 
+                  Object.values(r.tenStars.distribution).some(v => v < 0 || v > 8),
+    fix: (r) => ({
+      ...r,
+      tenStars: {
+        ...r.tenStars,
+        distribution: Object.fromEntries(
+          Object.entries(r.tenStars.distribution).map(([k,v]) => [k, Math.max(0, Math.min(8, v))])
+        )
+      }
+    })
+  }
+];
+
+function applySajuRulesV184_5(core) {
+  let fixed = core;
+  const violations = [];
+  for (const rule of [...SAJU_INVARIANT_RULES_V184_5].sort((a,b) => a.priority - b.priority)) {
+    if (rule.check(fixed)) { violations.push(rule.name); fixed = rule.fix(fixed); }
+  }
+  if (violations.length) fixed._invariantViolations = violations;
+  return fixed;
+}
+
+// ─── [Sec 6] Regression Snapshots — 정확값만 (★ 보강 5, FINAL+ 5) ───
+//   ★ "모르는 값 절대 넣지 말 것" — 사장님 원칙 준수
+//   ★ 정확값 검증된 케이스만 등록
+//   ★ 추가 케이스는 정확값 capture 후 등록 예정
+const SAJU_REGRESSION_SNAPSHOTS_V184_5 = {
+  '사장님_anchor_1900_01_01_M': {
+    input: { year: 1900, month: 1, day: 1, hour: 0, gender: 'M', 
+             isLunar: false, timezone: 'Asia/Seoul' },
+    expected: {
+      pillars: { day: { ganzhi: '갑자' } },
+      meta: { dayMaster: '갑' }
+    }
+  }
+  // ★ 윤달 케이스는 v31LunarToSolar 정확값 검증 후 추가 (현재는 안전 미루기)
+  // ★ 미래/입춘 경계도 동일 — 정확값 검증 후 추가
+};
+
+function runSajuRegressionV184_5() {
+  const failures = [];
+  for (const [name, snap] of Object.entries(SAJU_REGRESSION_SNAPSHOTS_V184_5)) {
+    try {
+      const result = buildSajuSafeCoreV184_5(snap.input);
+      if (!result.success) { failures.push({ name, error: result.error }); continue; }
+      if (!deepCompareV184_5(snap.expected, result.core)) {
+        failures.push({ name, expected: snap.expected, actual: { 
+          dayPillar: result.core?.pillars?.day,
+          dayMaster: result.core?.meta?.dayMaster 
+        }});
+      }
+    } catch (err) {
+      failures.push({ name, error: String(err) });
+    }
+  }
+  return { 
+    passed: failures.length === 0, 
+    total: Object.keys(SAJU_REGRESSION_SNAPSHOTS_V184_5).length, 
+    failures 
+  };
+}
+
+// ─── [Sec 7] 오행 카운트 + Tier 1 helpers ───
+const STEM_TO_OHAENG = {
+  '갑': '목', '을': '목',
+  '병': '화', '정': '화',
+  '무': '토', '기': '토',
+  '경': '금', '신': '금',
+  '임': '수', '계': '수'
+};
+const BRANCH_TO_OHAENG = {
+  '인': '목', '묘': '목',
+  '사': '화', '오': '화',
+  '진': '토', '술': '토', '축': '토', '미': '토',
+  '신': '금', '유': '금',
+  '자': '수', '해': '수'
+};
+
+function countOhaengV184_5(pillars) {
+  const ohaeng = { 목: 0, 화: 0, 토: 0, 금: 0, 수: 0 };
+  for (const p of pillars) {
+    if (!p) continue;
+    if (p.stem && STEM_TO_OHAENG[p.stem]) ohaeng[STEM_TO_OHAENG[p.stem]]++;
+    if (p.branch && BRANCH_TO_OHAENG[p.branch]) ohaeng[BRANCH_TO_OHAENG[p.branch]]++;
+  }
+  return ohaeng;
+}
+
+// ─── [Sec 8] 용신 매핑 데이터 (Tier 1) ───
+const YONGSHIN_RECOMMENDATIONS = {
+  '목': { colors:['초록','연두'], directions:['동쪽'],   numbers:[3,8],  
+          foods:['채소','녹차'],  hobbies:['독서','등산','식물 가꾸기'] },
+  '화': { colors:['빨강','주황'], directions:['남쪽'],   numbers:[2,7],
+          foods:['매운 음식','커피'], hobbies:['운동','댄스','요리'] },
+  '토': { colors:['노랑','갈색'], directions:['중앙'],   numbers:[5,10],
+          foods:['곡식','감자','고구마'], hobbies:['도예','정원','요가'] },
+  '금': { colors:['흰색','회색'], directions:['서쪽'],   numbers:[4,9],
+          foods:['견과류','우유'], hobbies:['음악','금속공예','명상'] },
+  '수': { colors:['검정','파랑'], directions:['북쪽'],   numbers:[1,6],
+          foods:['해산물','검은콩'], hobbies:['수영','명상','글쓰기'] }
+};
+
+function inferYongShinV184_5(dayMaster, ohaengPercent) {
+  // 단순 룰: 가장 부족한 오행이 용신 (실제 명리는 더 복잡하나 기본)
+  const sorted = Object.entries(ohaengPercent || {}).sort((a,b) => a[1] - b[1]);
+  const weakest = sorted[0]?.[0] || '수';
+  const dayMasterOhaeng = STEM_TO_OHAENG[dayMaster] || '목';
+  
+  // 일간 본질 + 부족 오행 종합 판단
+  const reason = `일간 ${dayMaster}(${dayMasterOhaeng})의 균형을 위해 ${weakest} 보강이 도움이 됩니다`;
+  return { element: weakest, reason };
+}
+
+// ─── [Sec 9] Tier 1 — 오행 분석 ───
+function buildOhaengAnalysisV184_5(core) {
+  const o = core.ohaengPercent || { 목:20,화:20,토:20,금:20,수:20 };
+  const sorted = Object.entries(o).sort((a,b) => b[1] - a[1]);
+  return {
+    distribution: o,
+    strongest: sorted[0]?.[0] || '균형',
+    weakest:   sorted[sorted.length-1]?.[0] || '균형',
+    balance:   sorted.length 
+               ? `${sorted[0][0]} 과다(${sorted[0][1]}%) / ${sorted[sorted.length-1][0]} 부족(${sorted[sorted.length-1][1]}%)`
+               : '5원소 균형',
+    chartData: o
+  };
+}
+
+// ─── [Sec 10] Tier 1 — 용신 ───
+function buildYongShinV184_5(core) {
+  const y = inferYongShinV184_5(core.meta?.dayMaster, core.ohaengPercent);
+  return {
+    yongshin: y.element,
+    reason: y.reason,
+    recommendations: YONGSHIN_RECOMMENDATIONS[y.element] || YONGSHIN_RECOMMENDATIONS['수']
+  };
+}
+
+// ─── [Sec 11] Tier 1 — 6대 분야 운세 ───
+function build6DomainLuckV184_5(core, interpretation) {
+  // 십성 분포 + 격국 + 12운성 종합 → 분야별 점수
+  const ts = interpretation?.tenStars?.distribution || {};
+  const luck = interpretation?.luckPhase || '';
+  
+  const luckBonus = ['장생','임관','제왕'].includes(luck) ? 10
+                  : ['관대'].includes(luck) ? 5
+                  : ['쇠','병','사','묘','절'].includes(luck) ? -10 : 0;
+  
+  const scoreOf = (positive, negative) => {
+    const p = (ts[positive] || 0) * 8;
+    const n = (ts[negative] || 0) * 5;
+    return Math.max(20, Math.min(95, 50 + p - n + luckBonus));
+  };
+  
+  return {
+    careerLuck: { 
+      score: scoreOf('정관', '편관'),
+      summary: '직장·사회적 위치 흐름',
+      detail: `${interpretation?.gyeokGuk || '본인 격국'} 기반 직업 적성 분석`
+    },
+    wealthLuck: { 
+      score: scoreOf('정재', '편재'),
+      summary: '재물·소득 흐름',
+      detail: '편재(투자 기회) + 정재(안정 수입) 균형'
+    },
+    loveLuck: { 
+      score: scoreOf('정인', '편인'),
+      summary: '연애·인간관계 흐름',
+      detail: '관계 방어력 + 표현력 종합'
+    },
+    healthLuck: { 
+      score: 50 + luckBonus,
+      summary: '체력·건강 흐름',
+      detail: `12운성 ${luck} 기반 에너지 진단`
+    },
+    studyLuck: { 
+      score: scoreOf('정인', '상관'),
+      summary: '학습·성장 흐름',
+      detail: '정인(전통 학습) + 식신(창의) 균형'
+    },
+    familyLuck: { 
+      score: scoreOf('정인', '편관'),
+      summary: '가족·자녀 흐름',
+      detail: '인성(부모) + 식상(자녀) 종합'
+    }
+  };
+}
+
+// ─── [Sec 12] Tier 1 — 시계열 (대운/세운/월운/일운) ───
+function buildTimeSeriesLuckV184_5(core, currentDate) {
+  const now = currentDate || new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  
+  // 간소 버전 — 정확한 대운 산출은 v31 함수 사용 권장
+  return {
+    currentYear: currentYear,
+    seun: { 
+      year: currentYear,
+      summary: `${currentYear}년 운 (간소)`,
+      ganzhi: '계산 중'
+    },
+    wolwoon: { 
+      month: currentMonth,
+      summary: `${currentMonth}월 운 (간소)`
+    },
+    ilwoon: { 
+      date: now.toISOString().slice(0, 10),
+      summary: '오늘의 운 (간소)'
+    },
+    daewoonNote: '정밀 대운은 V31 SAJU /saju/oracle 엔드포인트 참조'
+  };
+}
+
+// ─── [Sec 13] buildSajuCore — V31 #137 진짜 엔진 호출 (★ NaN 방어 FINAL+ 4) ───
+function buildSajuCoreV184_5(input) {
+  const norm = normalizeSajuInputV184_5(input);
+  
+  let solar = norm;
+  let lunarConverted = false;
+  if (norm.isLunar) {
+    try {
+      const conv = v31LunarToSolar(norm.year, norm.month, norm.day, norm.isLeapMonth);
+      if (conv) { solar = { ...norm, ...conv }; lunarConverted = true; }
+    } catch (_) { /* 실패 시 양력으로 폴백 */ }
+  }
+  
+  // V31 #137 진짜 엔진 호출
+  const adjusted = (typeof v31AdjustSolarTerm === 'function')
+    ? v31AdjustSolarTerm(solar.year, solar.month, solar.day) 
+    : { year: solar.year, month: solar.month, day: solar.day };
+  
+  // v31GetYearPillar는 ganzhiYear 인자를 받음 — adjusted year 그대로 전달
+  const yearPillar  = v31GetYearPillar(adjusted.year);
+  // monthPillar는 yearStem + monthBranch 필요
+  const monthBranchIdx = ((adjusted.month + 1) % 12);  // 인월=2월
+  const V31_BRANCHES = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+  const monthBranch = V31_BRANCHES[monthBranchIdx] || '인';
+  const monthPillar = v31GetMonthPillar(yearPillar.stem, monthBranch);
+  const dayPillar   = v31GetDayPillar(adjusted.year, adjusted.month, adjusted.day);
+  const hourPillar  = v31GetHourPillar(dayPillar.stem, norm.hour);
+  
+  const ohaeng = countOhaengV184_5([yearPillar, monthPillar, dayPillar, hourPillar]);
+  const total = Object.values(ohaeng).reduce((a,b)=>a+b, 0);
+  
+  // ★ FINAL+ 4: NaN 방어 (total=0/NaN 시 균등 fallback)
+  let ohaengPercent;
+  if (!total || isNaN(total)) {
+    ohaengPercent = { 목:20, 화:20, 토:20, 금:20, 수:20 };
+  } else {
+    ohaengPercent = Object.fromEntries(
+      Object.entries(ohaeng).map(([k,v]) => [k, Math.round((v/total)*100)])
+    );
+  }
+  
+  return {
+    pillars: { year: yearPillar, month: monthPillar, day: dayPillar, hour: hourPillar },
+    meta: { 
+      dayMaster: dayPillar?.stem || '갑', 
+      gender: norm.gender, 
+      input: norm,
+      lunarConverted,
+      isLeapMonth: norm.isLeapMonth,
+      timezoneApplied: norm.timezone
+    },
+    ohaeng,
+    ohaengPercent
+  };
+}
+
+// ─── [Sec 14] buildInterpretation — 부분 실패 보호 (★ FINAL+ 8) ───
+function buildSajuInterpretationV184_5(core) {
+  const result = {};
+  // ★ 각 함수 개별 try-catch — 한 부분 실패가 전체를 깨뜨리지 않음
+  try { result.tenStars  = v31CalcTenStars(core); }    
+  catch (e) { result.tenStars  = { error: 'tenStars_failed', message: String(e) }; }
+  
+  try { result.luckPhase = v31CalcLuckPhase(core); }   
+  catch (e) { result.luckPhase = { error: 'luckPhase_failed', message: String(e) }; }
+  
+  try { result.gyeokGuk  = v31InferGyeokGuk(core, result.tenStars); }   
+  catch (e) { result.gyeokGuk  = { error: 'gyeokGuk_failed', message: String(e) }; }
+  
+  try { result.shinSal   = v31DetectShinSal(core); }   
+  catch (e) { result.shinSal   = { error: 'shinSal_failed', message: String(e) }; }
+  
+  return result;
+}
+
+// ─── [Sec 15] buildSajuSafeCore — 부분 실패 보호 ───
+function buildSajuSafeCoreV184_5(input) {
+  if (sajuCB_V184_5.shouldBreak()) {
+    return { success: false, error: 'circuit_open' };
+  }
+  try {
+    let core = buildSajuCoreV184_5(input);
+    
+    const schema = validateSajuSchemaV184_5(core);
+    if (!schema.valid) throw new Error(`schema: ${schema.missing}`);
+    
+    core = applySajuRulesV184_5(core);
+    
+    // ★ FINAL+ 8: 각 빌더 개별 보호 (실패해도 다른 부분 응답)
+    let interpretation = null, ohaengAnalysis = null, yongshin = null, sixDomain = null, timeSeries = null;
+    try { interpretation = buildSajuInterpretationV184_5(core); } catch (_) { interpretation = { error: 'interpretation_failed' }; }
+    try { ohaengAnalysis = buildOhaengAnalysisV184_5(core); }    catch (_) { /* null */ }
+    try { yongshin       = buildYongShinV184_5(core); }          catch (_) { /* null */ }
+    try { sixDomain      = build6DomainLuckV184_5(core, interpretation); } catch (_) { /* null */ }
+    try { timeSeries     = buildTimeSeriesLuckV184_5(core, new Date()); }  catch (_) { /* null */ }
+    
+    sajuCB_V184_5.record({ error: false });
+    
+    return {
+      success: true,
+      core, interpretation, ohaengAnalysis, yongshin, sixDomain, timeSeries,
+      _meta: { version: 'V31_184.5_FINAL_PLUS' }
+    };
+  } catch (e) {
+    sajuCB_V184_5.record({ error: true });
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── [Sec 16] buildSajuSafe — Cloudflare 캐싱 (★ FINAL+ 1, 2, 9) ───
+async function buildSajuSafeV184_5(input, ctx) {
+  let norm;
+  try { norm = normalizeSajuInputV184_5(input); }
+  catch (e) { return { success: false, error: e.message }; }
+  
+  // ★ FINAL+ 1: timezone 캐시 키 포함
+  const cacheKeyUrl = `https://saju-cache/${norm.year}-${norm.month}-${norm.day}-${norm.hour}` +
+                      `-${norm.gender}-${norm.isLunar?'L':'S'}-${norm.isLeapMonth?'leap':'norm'}` +
+                      `-${encodeURIComponent(norm.timezone)}`;
+  const cacheKey = new Request(cacheKeyUrl, { method: 'GET' });
+  
+  // 캐시 HIT 체크
+  try {
+    if (typeof caches !== 'undefined' && caches.default) {
+      const cached = await caches.default.match(cacheKey);
+      if (cached) {
+        const data = await cached.json();
+        return { ...data, _cached: true };
+      }
+    }
+  } catch (_) { /* miss → 진행 */ }
+  
+  const result = buildSajuSafeCoreV184_5(norm);
+  
+  // ★ FINAL+ 9: 성공 시에만 캐시 (실패 결과 캐시 오염 방지)
+  if (result.success) {
+    try {
+      if (typeof caches !== 'undefined' && caches.default) {
+        // ★ FINAL+ 2: Cache-Control 헤더 제거 (Workers Cache 신뢰 X)
+        const cacheResp = new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (ctx?.waitUntil) {
+          ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
+        } else {
+          await caches.default.put(cacheKey, cacheResp.clone());
+        }
+      }
+    } catch (_) { /* 저장 실패해도 정상 응답 */ }
+  }
+  
+  return { ...result, _cached: false };
+}
+
+// ─── [Sec 17] Self-test 자동 실행 ───
+(function v184_5SelfTest() {
+  try {
+    const regResult = runSajuRegressionV184_5();
+    if (regResult.passed) {
+      console.log(`[V31 #184.5+] Saju Self-test PASS (${regResult.total}건)`);
+    } else {
+      console.warn(`[V31 #184.5+] Saju Self-test FAIL:`, JSON.stringify(regResult.failures));
+    }
+  } catch (err) {
+    console.warn('[V31 #184.5+] Saju Self-test error:', String(err));
+  }
+})();
+
+// ══════════════════════════════════════════════════════════════════════════
 // 🚪 메인 엔트리
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 export default {
   async fetch(request, env) {
 
@@ -15209,6 +16933,33 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    // ════════════════════════════════════════════════════════════════════
+    // ☯️ [V31 #184.5 FINAL+] /saju/safe — 사주 안전 파이프라인 + Tier 1
+    //   사장님 9개 + 클로드 보완 + Tier 1 카테고리 통합 진입점
+    //   특징: timezone 캐시 / invalid date 차단 / NaN 방어 / CB 자동 복구
+    //         부분 실패 보호 / 정확값 Regression / Cloudflare 캐싱
+    //   Tier 1: 오행 / 용신 / 6대 분야 / 시계열
+    // ════════════════════════════════════════════════════════════════════
+    if (url.pathname === "/saju/safe" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const input = body.input || body;
+        const result = await buildSajuSafeV184_5(input, { 
+          waitUntil: env?.waitUntil || ((p) => p)  // ctx 폴리필
+        });
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ 
+          success: false, error: 'invalid_request', message: String(err) 
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+        });
+      }
+    }
 
     // ════════════════════════════════════════════════════════════════════
     // ☯️ [V31 SAJU] /saju/judge — Chunk 3: JUDGEMENT + SCENARIO + MATRIX
