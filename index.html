@@ -12,10 +12,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V31_188_2026-05-06_PC_OPT">
-    <meta name="zeus-build-tag" content="V31_188_FREEMIUM_PC_OPTIMIZED">
+    <meta name="version" content="V31_189_2026-05-06_HEADER_FIX">
+    <meta name="zeus-build-tag" content="V31_189_FREEMIUM_HEADER_FIX">
     
-    <title>ZEUS · Tarot Oracle [V31 #188 PC OPT]</title>
+    <title>ZEUS · Tarot Oracle [V31 #189]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -238,7 +238,7 @@
             font-family: var(--font-body);
         }
         
-        /* 헤더 — ZEUS 신탁사 (골드 정체성 + 연초록 액센트) */
+        /* 헤더 — ZEUS 신탁사주 (골드 정체성 + 연초록 액센트) */
         .saju-chat-header {
             position: sticky;
             top: 0;
@@ -12931,6 +12931,18 @@ async function runSajuOracle() {
         return;
     }
 
+    // ★ [V31 #188 핫픽스] 사주 신탁 받기 클릭 시 홈 복귀 결함 수정 ★
+    //   원인: handleSajuPremiumCTA에서 sajuModal.style.display = 'none' 잔류
+    //   또는 이전 결제 컨텍스트로 인한 모달 충돌
+    //   해결: 새 사주 점사 시작 시 ★ 모든 잔류 모달 + display 초기화 ★
+    try {
+        // 잔류 사주 결과 모달 완전 제거 (display:none 잔류 회피)
+        document.querySelectorAll('#sajuResultModal, #sajuPostPayLoading, #sajuErrorScreen, #sajuLoading').forEach(el => el.remove());
+        // body overflow 해제 (이전 모달이 hidden 잠가둔 경우)
+        document.body.style.overflow = '';
+        console.log('✅ [V31 #188 핫픽스] 잔류 모달 정리 완료');
+    } catch (e) {}
+
     // 모달 닫기 + 로딩
     closeSajuInputModal();
     showSajuLoadingScreen();
@@ -13520,46 +13532,28 @@ function renderSajuKakaoChatV185(data) {
     //   문제: 사주 결과는 'sajuResultModal' 모달 안에 그려지는 구조
     //   해결: 1) 기존 모달 제거 → 2) 새 카카오 모달 생성 → 3) document.body에 추가
     
-    let result = document.getElementById('saju-result-area') 
-              || document.getElementById('result-area')
-              || document.getElementById('result')
-              || document.getElementById('sajuResultModal');
-    
-    if (!result) {
-        // ★ V186 핫픽스: 컨테이너 없으면 직접 생성 (모달 형식) ★
-        console.log('[V31 #185 V186-핫픽스] 컨테이너 직접 생성 (sajuResultModal)');
-        
-        // 기존 모달 정리
-        const oldModal = document.getElementById('sajuResultModal');
-        if (oldModal) oldModal.remove();
-        
-        // 새 모달 컨테이너 생성
-        result = document.createElement('div');
-        result.id = 'sajuResultModal';
-        result.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--saju-dark, #0F1411);
-            z-index: 99999; overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        `;
-        document.body.appendChild(result);
-        document.body.style.overflow = 'hidden';
-    } else {
-        // 기존 컨테이너가 있으면 비우고 카카오 UI 표시 준비
-        // (단, sajuResultModal인 경우 모달 스타일 보존)
-        if (result.id === 'sajuResultModal') {
-            result.style.background = 'var(--saju-dark, #0F1411)';
-            result.style.zIndex = '99999';
-            result.style.position = 'fixed';
-            result.style.top = '0';
-            result.style.left = '0';
-            result.style.right = '0';
-            result.style.bottom = '0';
-            result.style.overflowY = 'auto';
-        }
+    // ★ V31 #188 핫픽스: 잔류 sajuResultModal 강제 제거 (display:none 잔류 회피) ★
+    //   handleSajuPremiumCTA에서 hide 처리한 모달이 잔류해 새 결과 안 보이는 결함
+    const oldModal = document.getElementById('sajuResultModal');
+    if (oldModal) {
+        oldModal.remove();
+        console.log('[V31 #188 핫픽스] 잔류 sajuResultModal 강제 제거');
     }
     
-    console.log('[V31 #185 V186-핫픽스] 카카오 UI 진입 OK · container:', result.id);
+    // 새 모달 컨테이너 직접 생성 (다른 폴백 ID는 결제 후 복귀 시에만 사용)
+    let result = document.createElement('div');
+    result.id = 'sajuResultModal';
+    result.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--saju-dark, #0F1411);
+        z-index: 99999; overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        display: block !important;
+    `;
+    document.body.appendChild(result);
+    document.body.style.overflow = 'hidden';
+    
+    console.log('[V31 #188 핫픽스] 카카오 UI 진입 OK · 신규 컨테이너 생성:', result.id);
     
     const messages = buildSajuChatSequenceV185(data);
     const v = data && data.v184_5 ? data.v184_5 : null;
@@ -13772,15 +13766,13 @@ function renderSajuKakaoChatV185(data) {
     
     result.innerHTML = `
     <div class="saju-chat-modal">
-        <!-- 헤더 -->
+        <!-- 헤더 (V31 #189 사장님 핫픽스: "신탁사주" + ✕ 제거) -->
         <div class="saju-chat-header">
             <span class="saju-chat-header-icon">☯️</span>
-            <div class="saju-chat-header-title">ZEUS 신탁사${isPaid ? ' <span style="font-size:0.66rem; color:#5DD68A; margin-left:4px;">★ PREMIUM</span>' : ''}</div>
+            <div class="saju-chat-header-title">ZEUS 신탁사주${isPaid ? ' <span style="font-size:0.66rem; color:#5DD68A; margin-left:4px;">★ PREMIUM</span>' : ''}</div>
             <div class="saju-chat-header-status">
-                <span class="saju-chat-header-dots">●●●</span>
-                <span style="margin-left:4px;">분석 완료</span>
+                <span style="font-size:0.7rem; color:#7AD188;">✓ 분석 완료</span>
             </div>
-            <button class="saju-chat-close" onclick="window.handleSajuModalClose && window.handleSajuModalClose()">✕</button>
         </div>
         
         <!-- 채팅 영역 -->
