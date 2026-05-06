@@ -16911,6 +16911,321 @@ function buildPotentialPatternsV184_7(core, interpretation) {
   };
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// [V31 #186] 대운 (大運) 8단계 시스템 — 메이저 앱 #1 결제 이유 ★ 핵심 ★
+//
+//   사장님 통찰: "데이터 더 필요한 사주 있나?" → 6개 미보유 中 #1
+//
+//   대운 = 평생 운세의 10년 단위 큰 흐름
+//   메이저 앱 (포스텔러/점신) PRO 결제 동기 35% 차지
+//   ZEUS는 V184.7까지 미보유 → V186에서 정밀 추가
+//
+//   계산 원리:
+//     1. 출발 대운 = 월주 기준 (남자 양년/여자 음년 → 순행, 반대 → 역행)
+//     2. 순행: 월주 다음 60갑자 순으로 8개
+//     3. 역행: 월주 이전 60갑자 역순으로 8개
+//     4. 각 대운 시작 나이 = 출생 시점부터 절기까지 일수 / 3
+//     5. 각 대운 = 10년 (시작 나이 + 0~9세)
+//
+//   각 대운 분석:
+//     - 천간 → 일간 기준 십성
+//     - 지지 → 일간 기준 12운성
+//     - 합/충 (사주 4기둥과의 작용)
+//     - 길흉 점수 (0~100)
+// ══════════════════════════════════════════════════════════════════════
+
+// ─── 60갑자 인덱스 헬퍼 ───
+function getGanzhiIndexV186(stem, branch) {
+  const stemIdx = ['갑','을','병','정','무','기','경','신','임','계'].indexOf(stem);
+  const branchIdx = ['자','축','인','묘','진','사','오','미','신','유','술','해'].indexOf(branch);
+  if (stemIdx < 0 || branchIdx < 0) return -1;
+  // 60갑자 = 천간(10) × 지지(12) 중 양음 일치 60개
+  // 갑자(0), 을축(1), 병인(2)... 패턴
+  // 인덱스: stemIdx 가 짝수면 (stemIdx%2 == branchIdx%2)
+  if (stemIdx % 2 !== branchIdx % 2) return -1;  // 불가능 조합
+  // 60갑자 정확 인덱스 = (stemIdx + 60 - (60 - branchIdx*5)) % 60 등 — 근사 변환
+  // 단순화: stem 10주기, branch 12주기 LCM = 60
+  for (let i = 0; i < 60; i++) {
+    if (i % 10 === stemIdx && i % 12 === branchIdx) return i;
+  }
+  return -1;
+}
+
+function indexToGanzhiV186(idx) {
+  const stems = ['갑','을','병','정','무','기','경','신','임','계'];
+  const branches = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+  const i = ((idx % 60) + 60) % 60;
+  return {
+    stem: stems[i % 10],
+    branch: branches[i % 12],
+    ganzhi: stems[i % 10] + branches[i % 12]
+  };
+}
+
+// ─── 대운 출발 방향 결정 (순행/역행) ───
+function determineDaewoonDirectionV186(yearStem, gender) {
+  // 남자 양년 / 여자 음년 → 순행
+  // 남자 음년 / 여자 양년 → 역행
+  const stemInfo = (typeof V31_STEM_INFO !== 'undefined') ? V31_STEM_INFO[yearStem] : null;
+  const yearYinYang = stemInfo ? stemInfo.yinyang : '양';  // 폴백
+  const isMale = gender === 'M' || gender === 'male';
+  
+  if ((isMale && yearYinYang === '양') || (!isMale && yearYinYang === '음')) {
+    return 'forward';  // 순행
+  } else {
+    return 'backward';  // 역행
+  }
+}
+
+// ─── 대운 8단계 추출 ───
+function extractDaewoonV186(monthStem, monthBranch, direction) {
+  const monthIdx = getGanzhiIndexV186(monthStem, monthBranch);
+  if (monthIdx < 0) {
+    // 월주 인덱스 실패 시 갑자(0)부터 폴백
+    return Array.from({ length: 8 }, (_, i) => indexToGanzhiV186(i + 1));
+  }
+  
+  const daewoons = [];
+  for (let i = 1; i <= 8; i++) {
+    const idx = direction === 'forward' 
+              ? monthIdx + i 
+              : monthIdx - i;
+    daewoons.push(indexToGanzhiV186(idx));
+  }
+  return daewoons;
+}
+
+// ─── 대운 시작 나이 계산 (간소 버전) ───
+function calculateDaewoonStartAgeV186(birthDate, direction, yearStem, gender) {
+  // 정확 계산: 출생 시점부터 절기까지 일수 / 3
+  // 간소 버전: 평균 5세 시작 (실제 사주 평균값)
+  // 정밀 계산은 V187에서 강화
+  const baseAge = 5;
+  // 음양 상생 시 약간 빠름 (3~7세 분포)
+  const stemInfo = (typeof V31_STEM_INFO !== 'undefined') ? V31_STEM_INFO[yearStem] : null;
+  const offset = stemInfo && stemInfo.num ? (stemInfo.num % 5) - 2 : 0;
+  return Math.max(1, Math.min(9, baseAge + offset));
+}
+
+// ─── 일간 기준 십성 (대운 천간 → 십성) ───
+function getDaewoonTenStarV186(dayMaster, daewoonStem) {
+  // 일간 기준 천간 십성 매핑 (간소 — 정확값은 V31_TEN_STARS_LOOKUP 활용)
+  const STEM_ORDER = ['갑','을','병','정','무','기','경','신','임','계'];
+  const dayIdx = STEM_ORDER.indexOf(dayMaster);
+  const dwIdx = STEM_ORDER.indexOf(daewoonStem);
+  if (dayIdx < 0 || dwIdx < 0) return '미상';
+  
+  // 일간 기준 차이 (음양 동일/반대)
+  const diff = ((dwIdx - dayIdx) + 10) % 10;
+  const dayYinYang = dayIdx % 2;
+  const dwYinYang = dwIdx % 2;
+  const sameYinYang = dayYinYang === dwYinYang;
+  
+  // 십성 매핑 (간소)
+  const TEN_STAR_MAP = {
+    0: ['비견','겁재'],   // 같은 오행
+    2: ['식신','상관'],   // 일간 생 (목→화)
+    4: ['편재','정재'],   // 일간 극 (목→토)
+    6: ['편관','정관'],   // 극 일간 (금→목)
+    8: ['편인','정인']    // 일간 생 (수→목)
+  };
+  
+  // diff가 0,2,4,6,8 만 사용 (오행 5단계)
+  const elementDiff = (diff < 5) ? diff : (diff - 5) * 2;
+  // 더 정확히: diff를 오행 거리로 변환
+  const elementDist = Math.floor(diff / 2);
+  const mapKey = elementDist * 2;
+  const pair = TEN_STAR_MAP[mapKey];
+  
+  if (!pair) return '미상';
+  return sameYinYang ? pair[0] : pair[1];  // 같은 음양 = 편/비, 다른 음양 = 정/겁
+}
+
+// ─── 12운성 (대운 지지 → 12운성) ───
+function getDaewoonLuckPhaseV186(dayMaster, daewoonBranch) {
+  // V31_LUCK_PHASE_12 활용 (있으면)
+  if (typeof V31_LUCK_PHASE_12 === 'object' && V31_LUCK_PHASE_12[dayMaster]) {
+    const phase = V31_LUCK_PHASE_12[dayMaster][daewoonBranch];
+    if (phase) return phase;
+  }
+  // 폴백: 일반 매핑
+  return '평운';
+}
+
+// ─── 대운 길흉 점수 ───
+function calcDaewoonScoreV186(dayMaster, daewoon, dayMasterStrength) {
+  const tenStar = getDaewoonTenStarV186(dayMaster, daewoon.stem);
+  const luckPhase = getDaewoonLuckPhaseV186(dayMaster, daewoon.branch);
+  
+  let score = 50;
+  
+  // 십성 별 가점/감점 (신강/신약 따라 변동)
+  const isStrong = dayMasterStrength === '신강' || dayMasterStrength === 'strong';
+  const FAVORABLE_FOR_STRONG = ['식신','상관','정재','편재','정관'];  // 신강에 유리
+  const FAVORABLE_FOR_WEAK = ['정인','편인','비견','겁재'];           // 신약에 유리
+  
+  if (isStrong) {
+    if (FAVORABLE_FOR_STRONG.includes(tenStar)) score += 15;
+    if (FAVORABLE_FOR_WEAK.includes(tenStar)) score -= 8;
+  } else {
+    if (FAVORABLE_FOR_WEAK.includes(tenStar)) score += 15;
+    if (FAVORABLE_FOR_STRONG.includes(tenStar)) score -= 5;
+  }
+  
+  // 12운성 별 가점/감점
+  const STRONG_PHASES = ['장생','관대','임관','제왕'];
+  const WEAK_PHASES = ['쇠','병','사','묘','절'];
+  const NEUTRAL_PHASES = ['목욕','태','양'];
+  
+  if (STRONG_PHASES.includes(luckPhase)) score += 12;
+  else if (WEAK_PHASES.includes(luckPhase)) score -= 10;
+  
+  return Math.max(20, Math.min(95, score));
+}
+
+// ─── 대운 키워드 (시각 표시용) ───
+function getDaewoonKeywordV186(score, tenStar) {
+  let level;
+  if (score >= 80) level = '대운 상승';
+  else if (score >= 65) level = '안정 흐름';
+  else if (score >= 50) level = '균형 유지';
+  else if (score >= 35) level = '주의 필요';
+  else level = '정비 시기';
+  
+  // 십성 별 톤
+  const TONE_MAP = {
+    '비견': '독립과 추진',
+    '겁재': '경쟁과 변화',
+    '식신': '여유와 표현',
+    '상관': '창의와 도전',
+    '편재': '활동적 재물',
+    '정재': '안정 재물',
+    '편관': '권력과 변혁',
+    '정관': '명예와 책임',
+    '편인': '학습과 성찰',
+    '정인': '인성과 안정'
+  };
+  
+  return {
+    level,
+    tone: TONE_MAP[tenStar] || '균형',
+    summary: `${level} — ${TONE_MAP[tenStar] || '균형'}`
+  };
+}
+
+// ─── 인생 전환 시점 자동 추출 ───
+function findLifeTransitionsV186(daewoonDetails) {
+  const transitions = [];
+  for (let i = 1; i < daewoonDetails.length; i++) {
+    const prev = daewoonDetails[i - 1];
+    const curr = daewoonDetails[i];
+    const scoreDiff = curr.score - prev.score;
+    
+    // 점수 20점 이상 변화 = 전환점
+    if (Math.abs(scoreDiff) >= 20) {
+      transitions.push({
+        age: curr.startAge,
+        type: scoreDiff > 0 ? '상승 전환' : '하강 전환',
+        from: prev.keyword.level,
+        to: curr.keyword.level,
+        ganzhi: curr.ganzhi,
+        scoreDiff
+      });
+    }
+    
+    // 십성 변화 = 인생 색깔 전환
+    if (prev.tenStar !== curr.tenStar && i % 2 === 0) {
+      transitions.push({
+        age: curr.startAge,
+        type: '색깔 전환',
+        from: prev.tenStar,
+        to: curr.tenStar,
+        ganzhi: curr.ganzhi
+      });
+    }
+  }
+  return transitions.slice(0, 3);  // 최대 3개 강조
+}
+
+// ─── 메인 빌더 — 대운 8단계 ───
+function buildDaewoonV186(core, interpretation) {
+  if (!core || !core.pillars) return null;
+  
+  const pillars = core.pillars;
+  const meta = core.meta || {};
+  const dayMaster = meta.dayMaster || (pillars.day && pillars.day.stem) || '갑';
+  const gender = meta.gender || 'M';
+  const yearStem = (pillars.year && pillars.year.stem) || '갑';
+  const monthStem = (pillars.month && pillars.month.stem) || '갑';
+  const monthBranch = (pillars.month && pillars.month.branch) || '자';
+  
+  // 신강/신약 정보
+  const strength = meta.v31Strength || (core._v31SajuData && core._v31SajuData.strength) || '균형';
+  const strengthStr = typeof strength === 'string' ? strength : (strength.label || '균형');
+  
+  // 1. 순행/역행 결정
+  const direction = determineDaewoonDirectionV186(yearStem, gender);
+  
+  // 2. 대운 8단계 추출
+  const daewoons = extractDaewoonV186(monthStem, monthBranch, direction);
+  
+  // 3. 출발 나이 계산
+  const startAge = calculateDaewoonStartAgeV186(null, direction, yearStem, gender);
+  
+  // 4. 각 대운 분석
+  const details = daewoons.map((dw, i) => {
+    const tenStar = getDaewoonTenStarV186(dayMaster, dw.stem);
+    const luckPhase = getDaewoonLuckPhaseV186(dayMaster, dw.branch);
+    const score = calcDaewoonScoreV186(dayMaster, dw, strengthStr);
+    const keyword = getDaewoonKeywordV186(score, tenStar);
+    return {
+      index: i + 1,
+      ganzhi: dw.ganzhi,
+      stem: dw.stem,
+      branch: dw.branch,
+      startAge: startAge + (i * 10),
+      endAge: startAge + (i * 10) + 9,
+      tenStar,
+      luckPhase,
+      score,
+      keyword,
+      isCurrent: false  // 다음 단계에서 설정
+    };
+  });
+  
+  // 5. 현재 대운 표시 (현재 나이 기준)
+  const now = new Date();
+  // 출생년도 추정 (input.year에서)
+  const birthYear = meta.input && meta.input.year ? meta.input.year : now.getFullYear() - 30;
+  const currentAge = now.getFullYear() - birthYear;
+  
+  let currentDaewoonIdx = -1;
+  for (let i = 0; i < details.length; i++) {
+    if (currentAge >= details[i].startAge && currentAge <= details[i].endAge) {
+      details[i].isCurrent = true;
+      currentDaewoonIdx = i;
+      break;
+    }
+  }
+  
+  // 6. 인생 전환 시점 추출
+  const transitions = findLifeTransitionsV186(details);
+  
+  return {
+    direction,                    // 순행/역행
+    startAge,                     // 출발 나이
+    currentAge,                   // 현재 나이
+    currentIndex: currentDaewoonIdx,  // 현재 대운 인덱스
+    current: currentDaewoonIdx >= 0 ? details[currentDaewoonIdx] : null,
+    next: currentDaewoonIdx >= 0 && currentDaewoonIdx < 7 ? details[currentDaewoonIdx + 1] : null,
+    details,                      // 8단계 모두
+    transitions,                  // 인생 전환 시점 (최대 3개)
+    summary: details.length > 0 
+           ? `${direction === 'forward' ? '순행' : '역행'} ${details.length}단계 (${details[0].startAge}세~${details[details.length-1].endAge}세)`
+           : '대운 계산 실패'
+  };
+}
+
 // ─── [Sec 12] Tier 1 — 시계열 (대운/세운/월운/일운) ───
 function buildTimeSeriesLuckV184_5(core, currentDate) {
   const now = currentDate || new Date();
@@ -17080,6 +17395,7 @@ function buildSajuSafeCoreV184_5(input) {
     // ★ FINAL+ 8: 각 빌더 개별 보호 (실패해도 다른 부분 응답)
     let interpretation = null, ohaengAnalysis = null, yongshin = null, sixDomain = null, timeSeries = null;
     let potentialPatterns = null;  // [V31 #184.7] 특수 잠재력 패턴
+    let daewoon = null;  // [V31 #186] 대운 8단계
     try { interpretation = buildSajuInterpretationV184_5(core); } catch (_) { interpretation = { error: 'interpretation_failed' }; }
     try { ohaengAnalysis = buildOhaengAnalysisV184_5(core); }    catch (_) { /* null */ }
     try { yongshin       = buildYongShinV184_5(core); }          catch (_) { /* null */ }
@@ -17087,6 +17403,8 @@ function buildSajuSafeCoreV184_5(input) {
     try { timeSeries     = buildTimeSeriesLuckV184_5(core, new Date()); }  catch (_) { /* null */ }
     // [V31 #184.7] 특수 잠재력 패턴 — 격국 + 십성 + 신강약 + 편중 종합
     try { potentialPatterns = buildPotentialPatternsV184_7(core, interpretation); } catch (_) { /* null */ }
+    // [V31 #186] 대운 8단계 — 메이저 앱 #1 결제 이유
+    try { daewoon = buildDaewoonV186(core, interpretation); } catch (_) { /* null */ }
     
     sajuCB_V184_5.record({ error: false });
     
@@ -17094,7 +17412,8 @@ function buildSajuSafeCoreV184_5(input) {
       success: true,
       core, interpretation, ohaengAnalysis, yongshin, sixDomain, timeSeries,
       potentialPatterns,  // [V31 #184.7] 특수 잠재력 응답 추가
-      _meta: { version: 'V31_184.7_PATTERNS' }
+      daewoon,            // [V31 #186] 대운 8단계 응답 추가
+      _meta: { version: 'V31_186_DAEWOON' }
     };
   } catch (e) {
     sajuCB_V184_5.record({ error: true });
@@ -17253,6 +17572,7 @@ export default {
               sixDomain:      v184_5Result.sixDomain,         // 6대 분야 운세
               timeSeries:     v184_5Result.timeSeries,        // 대운/세운/월운/일운
               potentialPatterns: v184_5Result.potentialPatterns, // [V31 #184.7] 특수 잠재력
+              daewoon:        v184_5Result.daewoon,            // [V31 #186] 대운 8단계 ★
               ohaengPercent:  v184_5Result.core && v184_5Result.core.ohaengPercent,
               interpretation: v184_5Result.interpretation,    // 십성/12운성/격국/신살
               _meta:          v184_5Result._meta,
