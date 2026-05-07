@@ -12,10 +12,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V31_199.2_2026-05-07_RACE_FIX">
-    <meta name="zeus-build-tag" content="V31_199.2_RACE_AND_STALE_FIX">
+    <meta name="version" content="V31_199.4_2026-05-07_TIER_GATE">
+    <meta name="zeus-build-tag" content="V31_199.4_BASIC_PREMIUM_GATE">
     
-    <title>ZEUS · Tarot Oracle [V31 #199.2]</title>
+    <title>ZEUS · Tarot Oracle [V31 #199.4]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -2890,7 +2890,7 @@
             pointer-events: none;
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
-        ">🛡 V31 #199.2</div>
+        ">🛡 V31 #199.4</div>
 
         <!-- [V21.0] ✦ 아치형 별빛 — 하이브리드 (큰 스파클 + 작은 점 + 골드 글로우) -->
         <div class="arch-title-wrapper">
@@ -15410,11 +15410,79 @@ function renderSajuResult(data) {
             </div>
 
             <!-- ════════════════════════════════════════════════════════════
+                 [V199.4 사장님 명령] 990원 (saju_basic) 잠금 + 업셀 박스
+                   사장님 명세:
+                     - 990원 표시: [1/6] 개관 + [2/6] 명식+오행 + [3/6] 본질 흐름
+                     - 4900원 전용: [4/6][5/6][6/6] + 6대 분야 + 시계열 + 특수 잠재력
+                     - 990원 사용자에게 잠금 + 업셀 박스로 4,900원 결제 유도
+                 ════════════════════════════════════════════════════════════ -->
+            ${(function() {
+                let _paidPlan = '';
+                try { _paidPlan = localStorage.getItem('sajuPaidPlan') || ''; } catch(_) {}
+                const isBasic = _paidPlan === 'saju_basic';
+                if (!isBasic) return ''; // PREMIUM/FREE는 표시 안 함
+                
+                return `
+                <div style="margin:24px 0; padding:24px 20px; 
+                            background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.04));
+                            border:2px solid rgba(212,175,55,0.55); border-radius:14px;
+                            box-shadow:0 4px 20px rgba(212,175,55,0.18); position:relative;">
+                    
+                    <!-- 자물쇠 + 헤드라인 -->
+                    <div style="text-align:center; margin-bottom:16px;">
+                        <div style="font-size:2.4rem; line-height:1; margin-bottom:6px;">🔒</div>
+                        <div style="color:#FFD970; font-size:1.1rem; font-weight:900; letter-spacing:0.02em;">
+                            더 깊은 분석은 프리미엄에서
+                        </div>
+                        <div style="color:rgba(255,255,255,0.65); font-size:0.78rem; margin-top:6px; line-height:1.6;">
+                            여기까지가 사주 베이직 (990원) 분석입니다.<br>
+                            아래 5가지 심층 콘텐츠는 프리미엄에서 만나보세요.
+                        </div>
+                    </div>
+                    
+                    <!-- 프리미엄 콘텐츠 미리보기 (희미하게) -->
+                    <div style="margin:16px 0; padding:14px 16px; 
+                                background:rgba(0,0,0,0.32); border-radius:8px;
+                                color:rgba(255,255,255,0.6); font-size:0.82rem; line-height:1.85;">
+                        <div style="margin-bottom:6px;">⚡ <strong style="color:#FFD970;">[4/6] 종합 신탁</strong> · 압박 흐름 + 보완 흐름</div>
+                        <div style="margin-bottom:6px;">🔥 <strong style="color:#FFD970;">[5/6] 에너지 가이드</strong> · 용신 트리거 + 보완 액션</div>
+                        <div style="margin-bottom:6px;">📜 <strong style="color:#FFD970;">[6/6] 종합 마무리</strong> · 행동 계획 + 격언</div>
+                        <div style="margin-bottom:6px;">🎯 <strong style="color:#FFD970;">[7/8] 6대 분야 운세</strong> · 재물·직업·연애·건강·학업·가족</div>
+                        <div>⏱ <strong style="color:#FFD970;">[8/8] 시계열 흐름</strong> · 오늘 / 이번달 / 올해 + 특수 잠재력</div>
+                    </div>
+                    
+                    <!-- 업그레이드 버튼 -->
+                    <button onclick="if(typeof handleSajuPremiumPaymentCTA==='function'){handleSajuPremiumPaymentCTA();}else if(typeof _handleSajuPaymentCTA==='function'){_handleSajuPaymentCTA('saju_premium','4,900원 사주 PREMIUM');}else{alert('결제 모듈 로딩 중...');}"
+                            style="display:block; width:100%; padding:14px 20px;
+                                   background:linear-gradient(135deg, #d4af37, #ffd970);
+                                   color:#0e1117; border:0; border-radius:10px;
+                                   font-size:0.95rem; font-weight:900; letter-spacing:0.02em;
+                                   cursor:pointer; box-shadow:0 4px 12px rgba(212,175,55,0.35);
+                                   transition:transform 0.15s ease, box-shadow 0.15s ease;"
+                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(212,175,55,0.45)';"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(212,175,55,0.35)';">
+                        ✦ 4,900원으로 프리미엄 잠금 해제 ✦
+                    </button>
+                    
+                    <!-- 보장 안내 -->
+                    <div style="text-align:center; margin-top:10px; color:rgba(255,255,255,0.55); font-size:0.7rem; line-height:1.5;">
+                        24시간 동안 모든 프리미엄 콘텐츠 이용 가능<br>
+                        🔒 SSL 보안결제 · 토스페이먼츠
+                    </div>
+                </div>`;
+            })()}
+
+            <!-- ════════════════════════════════════════════════════════════
                  [V31 #163 사장님 6블록] 사주 출력 디자인 통일
                    [4] ⚡ 종합 신탁 — 행동 강제 (매출 80% 결정)
                    [5] 🔥 에너지 가이드 — 용신 + 트리거
                  ════════════════════════════════════════════════════════════ -->
             ${(function() {
+                // ★ [V199.4 사장님 명령] saju_basic은 [4/6] 이후 콘텐츠 차단 ★
+                let _paidPlan = '';
+                try { _paidPlan = localStorage.getItem('sajuPaidPlan') || ''; } catch(_) {}
+                if (_paidPlan === 'saju_basic') return ''; // 990원은 위 잠금 박스만
+                
                 // 용신 + 현실 상태 추정 (워커 응답 분석)
                 const dayMaster = (text.meta?.pillars?.day || '').charAt(0);
                 const yongshinKey = detectYongshin(elements, dayMaster);
@@ -15620,8 +15688,21 @@ function renderSajuResult(data) {
                  사장님 진단: 결제했는데 점사 안 나옴
                  원인: renderSajuResult가 tier='free' 분기만 처리, PRO 콘텐츠 표시 X
                  해결: tier !== 'free' 시 tenStars/deepInsight/hiddenRisk/timingPrecision 노출
+                 
+                 ★ [V199.4 사장님 명령] saju_basic 차단 ★
+                   사장님: "990원 결제 → 모든 점사(4900원)까지 다 보임" 결함 발견
+                   해결: saju_basic 사용자에게 PRO 박스 ★ 숨김 ★
+                   → 4,900원 결제 유인력 회복 (매출 직결)
             ═══════════════════════════════════════════════════════════ -->
-            ${data.pro && data.pro.tier !== 'free' && data.pro.available ? `
+            ${(function() {
+                // V199.4 tier 체크 — saju_basic은 PRO 박스 안 보임
+                let _basicTier = '';
+                try { _basicTier = localStorage.getItem('sajuPaidPlan') || ''; } catch(_) {}
+                if (_basicTier === 'saju_basic') return '';  // ★ 990원 사용자 차단 ★
+                
+                if (!(data.pro && data.pro.tier !== 'free' && data.pro.available)) return '';
+                
+                return `
             <div style="margin:18px 0; padding:18px; background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06)); border:2px solid rgba(212,175,55,0.6); border-radius:10px; box-shadow:0 4px 18px rgba(212,175,55,0.2);">
                 <!-- [V31 #164] 6블록 라벨 추가 -->
                 <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
@@ -15708,7 +15789,8 @@ function renderSajuResult(data) {
                     <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.yearlyOutlook.content || ''}</div>
                 </div>` : ''}
             </div>
-            ` : ''}
+            `;
+            })()}
 
             <!-- ═══════════════════════════════════════════════════════
                  [V31 #184.5 FINAL+] Tier 1 카테고리 — 라이브 연동
@@ -15719,6 +15801,11 @@ function renderSajuResult(data) {
                    기존 [1/6]~[6/6] 단계 그대로 유지 + 추가 노출
             ═══════════════════════════════════════════════════════ -->
             ${data.v184_5 ? (() => {
+                // ★ [V199.4 사장님 명령] saju_basic은 v184_5 영역 차단 ★
+                let _paidPlan = '';
+                try { _paidPlan = localStorage.getItem('sajuPaidPlan') || ''; } catch(_) {}
+                if (_paidPlan === 'saju_basic') return ''; // 990원은 위 잠금 박스만
+                
                 const v = data.v184_5;
                 
                 // ★ 디버그 패널 — _error 있으면 실패 이유 표시 (사장님 진단용)
@@ -15745,13 +15832,112 @@ function renderSajuResult(data) {
                 // 색상 헬퍼 — 점수에 따라
                 const scoreColor = (s) => s >= 75 ? '#5DD68A' : s >= 55 ? '#FFD970' : s >= 35 ? '#F39C12' : '#E67E22';
                 
+                // ★ [V199.3] 점수 → 한글 등급 라벨 (사장님 명령 — 58점 = "안정 성장 단계") ★
+                //   영문 'Average → (58)' 형식 제거 → '58점 · 안정 성장 단계' 한글 통합
+                //   사장님 예시 기반 추정 매핑 — 검토 후 조정 가능
+                const koreanGradeLabel = (s) => {
+                    if (s >= 90) return '최상위 흐름';
+                    if (s >= 80) return '발전 단계';
+                    if (s >= 70) return '양호한 흐름';
+                    if (s >= 60) return '안정 흐름';
+                    if (s >= 50) return '안정 성장 단계';   // ★ 사장님 예시 58점
+                    if (s >= 40) return '보통 단계';
+                    if (s >= 30) return '조정 단계';
+                    if (s >= 20) return '주의 단계';
+                    return '도전기';
+                };
+                
+                // ★ [V199.3+] 카테고리별 점수 구간별 자동 조언 매핑 ★
+                //   사장님 명령: "직장·사회적 위치 흐름" 같은 분야 설명 X
+                //                "무리한 확장보다 현재 위치를 강화할수록..." 같은 구체적 조언 ✓
+                //   원리: worker summary가 "분야 흐름" 패턴이면 frontend가 자동 조언으로 대체
+                //   유지: worker가 실제 조언 보내면 그대로 사용 (호환)
+                const ADVICE_BY_KEY_AND_SCORE = {
+                    careerLuck: {
+                        high: '추진력이 강한 시기 — 결단과 실행이 결과를 부릅니다.',
+                        good: '꾸준함이 인정받는 흐름 — 책임을 늘려도 좋은 시기입니다.',
+                        stable: '무리한 확장보다 현재 위치를 강화할수록 결과가 좋아집니다.',
+                        normal: '한 발씩 정확하게 — 작은 성취가 쌓이는 시기입니다.',
+                        caution: '큰 결정보다 정비와 학습에 집중하세요.',
+                        low: '잠시 한 호흡 — 휴식과 재정비가 다음 도약의 기반이 됩니다.'
+                    },
+                    wealthLuck: {
+                        high: '재물 흐름이 활발 — 투자보다 분산과 절제가 키포인트입니다.',
+                        good: '수입이 안정적으로 늘어나는 시기 — 저축 비중을 높이세요.',
+                        stable: '큰 욕심보다 작은 절약이 모이는 시기 — 지출 점검을 권합니다.',
+                        normal: '수입과 지출 균형 — 무리한 투자는 잠시 미루는 게 좋습니다.',
+                        caution: '재무 결정은 신중히 — 보증·대출은 특히 조심하세요.',
+                        low: '지출 통제가 가장 중요한 시기 — 새로운 투자는 보류 권장.'
+                    },
+                    loveLuck: {
+                        high: '관계 운이 강한 시기 — 적극적인 표현이 좋은 결실로 이어집니다.',
+                        good: '진솔한 대화가 관계를 깊게 만드는 흐름입니다.',
+                        stable: '서두르지 말고 자연스럽게 — 진정성이 결과를 만듭니다.',
+                        normal: '오해를 줄이는 대화에 신경 쓰세요 — 작은 배려가 큰 차이.',
+                        caution: '감정에 휘둘리지 않는 것이 중요한 시기입니다.',
+                        low: '관계보다 자기 정리가 우선 — 마음의 여유를 회복하세요.'
+                    },
+                    healthLuck: {
+                        high: '체력과 회복력이 좋은 시기 — 새로운 운동 도전에 적합합니다.',
+                        good: '꾸준한 관리가 큰 차이를 만드는 흐름입니다.',
+                        stable: '무리하지 말고 규칙적인 생활 리듬을 유지하세요.',
+                        normal: '수면과 식습관 점검이 필요한 시기 — 작은 변화부터.',
+                        caution: '과로와 스트레스를 줄이는 데 집중하세요.',
+                        low: '건강이 최우선 — 정기 검진과 충분한 휴식을 권합니다.'
+                    },
+                    studyLuck: {
+                        high: '집중력과 흡수력이 좋은 시기 — 새 도전에 적합합니다.',
+                        good: '꾸준한 누적이 결실로 이어지는 흐름입니다.',
+                        stable: '깊이 있는 복습이 더 나은 결과를 만듭니다.',
+                        normal: '범위를 좁혀 핵심 위주로 학습하세요.',
+                        caution: '서두르지 말고 기초 점검에 시간을 쓰세요.',
+                        low: '단기 성과보다 학습 습관 회복이 우선입니다.'
+                    },
+                    familyLuck: {
+                        high: '가족과의 시간이 큰 힘이 되는 시기입니다.',
+                        good: '대화와 공감이 관계를 단단하게 만드는 흐름.',
+                        stable: '평소보다 한 번 더 안부를 묻는 작은 배려가 큰 효과.',
+                        normal: '오해는 빠르게 풀고 감정은 차분히 표현하세요.',
+                        caution: '한 발 물러나 거리를 두는 것이 도움이 될 수 있습니다.',
+                        low: '갈등보다 침묵이 나은 시기 — 시간이 해결해주는 부분이 있습니다.'
+                    }
+                };
+                const getAutoAdvice = (key, score) => {
+                    const m = ADVICE_BY_KEY_AND_SCORE[key];
+                    if (!m) return '';
+                    if (score >= 80) return m.high;
+                    if (score >= 65) return m.good;
+                    if (score >= 50) return m.stable;
+                    if (score >= 40) return m.normal;
+                    if (score >= 30) return m.caution;
+                    return m.low;
+                };
+                // worker가 보낸 summary가 "분야 설명" 패턴이면 자동 조언으로 교체
+                //   판별: "흐름" 또는 "관계" 끝 + 길이 12자 이하 = 단순 분야 설명
+                const isFieldDescription = (txt) => {
+                    if (!txt) return true;
+                    const t = String(txt).trim();
+                    return t.length <= 14 && /(흐름|관계)\s*$/.test(t);
+                };
+                
                 let html = '';
+                
+                // ★ [V199.4 사장님 명령] saju_basic vs saju_premium tier 분기 ★
+                //   사장님 결정 (Q1: ① / Q2: ③):
+                //     - 990원: [1/8] 개관 / [2/8] 명식 / [3/8] 오행만
+                //     - 4900원: 특수 잠재력 박스 + [7/8] 6대 분야 + [8/8] 시계열
+                //   결함 발견: 990원 결제 시 4900원 콘텐츠도 모두 표시됨 → 매출 손실
+                //   해결: tier === 'saju_basic' 시 프리미엄 블록 ★ 전체 ★ 차단
+                let _tierPaidPlan = '';
+                try { _tierPaidPlan = localStorage.getItem('sajuPaidPlan') || ''; } catch(_) {}
+                const _isSajuBasic = _tierPaidPlan === 'saju_basic';
                 
                 // ─── [V31 #184.7] 특수 잠재력 패턴 (★ 격국·편중 사주 강조) ───
                 //   사장님 통찰: 균형 50~58점은 평범, 격국·편중 사주는 큰 잠재력
                 //   조건부 표시: highlighted (70점 이상) 1~2개만 강조 박스
                 //   메이저 앱 미보유 카테고리 — ZEUS 차별화 핵심
-                if (patterns && patterns.isSpecial && patterns.highlighted && patterns.highlighted.length > 0) {
+                //   ★ V199.4: saju_basic 차단 (4,900원 결제 유인) ★
+                if (!_isSajuBasic && patterns && patterns.isSpecial && patterns.highlighted && patterns.highlighted.length > 0) {
                     html += `
                     <div style="margin:18px 0; padding:18px 16px;
                                 background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.05));
@@ -15805,7 +15991,8 @@ function renderSajuResult(data) {
                 }
                 
                 // ─── [7/8] 6대 분야 운세 ───
-                if (six) {
+                //   ★ V199.4: saju_basic 차단 (4,900원 결제 유인) ★
+                if (!_isSajuBasic && six) {
                     const domains = [
                         { key: 'careerLuck',  icon: '💼', label: '직업운', color: '#5DADE2' },
                         { key: 'wealthLuck',  icon: '💰', label: '재물운', color: '#FFD970' },
@@ -15824,27 +16011,32 @@ function renderSajuResult(data) {
                         ${domains.map(d => {
                             const dom = six[d.key];
                             if (!dom) return '';
-                            const score = dom.score || 50;
+                            // ★ [V199.3+] 점수 정수 반올림 (사장님 화면: 55.6 → 56) ★
+                            const score = Math.round(dom.score || 50);
                             const barWidth = Math.max(10, Math.min(100, score));
-                            // ★ [V31 #184.6 작업 3] 등급+화살표 표시 (점수 보조)
-                            const gradeLabel = dom.gradeLabel || '';
+                            // ★ [V199.3 사장님 명령] 영문 등급 → 한글 등급 라벨 통합 ★
+                            //   기존: 'Average → (58)' (좌우 분리 / 영문 / 점수 괄호)
+                            //   신규: '58점 · 안정 성장 단계' (한 줄 / 한글 / 자연스러운 흐름)
+                            const koreanGrade = koreanGradeLabel(score);
                             const gradeColor = dom.gradeColor || scoreColor(score);
                             return `
                             <div style="margin-bottom:10px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <div style="margin-bottom:5px; line-height:1.5;">
                                     <span style="color:rgba(255,255,255,0.92); font-size:0.82rem; font-weight:700;">
                                         ${d.icon} ${d.label}
                                     </span>
-                                    <span style="color:${gradeColor}; font-size:0.82rem; font-weight:900;">
-                                        ${gradeLabel ? gradeLabel : score + '점'}
-                                        ${gradeLabel ? `<span style="color:rgba(255,255,255,0.45); font-size:0.7rem; font-weight:700; margin-left:4px;">(${score})</span>` : ''}
+                                    <span style="color:${gradeColor}; font-size:0.82rem; font-weight:900; margin-left:6px;">
+                                        ${score}점
+                                    </span>
+                                    <span style="color:rgba(255,255,255,0.78); font-size:0.78rem; font-weight:700;">
+                                         · ${koreanGrade}
                                     </span>
                                 </div>
                                 <div style="background:rgba(255,255,255,0.08); height:8px; border-radius:4px; overflow:hidden;">
                                     <div style="width:${barWidth}%; height:100%; background:linear-gradient(90deg, ${d.color}, ${gradeColor}); border-radius:4px; transition:width 0.6s ease;"></div>
                                 </div>
-                                <div style="margin-top:4px; color:rgba(255,255,255,0.65); font-size:0.72rem; line-height:1.5;">
-                                    ${dom.summary || ''}
+                                <div style="margin-top:6px; color:rgba(255,255,255,0.78); font-size:0.74rem; line-height:1.6;">
+                                    ${ isFieldDescription(dom.summary) ? getAutoAdvice(d.key, score) : (dom.summary || getAutoAdvice(d.key, score)) }
                                 </div>
                             </div>`;
                         }).join('')}
@@ -15852,7 +16044,8 @@ function renderSajuResult(data) {
                 }
                 
                 // ─── [8/8] 시계열 (오늘/이번달/올해) ───
-                if (ts) {
+                //   ★ V199.4: saju_basic 차단 (4,900원 결제 유인) ★
+                if (!_isSajuBasic && ts) {
                     html += `
                     <div style="margin:18px 0; padding:16px; background:linear-gradient(135deg, rgba(93,173,226,0.10), rgba(93,173,226,0.03)); border:1px solid rgba(93,173,226,0.35); border-radius:10px;">
                         <div style="display:flex; align-items:center; gap:6px; margin-bottom:14px;">
