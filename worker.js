@@ -16700,12 +16700,17 @@ function build6DomainLuckV184_5(core, interpretation) {
   
   // ★ [V31 #184.6 작업 1] 점수 → 등급 변환 (인지속도 ↑)
   //   숫자보다 등급+화살표가 직관적 (메이저 앱 결제 전환율 +18% 검증)
+  //   ★ [V199.6 사장님 명령] 영문 → ZEUS 7개 한글 등급 ★
+  //     기존: Excellent/Great/Good/Fair/Average/Weak (영문)
+  //     신규: 최상 흐름/강한 흐름/확장 흐름/안정 흐름/균형 흐름/주의 흐름/정체 흐름
   const scoreToGrade = (score) => {
-    if (score >= 80) return { grade: 'Excellent', arrow: '↑', color: '#5DD68A' };
-    if (score >= 70) return { grade: 'Good',      arrow: '↑', color: '#7AD188' };
-    if (score >= 60) return { grade: 'Fair',      arrow: '→', color: '#FFD970' };
-    if (score >= 50) return { grade: 'Average',   arrow: '→', color: '#F39C12' };
-    return                  { grade: 'Low',       arrow: '↓', color: '#E67E22' };
+    if (score >= 90) return { grade: '최상 흐름', arrow: '↑', color: '#5DD68A' };
+    if (score >= 80) return { grade: '강한 흐름', arrow: '↑', color: '#5DD68A' };
+    if (score >= 70) return { grade: '확장 흐름', arrow: '↑', color: '#7AD188' };
+    if (score >= 60) return { grade: '안정 흐름', arrow: '→', color: '#FFD970' };
+    if (score >= 50) return { grade: '균형 흐름', arrow: '→', color: '#F39C12' };
+    if (score >= 40) return { grade: '주의 흐름', arrow: '↓', color: '#F39C12' };
+    return                  { grade: '정체 흐름', arrow: '↓', color: '#E67E22' };
   };
   
   const wrap = (score, summary, detail) => {
@@ -16720,15 +16725,31 @@ function build6DomainLuckV184_5(core, interpretation) {
     };
   };
   
+  // ★ [V199.6 사장님 명령] [object Object] 결함 차단 ★
+  //   원인: gyeokGuk / luck 이 객체일 때 템플릿 리터럴에 직접 삽입 → "[object Object]"
+  //   해결: 안전 추출 헬퍼로 string 보장
+  const safeStr = (v, fallback) => {
+    if (v == null) return fallback;
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number') return String(v);
+    // 객체: name / label / type 우선, 그 다음 fallback
+    if (typeof v === 'object') {
+      return v.name || v.label || v.type || v.value || fallback;
+    }
+    return fallback;
+  };
+  const safeGyeokGuk = safeStr(interpretation?.gyeokGuk, '본인 격국');
+  const safeLuck = safeStr(luck, '평운');
+  
   return {
     careerLuck: wrap(scoreOf('정관', '편관'), '직장·사회적 위치 흐름', 
-                     `${interpretation?.gyeokGuk || '본인 격국'} 기반 직업 적성 분석`),
+                     `${safeGyeokGuk} 기반 직업 적성 분석`),
     wealthLuck: wrap(scoreOf('정재', '편재'), '재물·소득 흐름',
                      '편재(투자 기회) + 정재(안정 수입) 균형'),
     loveLuck:   wrap(scoreOf('정인', '편인'), '연애·인간관계 흐름',
                      '관계 방어력 + 표현력 종합'),
     healthLuck: wrap(50 + luckBonus, '체력·건강 흐름',
-                     `12운성 ${luck} 기반 에너지 진단`),
+                     `12운성 ${safeLuck} 기반 에너지 진단`),
     studyLuck:  wrap(scoreOf('정인', '상관'), '학습·성장 흐름',
                      '정인(전통 학습) + 식신(창의) 균형'),
     familyLuck: wrap(scoreOf('정인', '편관'), '가족·자녀 흐름',
@@ -16883,10 +16904,13 @@ function buildPotentialPatternsV184_7(core, interpretation) {
   
   // 등급 변환
   const scoreToGrade = (score) => {
-    if (score >= 85) return { grade: 'Excellent', arrow: '↑', color: '#FFD970' };
-    if (score >= 70) return { grade: 'Good',      arrow: '↑', color: '#5DD68A' };
-    if (score >= 60) return { grade: 'Fair',      arrow: '→', color: '#7AD188' };
-    return                  { grade: 'Average',   arrow: '→', color: 'rgba(255,255,255,0.5)' };
+    if (score >= 90) return { grade: '최상 흐름', arrow: '↑', color: '#FFD970' };
+    if (score >= 80) return { grade: '강한 흐름', arrow: '↑', color: '#FFD970' };
+    if (score >= 70) return { grade: '확장 흐름', arrow: '↑', color: '#5DD68A' };
+    if (score >= 60) return { grade: '안정 흐름', arrow: '→', color: '#7AD188' };
+    if (score >= 50) return { grade: '균형 흐름', arrow: '→', color: 'rgba(255,255,255,0.6)' };
+    if (score >= 40) return { grade: '주의 흐름', arrow: '↓', color: 'rgba(255,165,80,0.7)' };
+    return                  { grade: '정체 흐름', arrow: '↓', color: 'rgba(255,255,255,0.45)' };
   };
   
   // 점수 + 등급 라벨 부여
