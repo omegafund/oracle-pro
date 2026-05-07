@@ -12,10 +12,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V31_199.6_2026-05-07_TIER_GRADE_FIX">
-    <meta name="zeus-build-tag" content="V31_199.6_HARDCODE_REMOVED">
+    <meta name="version" content="V31_199.7_2026-05-07_ISPAID_3CHECK">
+    <meta name="zeus-build-tag" content="V31_199.7_OHAENG_BAR_RESTORE">
     
-    <title>ZEUS · Tarot Oracle [V31 #199.6]</title>
+    <title>ZEUS · Tarot Oracle [V31 #199.7]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -2890,7 +2890,7 @@
             pointer-events: none;
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
-        ">🛡 V31 #199.6</div>
+        ">🛡 V31 #199.7</div>
 
         <!-- [V21.0] ✦ 아치형 별빛 — 하이브리드 (큰 스파클 + 작은 점 + 골드 글로우) -->
         <div class="arch-title-wrapper">
@@ -14124,17 +14124,37 @@ function renderSajuKakaoChatV185(data) {
     //   BASIC (saju_basic 990원): 메시지 시퀀스에서 BASIC 흐름 + 4900 업그레이드 카드
     //   PREMIUM (saju_premium 4900원): 카카오 UI 정밀 메시지 5종 + 대운 8단계
     //   기타 PAID (day/monthly/yearly/lifetime): PREMIUM 동일 처리
+    //
+    // ★★★ [V199.7 결정적 결함 수정] isPaid 만료 검증 + HMAC 토큰 검증 ★★★
+    //   사장님 V199.6 검증 결과: "결제 안 했는데 PREMIUM 콘텐츠 풀 노출" 결함 지속
+    //   원인: paidPlan만 체크 → 잔재 토큰 그대로 PREMIUM 인식
+    //   해결: 3중 검증 — paidPlan + sajuPaidExpiresAt + paid_token (HMAC)
+    //         3개 모두 충족해야 isPaid=true (잔재 차단)
     let isPaid = false;
     let isBasicOnly = false;
     let paidPlan = '';
     try {
         paidPlan = localStorage.getItem('sajuPaidPlan') || '';
-        if (paidPlan && paidPlan !== 'free') {
+        const _expiresAt = parseInt(localStorage.getItem('sajuPaidExpiresAt') || '0', 10);
+        const _stillPaid = _expiresAt > Date.now();
+        const _hasToken = !!localStorage.getItem('paid_token');
+        const _effectivePlan = (_stillPaid && _hasToken) ? paidPlan : '';
+        
+        console.log('━━━ [V199.7 isPaid 결정] ━━━');
+        console.log('  - paidPlan (원본):', paidPlan || '(없음)');
+        console.log('  - expiresAt:', _expiresAt > 0 ? new Date(_expiresAt).toLocaleString() : '(없음)');
+        console.log('  - stillPaid (만료):', _stillPaid);
+        console.log('  - hasToken (HMAC):', _hasToken);
+        console.log('  - 최종 effectivePlan:', _effectivePlan || '(차단됨)');
+        
+        if (_effectivePlan && _effectivePlan !== 'free') {
             isPaid = true;
-            if (paidPlan === 'saju_basic') {
+            if (_effectivePlan === 'saju_basic') {
                 isBasicOnly = true;
             }
-            console.log('[V31 #187] PAID 사용자 감지:', paidPlan, '(BASIC only:', isBasicOnly, ')');
+            console.log('  - 결과: PAID (BASIC only:', isBasicOnly, ')');
+        } else {
+            console.log('  - 결과: ★ FREE ★ (잔재 토큰 차단)');
         }
     } catch (_) {}
     
@@ -14223,16 +14243,55 @@ function renderSajuKakaoChatV185(data) {
         }
         
         // PAID 메시지 4: 오행 정밀 + 약점 보강
+        // ★ [V199.7 사장님 명령] 오행 5원소 막대 그래프 복구 ★
+        //   사장님: "이전에 시인성 좋았는데 사라졌다" → 막대 그래프 추가
         if (ohaeng && ohaeng.distribution) {
+            // 5원소 색상 매핑
+            const elementColors = { '목': '#5DD68A', '화': '#FF7B6B', '토': '#D4A574', '금': '#C0C0C0', '수': '#5B9BD5' };
+            const elementIcons  = { '목': '🌳', '화': '🔥', '토': '⛰️', '금': '⚙️', '수': '💧' };
+            
+            // distribution: { 목: 36, 화: 25, 토: 13, 금: 13, 수: 12 } 같은 구조
+            const elements = ['목', '화', '토', '금', '수'];
+            let barsHtml = '';
+            elements.forEach(el => {
+                const pct = Math.round(ohaeng.distribution[el] || 0);
+                const color = elementColors[el] || '#FFD970';
+                const icon = elementIcons[el] || '✨';
+                const barWidth = Math.max(2, Math.min(100, pct));
+                const isStrong = el === ohaeng.strongest;
+                const isWeak = el === ohaeng.weakest;
+                
+                barsHtml += `
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; ${isStrong ? 'opacity:1;' : isWeak ? 'opacity:1;' : 'opacity:0.92;'}">
+                    <span style="width:32px; font-size:0.72rem; color:${color}; font-weight:900;">
+                        ${icon} ${el}
+                    </span>
+                    <div style="flex:1; background:rgba(255,255,255,0.08); height:14px; border-radius:7px; overflow:hidden; position:relative;">
+                        <div style="width:${barWidth}%; height:100%; 
+                                    background:linear-gradient(90deg, ${color}, ${color}dd); 
+                                    border-radius:7px; transition:width 0.6s ease;
+                                    ${isStrong ? 'box-shadow:0 0 8px ' + color + ';' : ''}"></div>
+                    </div>
+                    <span style="width:38px; text-align:right; font-size:0.72rem; font-weight:900; color:${color};">
+                        ${pct}%
+                    </span>
+                    ${isStrong ? '<span style="font-size:0.62rem; color:#5DD68A; font-weight:900;">강점</span>' : ''}
+                    ${isWeak ? '<span style="font-size:0.62rem; color:#F39C12; font-weight:900;">약점</span>' : ''}
+                </div>`;
+            });
+            
             paidContent += `
             <div class="saju-chat-msg" style="animation-delay:200ms;">
                 <div class="saju-chat-avatar">☯️</div>
                 <div class="saju-chat-bubble">
                     <div class="saju-chat-bubble-title">⚖️ 오행 정밀 분석</div>
-                    <div style="font-size:0.78rem;">
-                        강점: <strong style="color:#5DD68A;">${ohaeng.strongest}</strong> 기운<br>
+                    <div style="margin:8px 0;">
+                        ${barsHtml}
+                    </div>
+                    <div style="font-size:0.74rem; color:rgba(255,255,255,0.85); margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.15);">
+                        강점: <strong style="color:#5DD68A;">${ohaeng.strongest}</strong> 기운 · 
                         약점: <strong style="color:#F39C12;">${ohaeng.weakest}</strong> 기운<br>
-                        균형: ${ohaeng.balance}
+                        <span style="color:rgba(255,255,255,0.65);">균형: ${ohaeng.balance}</span>
                     </div>
                     <div class="saju-chat-bubble-time">${t}</div>
                 </div>
