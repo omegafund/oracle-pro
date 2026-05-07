@@ -15,7 +15,7 @@
     <meta name="version" content="V31_200.6_2026-05-07_INPUT_SUMMARY">
     <meta name="zeus-build-tag" content="V31_200.6_GATE_INPUT_PREVIEW">
     
-    <title>ZEUS · Tarot Oracle [V31 #200.7.5]</title>
+    <title>ZEUS · Tarot Oracle [V31 #200.7.6]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -2756,22 +2756,65 @@
     <script>
     (function() {
         try {
+            // ════════════════════════════════════════════════════════════════════
+            // ★★★ [V200.7.6 사장님 명령] paidEarlyOverlay 트리거 조건 확장 ★★★
+            //
+            // 사장님 V200.7.3 라이브 검증 발견:
+            //   "결제 후 → 홈뷰 (약 1초) → 다시 입력 화면 → 점사 결과"
+            //   = 사용자가 결제 실패 또는 환불 필요로 오해 가능
+            //   = 매출 직결 결함
+            //
+            // 진단:
+            //   기존 코드: if (params.get('paid') !== 'ok') return;
+            //   결함: 결제 후 redirect URL이 /index.html#vt=... (★ hash fragment ★)
+            //         search '?paid=ok'는 STAGE 1 처리 후에 설정됨 (Line 4972 부근)
+            //         → 페이지 진입 시점에 search='' → 오버레이 작동 안 함
+            //         → 일반 홈 화면 1초 노출
+            //
+            // 해결: 다음 조건 중 ★ 1개라도 ★ 있으면 오버레이 즉시 표시:
+            //   ① ?paid=ok (기존 — STAGE 2 진입 또는 success.html 직접 redirect)
+            //   ② #vt=... (V199.2 STAGE 1 — 모바일 격리 백업)
+            //   ③ ?ctx=saju 또는 ?plan=saju_basic/saju_premium (V31 #195 URL 기반)
+            //   ④ localStorage.sajuPaymentContext === 'true' (사주 결제 진행 중)
+            //   ⑤ localStorage.pendingOracle (다른 카테고리 결제 진행 중)
+            // ════════════════════════════════════════════════════════════════════
             var params = new URLSearchParams(window.location.search);
-            if (params.get('paid') !== 'ok') return;
+            var hash = (window.location.hash || '');
             
-            // [V31 #151] ★ 사장님 버전 확인용 — 콘솔에 즉시 출력
-            console.log('🚀 [V31 #151] head inline overlay 작동 — visibility:hidden 제거 (정지 차단)');
+            // ① ?paid=ok
+            var hasPaidOk = params.get('paid') === 'ok';
+            // ② #vt= (V199.2 STAGE 1 hash)
+            var hasVtHash = /(^|#|&)vt=/.test(hash);
+            // ③ ?ctx=saju 또는 ?plan=saju_*
+            var hasSajuCtx = params.get('ctx') === 'saju'
+                          || params.get('plan') === 'saju_basic'
+                          || params.get('plan') === 'saju_premium';
+            // ④ sajuPaymentContext flag
+            var hasSajuFlag = false;
+            try {
+                hasSajuFlag = localStorage.getItem('sajuPaymentContext') === 'true';
+            } catch(e) {}
+            // ⑤ pendingOracle (다른 카테고리 결제 진행)
+            var hasPendingOracle = false;
+            try {
+                hasPendingOracle = !!localStorage.getItem('pendingOracle');
+            } catch(e) {}
             
-            // [V31 #151] 사장님 정지 결함 본격 해결
-            //   원인: body { visibility: hidden } 룰이 일부 브라우저/타이밍에서 안 풀림
-            //   해결: visibility 룰 자체 제거 → overlay z-index로만 가림
-            //         시각적 깜빡임 약간 가능하지만 정지 100% 방지
+            // 결제 진행 흔적 1개라도 있으면 오버레이 표시
+            var shouldShowOverlay = hasPaidOk || hasVtHash || hasSajuCtx || hasSajuFlag || hasPendingOracle;
+            
+            if (!shouldShowOverlay) return;
+            
+            console.log('🚀 [V200.7.6] paidEarlyOverlay 작동 — 결제 진행 흔적:', {
+                paidOk: hasPaidOk,
+                vtHash: hasVtHash,
+                sajuCtx: hasSajuCtx,
+                sajuFlag: hasSajuFlag,
+                pendingOracle: hasPendingOracle
+            });
             
             // [V31 #150] 사주/타로 컨텍스트 구분 (간섭 차단)
-            var isSajuContext = false;
-            try {
-                isSajuContext = localStorage.getItem('sajuPaymentContext') === 'true';
-            } catch(e) {}
+            var isSajuContext = hasSajuCtx || hasSajuFlag;
             
             var icon = isSajuContext ? '☯' : '✦';
             var title = isSajuContext ? 'PRO 사주 신탁 불러오는 중' : '프리미엄 신탁 불러오는 중';
@@ -2908,7 +2951,7 @@
             pointer-events: none;
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
-        ">🛡 V31 #200.7.5</div>
+        ">🛡 V31 #200.7.6</div>
 
         <!-- [V21.0] ✦ 아치형 별빛 — 하이브리드 (큰 스파클 + 작은 점 + 골드 글로우) -->
         <div class="arch-title-wrapper">
