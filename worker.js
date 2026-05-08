@@ -17561,6 +17561,7 @@ export default {
     // ☯️ [V31 SAJU] /saju/judge — Chunk 3: JUDGEMENT + SCENARIO + MATRIX
     // ════════════════════════════════════════════════════════════════════
     // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════
     // ☯️ [V31 SAJU] /saju/oracle — Chunk 4+5: 사주 점사 + 감사 통합 (V28.B Layer 2)
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/saju/oracle" && request.method === "POST") {
@@ -17630,7 +17631,81 @@ export default {
           domain: 'saju',           // ★ [V31 #135 사장님 4번] 클라이언트가 사주 응답인지 명시 인식
           category: category,       // ★ 입력받은 카테고리 그대로 반환
           v184_5: v184_5Data,       // ★ [V31 #184.5 FINAL+] Tier 1 데이터 추가 필드
-          message: "[V31 Chunk 5 + V31 #184.5 FINAL+] TEXT + INTENT + PRO + AUDIT + Tier 1 통합 완료"
+          // ════════════════════════════════════════════════════════════════
+          // ★ [V200.8.0] 페이월 미리보기 필드 ★
+          //   사장님 명세: 사주 결과창 [1/6][2/6] 노출 + [3/6]~[6/6] 블러
+          //                + 페이월 위에 "현재 흐름 / 재물 흐름" 1줄씩 미리보기
+          //   격리: client는 data.preview만 읽음, 다른 카테고리에 영향 X
+          // ════════════════════════════════════════════════════════════════
+          preview: (function() {
+            try {
+              const _t = (result && result.text) || {};
+              const _sd = (v184_5Data && v184_5Data.sixDomain) || {};
+              const _wl = _sd.wealthLuck || {};
+              const _cl = _sd.careerLuck || {};
+              
+              // 현재 흐름: dayEssence + strengthPhrase 합성 (1~2 문장)
+              const _de = (_t.dayEssence || '').replace(/\s+/g, ' ').trim();
+              const _sp = (_t.strengthPhrase || '').replace(/\s+/g, ' ').trim();
+              let currentFlow = '';
+              if (_de && _sp) {
+                currentFlow = `${_de.split(/[.!?]/)[0]}. ${_sp.split(/[.!?]/)[0]}.`.replace(/\.\.+/g, '.');
+              } else if (_de) {
+                currentFlow = _de.split(/[.!?]/).slice(0, 2).join('.') + '.';
+              } else if (_t.subtitle) {
+                currentFlow = _t.subtitle;
+              } else {
+                currentFlow = '본질 흐름 분석 — 결제 후 상세 내용을 확인하세요.';
+              }
+              currentFlow = currentFlow.length > 120 ? currentFlow.slice(0, 117) + '...' : currentFlow;
+              
+              // 재물 흐름: sixDomain.wealthLuck 기반 (등급 + 요약)
+              let wealthFlow = '';
+              if (_wl.gradeLabel && _wl.detail) {
+                wealthFlow = `${_wl.gradeLabel} — ${_wl.detail}`;
+              } else if (_wl.summary) {
+                wealthFlow = _wl.summary;
+              } else {
+                // 폴백: 오행 균형 기반
+                const _bp = (_t.balancePhrase || '').split(/[.!?]/)[0];
+                wealthFlow = _bp ? `${_bp}.` : '재물 흐름 분석 — 결제 후 상세 내용을 확인하세요.';
+              }
+              wealthFlow = wealthFlow.length > 120 ? wealthFlow.slice(0, 117) + '...' : wealthFlow;
+              
+              // hookKeywords: 페이월 호기심 자극 키워드 4개
+              const hookKeywords = [
+                '2026년 갈림길',
+                '인생 전환 시점',
+                '직업 적합도',
+                '인간관계 충돌점'
+              ];
+              
+              // 페이월 헤더에 노출할 등급 라벨 (있으면 신뢰감 ↑)
+              const wealthGrade = _wl.gradeLabel || null;
+              const careerGrade = _cl.gradeLabel || null;
+              
+              return {
+                currentFlow,
+                wealthFlow,
+                hookKeywords,
+                wealthGrade,
+                careerGrade,
+                _v: 'V200.8.0'
+              };
+            } catch (_e) {
+              // 안전 폴백 — preview 실패해도 메인 응답은 유지
+              return {
+                currentFlow: '본질 흐름 분석 — 결제 후 상세 내용을 확인하세요.',
+                wealthFlow: '재물 흐름 분석 — 결제 후 상세 내용을 확인하세요.',
+                hookKeywords: ['2026년 갈림길', '인생 전환 시점', '직업 적합도', '인간관계 충돌점'],
+                wealthGrade: null,
+                careerGrade: null,
+                _v: 'V200.8.0_fallback',
+                _err: String(_e && _e.message || _e)
+              };
+            }
+          })(),
+          message: "[V31 Chunk 5 + V31 #184.5 FINAL+ + V200.8.0 paywall preview] TEXT + INTENT + PRO + AUDIT + Tier 1 + Preview 통합 완료"
         }), {
           headers: { ...corsHeaders(), "Content-Type": "application/json" }
         });
