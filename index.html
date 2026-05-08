@@ -15,7 +15,7 @@
     <meta name="version" content="V31_200.6_2026-05-07_INPUT_SUMMARY">
     <meta name="zeus-build-tag" content="V31_200.6_GATE_INPUT_PREVIEW">
     
-    <title>ZEUS · Tarot Oracle [V31 #200.8.2]</title>
+    <title>ZEUS · Tarot Oracle [V31 #200.8.3]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -3171,6 +3171,189 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- [V19 Phase6] Toss Payments SDK -->
     <script src="https://js.tosspayments.com/v1"></script>
+    
+    <!-- ════════════════════════════════════════════════════════════════════════
+         ★ [V200.8.3] 카카오톡 인앱 우회 + 자동 버전 체크 — 산업 표준 패턴 ★
+         
+         사장님 V200.8.2 라이브 검증 발견:
+           "휴대폰은 V200.7.6 캐시된 채 변하지 않음 (PC는 V200.8.2 정상)"
+           "사용자에게 ?cb= 같은 코드 입력 시키면 피싱 의심 → 운영 불가"
+         
+         산업 표준 솔루션 (검증됨):
+           ① 카카오톡 인앱 감지 → kakaotalk://web/openExternal로 외부 브라우저 강제
+              (한국 웹 개발 사실상 표준 — burndogfather.com 검증)
+           ② 주기적 버전 체크 (worker /version 엔드포인트 호출)
+              → 클라이언트가 옛 버전이면 강제 새로고침
+              (Twitter / Slack / Discord 표준 SPA 패턴)
+         
+         배치: <head> 안 가장 먼저 실행 (다른 코드보다 우선)
+         가드: 결제·점사 흐름 중엔 새로고침 안 함 (데이터 손실 차단)
+         ════════════════════════════════════════════════════════════════════════ -->
+    <script>
+    (function() {
+        'use strict';
+        
+        const APP_VERSION = 'V200.8.3';  // ★ 매 배포마다 갱신 ★
+        const VERSION_ENDPOINT = 'https://tarot-api.omegafund01.workers.dev/version';
+        
+        // ════════════════════════════════════════════════════════════════
+        // ① 카카오톡 인앱 브라우저 자동 우회
+        //    한국 웹 개발 표준 패턴 — burndogfather.com 등 검증
+        // ════════════════════════════════════════════════════════════════
+        try {
+            const ua = navigator.userAgent || '';
+            const isKakao = /KAKAOTALK/i.test(ua);
+            
+            if (isKakao) {
+                // 무한 루프 방지 — 이미 우회 시도했으면 스킵
+                const alreadyTried = sessionStorage.getItem('_v83KakaoBypass');
+                if (!alreadyTried) {
+                    sessionStorage.setItem('_v83KakaoBypass', '1');
+                    
+                    // 현재 URL을 외부 브라우저로 열기 deep link
+                    const currentUrl = window.location.href;
+                    console.log('🔗 [V200.8.3] 카카오톡 감지 → 외부 브라우저 우회 시도');
+                    
+                    // kakaotalk:// 스킴 (안드로이드 + iOS 모두 지원)
+                    location.href = 'kakaotalk://web/openExternal?url=' 
+                                  + encodeURIComponent(currentUrl);
+                    
+                    // 1.5초 후에도 카톡 안이면 (deep link 실패) → 안내 배너 표시
+                    setTimeout(function() {
+                        if (/KAKAOTALK/i.test(navigator.userAgent)) {
+                            const banner = document.createElement('div');
+                            banner.id = '_v83KakaoBanner';
+                            banner.style.cssText = `
+                                position: fixed; top: 0; left: 0; right: 0; z-index: 999999;
+                                background: linear-gradient(135deg, #FEE500, #FFE08A);
+                                color: #000; padding: 12px 16px; text-align: center;
+                                font-size: 0.85rem; font-weight: 700;
+                                box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+                                cursor: pointer;
+                            `;
+                            banner.innerHTML = '⚠ 카카오톡에서는 일부 기능 제한 — 우측 상단 ⋮ → "다른 브라우저로 열기" 권장';
+                            banner.onclick = function() { banner.remove(); };
+                            document.body && document.body.appendChild(banner);
+                        }
+                    }, 1500);
+                }
+            }
+        } catch (e) {
+            console.warn('[V200.8.3] 카카오 우회 예외:', e.message);
+        }
+        
+        // ════════════════════════════════════════════════════════════════
+        // ② 자동 버전 체크 + 강제 새로고침
+        //    Twitter/Slack/Discord 표준 SPA 패턴
+        // ════════════════════════════════════════════════════════════════
+        async function v83CheckVersion() {
+            try {
+                // 가드 1: 무한 새로고침 방지
+                const reloaded = sessionStorage.getItem('_v83Reloaded');
+                if (reloaded) {
+                    console.log('ℹ [V200.8.3] 이번 세션에서 이미 새로고침함 — 추가 체크 스킵');
+                    return;
+                }
+                
+                // 가드 2: 결제·점사 흐름 중이면 체크 스킵
+                const url = new URL(window.location.href);
+                const isPaymentFlow = url.searchParams.has('paid') 
+                                    || url.searchParams.has('vt')
+                                    || url.searchParams.has('orderId')
+                                    || (window.location.hash && window.location.hash.indexOf('vt=') >= 0);
+                if (isPaymentFlow) {
+                    console.log('ℹ [V200.8.3] 결제 흐름 진행 중 — 버전 체크 스킵');
+                    return;
+                }
+                
+                // 가드 3: 활성 점사 진행 중이면 체크 스킵
+                if (document.getElementById('sajuResultModal') 
+                    || document.getElementById('sajuLoading')
+                    || document.getElementById('sajuPostPayLoading')) {
+                    console.log('ℹ [V200.8.3] 활성 점사 진행 중 — 버전 체크 스킵');
+                    return;
+                }
+                
+                // 1.5초 timeout으로 worker 호출 (네트워크 결함 시 사이트 멈춤 차단)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1500);
+                
+                const r = await fetch(VERSION_ENDPOINT, {
+                    cache: 'no-store',
+                    signal: controller.signal,
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                clearTimeout(timeoutId);
+                
+                if (!r.ok) return;
+                
+                const data = await r.json();
+                const latestVersion = data && data.version;
+                
+                if (!latestVersion) return;
+                
+                console.log('🔄 [V200.8.3] 버전 체크: 클라이언트=' + APP_VERSION + ' / 서버=' + latestVersion);
+                
+                if (latestVersion !== APP_VERSION) {
+                    // 버전 다름 → 강제 새로고침
+                    console.warn('⚠ [V200.8.3] 버전 불일치 — 강제 새로고침');
+                    sessionStorage.setItem('_v83Reloaded', '1');
+                    
+                    // 사용자에게 짧은 안내 토스트 (혼란 방지)
+                    const toast = document.createElement('div');
+                    toast.style.cssText = `
+                        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background: rgba(0,0,0,0.92); color: #FFD970;
+                        padding: 14px 22px; border-radius: 10px;
+                        font-size: 0.9rem; font-weight: 700;
+                        z-index: 999999;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                        border: 1px solid rgba(212,175,55,0.4);
+                    `;
+                    toast.textContent = '🔄 새 버전 적용 중...';
+                    document.body && document.body.appendChild(toast);
+                    
+                    setTimeout(function() {
+                        // location.reload(true)는 일부 브라우저 deprecated 
+                        // → 캐시 우회 query 추가 후 reload
+                        const reloadUrl = window.location.pathname 
+                                        + '?_v83r=' + Date.now()
+                                        + window.location.hash;
+                        window.location.replace(reloadUrl);
+                    }, 600);
+                }
+            } catch (e) {
+                // 네트워크/timeout 실패 → 조용히 통과 (현재 버전 그대로 사용)
+                if (e.name === 'AbortError') {
+                    console.log('ℹ [V200.8.3] 버전 체크 timeout — 그대로 진행');
+                } else {
+                    console.warn('[V200.8.3] 버전 체크 예외:', e.message);
+                }
+            }
+        }
+        
+        // 페이지 로드 후 200ms 대기 후 체크 (DOM 안정화 + 카카오 우회 우선 실행)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(v83CheckVersion, 200);
+            });
+        } else {
+            setTimeout(v83CheckVersion, 200);
+        }
+        
+        // ?_v83r= 파라미터로 진입한 경우 URL 정리
+        if (window.location.search.indexOf('_v83r=') >= 0) {
+            try {
+                const cleanUrl = window.location.pathname + window.location.hash;
+                history.replaceState({}, '', cleanUrl);
+                console.log('✅ [V200.8.3] 새 버전 적용 완료 — URL 정리');
+            } catch(_) {}
+        }
+        
+        // 디버그용 글로벌 노출
+        window._v83 = { APP_VERSION, checkVersion: v83CheckVersion };
+    })();
+    </script>
     
     <!-- ════════════════════════════════════════════════════════════════════════
          ★ [V200.7.8] Emergency Reset URL — 사용자 자가복구 안전망 ★
@@ -15781,136 +15964,183 @@ function renderSajuKakaoChatV185(data) {
             `}
             ` : `
             <!-- ════════════════════════════════════════════════════════════
-                 [V31 #187] 결제 게이트 — FREE 사용자 전용 ★ 핵심 ★
-                 사장님 V31 #187 설계 + Social Proof 후크
+                 [V200.8.3] 사장님 명세 디자인 — V31 #187 카카오 페이월 교체
                  
-                 1. 잠긴 메시지 안내 (호기심 폭발)
-                 2. 잠긴 내용 상세 (직업/재물/2026/관계)
-                 3. Social Proof 후크 (클로드 보완)
-                 4. 990 / 4900 카드 비교 (Anchoring)
+                 결함 (V200.8.2 라이브 검증):
+                   사장님이 V200.8.1에서 명령한 디자인이 ★ 안 보임 ★
+                   원인: applySajuPaywall이 [3/6] 마커 못 찾고 return,
+                         그 자리엔 옛 V31 #187 페이월이 그대로 표시
+                 해결:
+                   카카오 UI 안에서 ★ 직접 ★ V200.8.1 디자인으로 인라인 렌더
+                   data.preview (worker V200.8.0+가 제공) 사용
                  ════════════════════════════════════════════════════════════ -->
-            
-            <!-- 잠긴 메시지 1: 첫 후크 -->
-            <div class="saju-chat-msg" style="animation-delay:600ms;">
-                <div class="saju-chat-avatar">☯️</div>
-                <div class="saju-chat-bubble warning">
-                    <div class="saju-chat-bubble-title">🔒 분석 결과 일부가 잠겨있습니다</div>
-                </div>
-            </div>
-            
-            <!-- 잠긴 메시지 2: 상세 안내 -->
-            <div class="saju-chat-msg" style="animation-delay:700ms;">
-                <div class="saju-chat-avatar">☯️</div>
-                <div class="saju-chat-bubble">
-                    <div class="saju-chat-bubble-title">다음 내용이 포함되어 있습니다</div>
-                    <div style="line-height:1.9; padding:6px 0;">
-                        → <strong>당신의 직업 방향</strong> (맞는 길 / 틀린 길)<br>
-                        → <strong>재물 흐름</strong> (들어오는 구조 vs 막히는 구조)<br>
-                        → <strong>2026년 결과 방향</strong> (상승 / 정체 갈림)<br>
-                        → <strong>인간관계 충돌 포인트</strong>
-                    </div>
-                    <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(122,209,136,0.2); color:#7AD188; font-size:0.78rem; font-weight:700;">
-                        지금 확인 가능합니다
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ★ V31 #187 클로드 보완: Social Proof 후크 ★ -->
-            <div class="saju-chat-msg" style="animation-delay:800ms;">
-                <div class="saju-chat-avatar">☯️</div>
-                <div class="saju-chat-bubble special">
-                    <div class="saju-chat-bubble-title">💡 당신의 사주 흐름이 특별합니다</div>
-                    <div style="font-size:0.82rem; line-height:1.6;">
-                        정밀 분석 권장 — 흐름 구조가 명확합니다
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ════════════════════════════════════════════════════════════
-                 V31 #187: 상품 선택 카드 — 990 / 4,900 비교 (Anchoring)
-                 ════════════════════════════════════════════════════════════ -->
-            <div style="margin: 18px 0 8px; animation: sajuMsgIn 0.25s ease-out 900ms both;">
+            ${(() => {
+                const _pv = (data && data.preview) || {};
+                const _cf = _pv.currentFlow || '본질 흐름 분석 — 결제 후 상세 내용을 확인하세요.';
+                const _wf = _pv.wealthFlow  || '재물 흐름 분석 — 결제 후 상세 내용을 확인하세요.';
+                const _hk = (_pv.hookKeywords && _pv.hookKeywords.length >= 4) 
+                          ? _pv.hookKeywords 
+                          : ['2026년 갈림길', '인생 전환 시점', '직업 적합도', '인간관계 충돌점'];
+                const _esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => 
+                    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
                 
-                <!-- 💫 990원 카드 -->
-                <div class="saju-plan-card saju-plan-basic" 
-                     onclick="window.handleSajuBasicCTA && window.handleSajuBasicCTA()"
-                     style="
-                       background: linear-gradient(135deg, rgba(122,209,136,0.10), rgba(122,209,136,0.04));
-                       border: 1.5px solid rgba(122,209,136,0.40);
-                       border-radius: 12px;
-                       padding: 16px 18px;
-                       margin-bottom: 10px;
-                       cursor: pointer;
-                       transition: all 0.22s ease;
-                       position: relative;
-                     ">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div style="font-size:1.05rem; font-weight:900; color:#7AD188;">
-                            💫 990원 — 기본 정밀
+                return `
+                <!-- ① 분석 미리보기 2박스 (현재 흐름 / 재물 흐름) -->
+                <div class="saju-chat-msg" style="animation-delay:500ms;">
+                    <div class="saju-chat-avatar">☯️</div>
+                    <div class="saju-chat-bubble" style="padding:12px 14px;">
+                        <div style="margin-bottom:10px; padding:10px 12px; border-radius:8px; 
+                                    border-left:3px solid #5DD68A; 
+                                    background: linear-gradient(90deg, rgba(93,214,138,0.10), rgba(93,214,138,0.02));">
+                            <div style="color:rgba(255,255,255,0.65); font-size:0.7rem; font-weight:700; letter-spacing:0.04em; margin-bottom:5px;">
+                                📈 현재 흐름
+                            </div>
+                            <div style="color:rgba(255,255,255,0.95); font-size:0.86rem; line-height:1.55; font-weight:500;">
+                                ${_esc(_cf)}
+                            </div>
                         </div>
-                        <div style="font-size:0.72rem; color:rgba(255,255,255,0.55);">
-                            현재 상태 확인용
+                        <div style="padding:10px 12px; border-radius:8px; 
+                                    border-left:3px solid #FFD970; 
+                                    background: linear-gradient(90deg, rgba(255,217,112,0.10), rgba(255,217,112,0.02));">
+                            <div style="color:rgba(255,255,255,0.65); font-size:0.7rem; font-weight:700; letter-spacing:0.04em; margin-bottom:5px;">
+                                💰 재물 흐름
+                            </div>
+                            <div style="color:rgba(255,255,255,0.95); font-size:0.86rem; line-height:1.55; font-weight:500;">
+                                ${_esc(_wf)}
+                            </div>
                         </div>
-                    </div>
-                    <div style="font-size:0.82rem; line-height:1.85; color:rgba(255,255,255,0.85);">
-                        ✔ 현재 상태 분석<br>
-                        ✔ 사주 명식<br>
-                        ✔ 6대 분야 점수<br>
-                        ✔ 오늘 / 월 / 2026 흐름
-                    </div>
-                    <div style="margin-top:12px; text-align:center; padding:10px; background:rgba(122,209,136,0.12); border-radius:8px; color:#5DD68A; font-weight:900; font-size:0.92rem;">
-                        [ 990원 결제 ▶ ]
                     </div>
                 </div>
                 
-                <!-- ⭐ 4,900원 카드 (메인 상품) -->
-                <div class="saju-plan-card saju-plan-premium"
-                     onclick="window.handleSajuPremiumCTA && window.handleSajuPremiumCTA()"
-                     style="
-                       background: linear-gradient(135deg, rgba(212,175,55,0.20), rgba(212,175,55,0.06));
-                       border: 2px solid #FFD700;
-                       border-radius: 12px;
-                       padding: 18px;
-                       cursor: pointer;
-                       transition: all 0.22s ease;
-                       position: relative;
-                       box-shadow: 0 4px 20px rgba(212,175,55,0.25);
-                     ">
-                    <!-- 🔥 가장 많이 선택 뱃지 -->
-                    <div style="
-                       position: absolute;
-                       top: -10px;
-                       right: 14px;
-                       background: linear-gradient(135deg, #FFD700, #FFEC9F);
-                       color: #000;
-                       font-size: 0.66rem;
-                       font-weight: 900;
-                       padding: 4px 10px;
-                       border-radius: 12px;
-                       box-shadow: 0 2px 8px rgba(212,175,55,0.5);
-                       letter-spacing: 0.02em;
-                    ">🔥 가장 많이 선택</div>
-                    
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div style="font-size:1.1rem; font-weight:900; color:#FFD700; text-shadow:0 0 10px rgba(255,215,80,0.5);">
-                            ⭐ 4,900원 — PREMIUM
+                <!-- ② 잠금 안내 1줄 + 호기심 키워드 4개 -->
+                <div class="saju-chat-msg" style="animation-delay:650ms;">
+                    <div class="saju-chat-avatar">☯️</div>
+                    <div class="saju-chat-bubble warning" style="padding:11px 14px;">
+                        <div style="color:rgba(255,217,112,0.95); font-size:0.78rem; font-weight:700; margin-bottom:8px;">
+                            🔒 다음 결과는 정밀 분석에서:
                         </div>
-                        <div style="font-size:0.72rem; color:#FFE08A;">
-                            결과까지 보는 분석
+                        <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                            ${_hk.slice(0, 4).map(k => `
+                                <span style="display:inline-block; padding:3px 9px; 
+                                             background:rgba(212,175,55,0.13); 
+                                             border:1px solid rgba(212,175,55,0.3); 
+                                             border-radius:11px; 
+                                             color:rgba(255,217,112,0.95); 
+                                             font-size:0.7rem; font-weight:600; white-space:nowrap;">
+                                    ${_esc(k)}
+                                </span>`).join('')}
                         </div>
-                    </div>
-                    <div style="font-size:0.82rem; line-height:1.85; color:rgba(255,255,255,0.92);">
-                        ✔ <span style="color:#7AD188;">990원 전체 포함</span><br>
-                        ✔ 인생 전환 시점 (언제 바뀌는지)<br>
-                        ✔ 대운 8단계 (평생 흐름)<br>
-                        ✔ 실패 vs 성공 갈림 조건<br>
-                        ✔ 숨겨진 잠재력 구조
-                    </div>
-                    <div style="margin-top:12px; text-align:center; padding:11px; background:linear-gradient(135deg, #FFD700, #FFEC9F); border-radius:8px; color:#000; font-weight:900; font-size:0.96rem; box-shadow: 0 4px 14px rgba(212,175,55,0.4);">
-                        [ ⭐ 4,900원 결제 ▶ ]
                     </div>
                 </div>
-            </div>
+                
+                <!-- ③-A 990 카드 (회색톤 — 보조) -->
+                <div style="margin: 16px 0 10px; animation: sajuMsgIn 0.25s ease-out 800ms both;">
+                    <div class="saju-plan-card saju-plan-basic"
+                         onclick="window.handleSajuBasicCTA && window.handleSajuBasicCTA()"
+                         style="
+                           background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+                           border: 1px solid rgba(255,255,255,0.18);
+                           border-radius: 12px;
+                           padding: 16px 18px;
+                           cursor: pointer;
+                           transition: transform 0.15s ease;
+                         ">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <span style="font-size:1.1rem;">💫</span>
+                            <span style="color:rgba(255,255,255,0.9); font-size:1rem; font-weight:800;">
+                                990원 — 기본 분석
+                            </span>
+                        </div>
+                        <ul style="list-style:none; padding:0; margin:0 0 12px 0;">
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.82); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,255,255,0.55); font-weight:700;">✔</span>
+                                현재 상태 분석
+                            </li>
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.82); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,255,255,0.55); font-weight:700;">✔</span>
+                                사주 명식
+                            </li>
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.82); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,255,255,0.55); font-weight:700;">✔</span>
+                                오늘 / 월 / 2026 흐름
+                            </li>
+                        </ul>
+                        <div style="text-align:center; padding:11px; 
+                                    background:rgba(255,255,255,0.10); 
+                                    border:1px solid rgba(255,255,255,0.22); 
+                                    border-radius:9px; 
+                                    color:rgba(255,255,255,0.95); 
+                                    font-weight:800; font-size:0.94rem;">
+                            990원 시작하기 ▶
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ③-B 4,900 카드 (골드톤 — 메인 + 추천 배지) -->
+                <div style="margin: 0 0 8px; animation: sajuMsgIn 0.25s ease-out 900ms both; position:relative;">
+                    <div class="saju-plan-card saju-plan-premium"
+                         onclick="window.handleSajuPremiumCTA && window.handleSajuPremiumCTA()"
+                         style="
+                           background: linear-gradient(135deg, rgba(212,175,55,0.20), rgba(212,175,55,0.06));
+                           border: 2px solid rgba(212,175,55,0.55);
+                           border-radius: 12px;
+                           padding: 18px;
+                           cursor: pointer;
+                           transition: transform 0.15s ease;
+                           box-shadow: 0 4px 16px rgba(212,175,55,0.25);
+                           position: relative;
+                         ">
+                        <!-- 🔥 추천 배지 (카드 위) -->
+                        <div style="
+                           position: absolute;
+                           top: -10px;
+                           left: 14px;
+                           padding: 3px 10px;
+                           background: #ff6b6b;
+                           color: #fff;
+                           font-size: 0.66rem;
+                           font-weight: 900;
+                           letter-spacing: 0.04em;
+                           border-radius: 10px;
+                           box-shadow: 0 2px 6px rgba(255,107,107,0.4);
+                        ">🔥 가장 많이 선택</div>
+                        
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <span style="font-size:1.15rem;">⭐</span>
+                            <span style="color:#FFE08A; font-size:1.04rem; font-weight:800;">
+                                4,900원 — PREMIUM
+                            </span>
+                        </div>
+                        <ul style="list-style:none; padding:0; margin:0 0 12px 0;">
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.85); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,217,112,0.85); font-weight:700;">✔</span>
+                                기본 분석 전체 포함
+                            </li>
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.85); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,217,112,0.85); font-weight:700;">✔</span>
+                                인생 전환 시점
+                            </li>
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.85); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,217,112,0.85); font-weight:700;">✔</span>
+                                대운 흐름 (평생)
+                            </li>
+                            <li style="position:relative; padding:3px 0 3px 22px; color:rgba(255,255,255,0.85); font-size:0.85rem; line-height:1.45;">
+                                <span style="position:absolute; left:0; top:3px; color:rgba(255,217,112,0.85); font-weight:700;">✔</span>
+                                성공 / 실패 갈림 조건
+                            </li>
+                        </ul>
+                        <div style="text-align:center; padding:12px; 
+                                    background:linear-gradient(135deg, #d4af37, #ffd970); 
+                                    border-radius:9px; 
+                                    color:#0e1117; 
+                                    font-weight:900; font-size:0.96rem;
+                                    box-shadow: 0 3px 10px rgba(212,175,55,0.4);">
+                            4,900원 전체 보기 ▶
+                        </div>
+                    </div>
+                </div>
+                `;
+            })()}
             `}
             
             <!-- 자세히 보기 (Layer B 클래식 UI) -->
