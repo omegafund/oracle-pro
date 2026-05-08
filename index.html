@@ -15,7 +15,7 @@
     <meta name="version" content="V31_200.6_2026-05-07_INPUT_SUMMARY">
     <meta name="zeus-build-tag" content="V31_200.6_GATE_INPUT_PREVIEW">
     
-    <title>ZEUS · Tarot Oracle [V31 #200.8.0]</title>
+    <title>ZEUS · Tarot Oracle [V31 #200.8.1]</title>
 
     <!-- ════════════════════════════════════════════════════════════ -->
     <!-- [V24.10] 파비콘 명시 선언 — 사장님 진단                       -->
@@ -2892,6 +2892,278 @@
             }
             .pay-modal .saju-paywall-block .saju-paywall-title {
                 font-size: 1.08rem;
+            }
+        }
+        
+        /* ════════════════════════════════════════════════════════════════════
+           ★★★ [V200.8.1] 페이월 디자인 재설계 — 사장님 명세 ★★★
+           
+           기존 V200.8.0: 큰 헤더 + 긴 안내 + 옵션 버튼 (난삽)
+           V200.8.1:      ① 분석 미리보기 2박스 (현재 흐름 / 재물 흐름)
+                          ② 1줄 잠금 안내 + 호기심 키워드 4개
+                          ③ 990 카드 (회색톤) + 4900 카드 (골드톤 + 추천 배지)
+                          ④ 정밀 데이터 ▼ 작은 토글
+        ════════════════════════════════════════════════════════════════════ */
+        
+        /* ① 분석 미리보기 박스 (현재 흐름 / 재물 흐름) */
+        .pay-modal .saju-paywall-block .saju-paywall-preview-box {
+            margin: 0 0 12px 0;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border-left: 3px solid;
+            background: rgba(255,255,255,0.04);
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-preview-current {
+            border-left-color: #5DD68A;  /* 청록 톤 (긍정/흐름) */
+            background: linear-gradient(90deg, rgba(93,214,138,0.08), rgba(93,214,138,0.02));
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-preview-wealth {
+            border-left-color: #FFD970;  /* 골드 톤 (재물) */
+            background: linear-gradient(90deg, rgba(255,217,112,0.10), rgba(255,217,112,0.02));
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-preview-label {
+            color: rgba(255,255,255,0.65);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-preview-text {
+            color: rgba(255,255,255,0.95);
+            font-size: 0.95rem;
+            line-height: 1.55;
+            font-weight: 500;
+        }
+        
+        /* ② 잠금 안내 + 키워드 칩 */
+        .pay-modal .saju-paywall-block .saju-paywall-locked-hint {
+            margin: 16px 0 18px 0;
+            padding: 12px 14px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            border: 1px dashed rgba(212,175,55,0.35);
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-locked-title {
+            color: rgba(255,217,112,0.92);
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-locked-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-locked-keywords span {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(212,175,55,0.13);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 12px;
+            color: rgba(255,217,112,0.95);
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        /* ③ 카드 컨테이너 (990 + 4900) */
+        .pay-modal .saju-paywall-block .saju-paywall-card {
+            position: relative;
+            margin: 0 0 12px 0;
+            padding: 16px 18px;
+            border-radius: 12px;
+            transition: transform 0.15s ease;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* 990 카드 — 회색톤 (보조) */
+        .pay-modal .saju-paywall-block .saju-paywall-card-basic {
+            background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+        
+        /* 4900 카드 — 골드톤 (메인 + 추천) */
+        .pay-modal .saju-paywall-block .saju-paywall-card-premium {
+            background: linear-gradient(135deg, rgba(212,175,55,0.20), rgba(212,175,55,0.06));
+            border: 2px solid rgba(212,175,55,0.55);
+            box-shadow: 0 4px 16px rgba(212,175,55,0.25);
+        }
+        
+        /* 추천 배지 — 4900 카드 위 */
+        .pay-modal .saju-paywall-block .saju-paywall-card-badge {
+            position: absolute;
+            top: -10px;
+            left: 14px;
+            padding: 3px 10px;
+            background: #ff6b6b;
+            color: #fff;
+            font-size: 0.66rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(255,107,107,0.4);
+        }
+        
+        /* 카드 헤더 (아이콘 + 이름) */
+        .pay-modal .saju-paywall-block .saju-paywall-card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card-icon {
+            font-size: 1.15rem;
+            line-height: 1;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card-name {
+            color: #FFE08A;
+            font-size: 1.02rem;
+            font-weight: 800;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card-basic .saju-paywall-card-name {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        /* 카드 글머리 (✔ 항목) */
+        .pay-modal .saju-paywall-block .saju-paywall-card-bullets {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 14px 0;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card-bullets li {
+            position: relative;
+            padding: 4px 0 4px 22px;
+            color: rgba(255,255,255,0.82);
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card-bullets li::before {
+            content: '✔';
+            position: absolute;
+            left: 0;
+            top: 4px;
+            color: rgba(255,217,112,0.85);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card-basic .saju-paywall-card-bullets li::before {
+            color: rgba(255,255,255,0.55);
+        }
+        
+        /* CTA 버튼 (V200.8.1 단일 텍스트 — "990원 시작하기 ▶" / "4,900원 전체 보기 ▶") */
+        .pay-modal .saju-paywall-block .saju-paywall-card .saju-paywall-cta {
+            display: block;
+            width: 100%;
+            padding: 13px 16px;
+            border: 0;
+            border-radius: 10px;
+            font-size: 0.96rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            text-align: center;
+            font-family: inherit;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card .saju-paywall-cta-990 {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: rgba(255,255,255,0.95);
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card .saju-paywall-cta-4900 {
+            background: linear-gradient(135deg, #d4af37, #ffd970);
+            color: #0e1117;
+            box-shadow: 0 3px 10px rgba(212,175,55,0.4);
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card .saju-paywall-cta-4900::after {
+            content: '';
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card .saju-paywall-cta:hover {
+            transform: scale(1.01);
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-card .saju-paywall-cta-4900:hover {
+            box-shadow: 0 5px 14px rgba(212,175,55,0.5);
+        }
+        
+        /* ④ 미니 토글 (▼ 정밀 데이터 보기 / 💧 보강 방법 / 👑 직업 적합도) */
+        .pay-modal .saju-paywall-block .saju-paywall-mini-toggles {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            text-align: center;
+            position: relative;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-mini-toggle {
+            display: inline-block;
+            padding: 6px 14px;
+            margin: 4px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 16px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s ease;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-mini-toggle:hover {
+            border-color: rgba(212,175,55,0.5);
+            color: rgba(255,217,112,0.9);
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-mini-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-mini-small {
+            font-size: 0.72rem;
+            padding: 5px 11px;
+        }
+        
+        /* 미니 힌트 토스트 (정밀 데이터 클릭 시 짧게 노출) */
+        .pay-modal .saju-paywall-block .saju-paywall-mini-toast {
+            position: absolute;
+            left: 50%;
+            top: 100%;
+            transform: translate(-50%, 8px);
+            padding: 8px 14px;
+            background: rgba(0,0,0,0.92);
+            border: 1px solid rgba(212,175,55,0.5);
+            border-radius: 8px;
+            color: rgba(255,217,112,0.95);
+            font-size: 0.78rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 10;
+            max-width: 90vw;
+            white-space: normal;
+            text-align: center;
+        }
+        .pay-modal .saju-paywall-block .saju-paywall-mini-toast.saju-paywall-mini-toast-show {
+            opacity: 1;
+            transform: translate(-50%, 4px);
+        }
+        
+        /* V200.8.1 모바일 반응형 */
+        @media (max-width: 480px) {
+            .pay-modal .saju-paywall-block .saju-paywall-preview-box {
+                padding: 12px 14px;
+            }
+            .pay-modal .saju-paywall-block .saju-paywall-preview-text {
+                font-size: 0.88rem;
+            }
+            .pay-modal .saju-paywall-block .saju-paywall-card {
+                padding: 14px 14px;
+            }
+            .pay-modal .saju-paywall-block .saju-paywall-card-name {
+                font-size: 0.96rem;
             }
         }
 </style>
@@ -15873,49 +16145,166 @@ window.handleSajuPremiumCTA = function() {
 window._v8SajuPaywallStuckTimer = null;
 
 /**
- * V200.8.0 — 사주 페이월 HTML 생성
+ * V200.8.1 — 사주 페이월 HTML 생성 (사장님 명세 디자인)
+ *   사장님 V200.8.0 라이브 검증 후 명령:
+ *     기존 디자인 난삽 → 사용자가 점볼 생각 사라짐
+ *     해결: ① 진짜 분석 미리보기 2박스 (현재 흐름 + 재물 흐름)
+ *           ② 안내 문구 1줄로 축소
+ *           ③ 카드 글머리 간결화 + 매력적 카피 ("결제" → "시작하기" / "전체 보기")
+ *           ④ 정밀 데이터는 ▼ 토글 작은 클릭버튼
+ *   격리: data.preview는 worker.js V200.8.0이 제공 (사주 전용 필드)
+ * @param {Object} previewData - { currentFlow, wealthFlow, hookKeywords, wealthGrade, careerGrade }
  * @returns {string} 페이월 HTML
  */
-window.renderSajuPaywallBlockHTML = function() {
+window.renderSajuPaywallBlockHTML = function(previewData) {
+    const _p = previewData || {};
+    const _currentFlow = _p.currentFlow || '본질 흐름 분석 — 결제 후 상세 내용을 확인하세요.';
+    const _wealthFlow = _p.wealthFlow || '재물 흐름 분석 — 결제 후 상세 내용을 확인하세요.';
+    const _hooks = (_p.hookKeywords && _p.hookKeywords.length >= 4) 
+                 ? _p.hookKeywords 
+                 : ['2026년 갈림길', '인생 전환 시점', '직업 적합도', '인간관계 충돌점'];
+    
     return `
 <div class="saju-paywall-block" id="sajuPaywallBlock" data-context="saju">
-    <div class="saju-paywall-headline">
-        <div class="saju-paywall-icon">✨</div>
-        <div class="saju-paywall-title">정밀 분석을 받아보시겠습니까?</div>
-        <div class="saju-paywall-subtitle">
-            본질 흐름 · 6대 분야 운세 · 시계열 흐름 · 종합 통찰<br>
-            잠긴 [3/6]~[6/6] 정밀 분석을 만나보세요
+    
+    <!-- ① 진짜 분석 미리보기 2박스 (사용자에게 "정확하다" 느낌) -->
+    <div class="saju-paywall-preview-box saju-paywall-preview-current">
+        <div class="saju-paywall-preview-label">📈 현재 흐름</div>
+        <div class="saju-paywall-preview-text">${_escape(_currentFlow)}</div>
+    </div>
+    
+    <div class="saju-paywall-preview-box saju-paywall-preview-wealth">
+        <div class="saju-paywall-preview-label">💰 재물 흐름</div>
+        <div class="saju-paywall-preview-text">${_escape(_wealthFlow)}</div>
+    </div>
+    
+    <!-- ② 잠금 안내 (1줄 + 호기심 키워드 4개) -->
+    <div class="saju-paywall-locked-hint">
+        <div class="saju-paywall-locked-title">🔒 다음 결과는 정밀 분석에서:</div>
+        <div class="saju-paywall-locked-keywords">
+            ${_hooks.slice(0, 4).map(k => `<span>${_escape(k)}</span>`).join('')}
         </div>
     </div>
     
-    <div class="saju-paywall-options">
+    <!-- ③-A 990 카드 (회색톤, 보조) -->
+    <div class="saju-paywall-card saju-paywall-card-basic">
+        <div class="saju-paywall-card-head">
+            <span class="saju-paywall-card-icon">💫</span>
+            <span class="saju-paywall-card-name">990원 — 기본 분석</span>
+        </div>
+        <ul class="saju-paywall-card-bullets">
+            <li>현재 상태 분석</li>
+            <li>사주 명식</li>
+            <li>오늘 / 월 / 2026 흐름</li>
+        </ul>
         <button type="button" 
                 class="saju-paywall-cta saju-paywall-cta-990"
                 data-context="saju"
                 data-plan="saju_basic"
                 onclick="window.v8HandleSajuPaywallClick(event, 'saju_basic')">
-            <span>💫 기본 분석</span>
-            <span class="saju-paywall-cta-amount">990원</span>
+            990원 시작하기 ▶
         </button>
+    </div>
+    
+    <!-- ③-B 4900 카드 (골드톤, 메인 + 추천 배지) -->
+    <div class="saju-paywall-card saju-paywall-card-premium">
+        <div class="saju-paywall-card-badge">🔥 가장 많이 선택</div>
+        <div class="saju-paywall-card-head">
+            <span class="saju-paywall-card-icon">⭐</span>
+            <span class="saju-paywall-card-name">4,900원 — PREMIUM</span>
+        </div>
+        <ul class="saju-paywall-card-bullets">
+            <li>기본 분석 전체 포함</li>
+            <li>인생 전환 시점</li>
+            <li>대운 흐름 (평생)</li>
+            <li>성공 / 실패 갈림 조건</li>
+        </ul>
         <button type="button" 
                 class="saju-paywall-cta saju-paywall-cta-4900"
                 data-context="saju"
                 data-plan="saju_premium"
                 onclick="window.v8HandleSajuPaywallClick(event, 'saju_premium')">
-            <span>⭐ 정밀 분석 PRO</span>
-            <span class="saju-paywall-cta-amount">4,900원</span>
+            4,900원 전체 보기 ▶
         </button>
     </div>
     
+    <!-- ④ 정밀 데이터 보기 (작은 토글 클릭버튼) -->
+    <div class="saju-paywall-mini-toggles">
+        <button type="button" class="saju-paywall-mini-toggle" 
+                onclick="window.v8ToggleSajuMiniDetail(event, 'detail')">
+            ▼ 정밀 데이터 보기
+        </button>
+        <div class="saju-paywall-mini-row">
+            <button type="button" class="saju-paywall-mini-toggle saju-paywall-mini-small" 
+                    onclick="window.v8ToggleSajuMiniDetail(event, 'wealth')">
+                💧 보강 방법
+            </button>
+            <button type="button" class="saju-paywall-mini-toggle saju-paywall-mini-small" 
+                    onclick="window.v8ToggleSajuMiniDetail(event, 'career')">
+                👑 직업 적합도
+            </button>
+        </div>
+    </div>
+    
+    <!-- 보안 안내 + 비상 escape -->
     <div class="saju-paywall-secure">
-        🔒 SSL 보안결제 · 토스페이먼츠 · 24시간 이용 가능
+        🔒 토스페이먼츠 · 24시간 이용 가능
     </div>
     
     <div class="saju-paywall-restart-link" 
-         onclick="window.location.replace(window.location.pathname + '?reset=true&v=200.8.0')">
+         onclick="window.location.replace(window.location.pathname + '?reset=true&v=200.8.1')">
         ⟲ 화면 멈춤 시 여기를 탭하세요
     </div>
 </div>`;
+};
+
+// HTML escape helper
+function _escape(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function(c) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+}
+
+/**
+ * V200.8.1 — 정밀 데이터 미니 토글 (잠금 박스 노출 — 결제 유도)
+ * 클릭 시 "정밀 데이터는 결제 후 확인" 메시지 짧게 노출
+ */
+window.v8ToggleSajuMiniDetail = function(event, type) {
+    if (event && event.stopPropagation) event.stopPropagation();
+    console.log('🔘 [V200.8.1] 정밀 데이터 미니 토글:', type);
+    
+    // 격리: 사주 결과 모달 안에서만 작동
+    const sajuModal = document.getElementById('sajuResultModal');
+    if (!sajuModal || !sajuModal.contains(event && event.currentTarget)) {
+        console.warn('🚫 [V200.8.1] 사주 모달 밖 → 차단');
+        return;
+    }
+    
+    // 짧은 힌트 토스트 (페이월 결제 유도)
+    const messages = {
+        detail: '🔒 사주 명식 / 십성 / 12운성 / 신살 — 결제 후 확인 가능합니다',
+        wealth: '🔒 재물 보강 방법 — 4,900원 PREMIUM에서 확인',
+        career: '🔒 직업 적합도 매칭 — 4,900원 PREMIUM에서 확인'
+    };
+    const msg = messages[type] || messages.detail;
+    
+    // 페이월 박스 안에 임시 토스트 표시
+    const paywall = document.getElementById('sajuPaywallBlock');
+    if (paywall) {
+        let toast = paywall.querySelector('.saju-paywall-mini-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'saju-paywall-mini-toast';
+            paywall.querySelector('.saju-paywall-mini-toggles').appendChild(toast);
+        }
+        toast.textContent = msg;
+        toast.classList.add('saju-paywall-mini-toast-show');
+        clearTimeout(window._v8MiniToastTimer);
+        window._v8MiniToastTimer = setTimeout(function() {
+            toast.classList.remove('saju-paywall-mini-toast-show');
+        }, 2400);
+    }
 };
 
 /**
@@ -15959,16 +16348,18 @@ window.v8HandleSajuPaywallClick = function(event, planKey) {
 };
 
 /**
- * V200.8.0 — 결과창에 페이월 적용 (FREE 사용자만)
+ * V200.8.1 — 결과창에 페이월 적용 (FREE 사용자만)
  * 호출: renderSajuResult 끝에서 (innerHTML 설정 후)
  * 격리: 사주 결과 모달에서만 작동
+ * @param {HTMLElement} resultEl - sajuResultModal element
+ * @param {Object} previewData - worker data.preview { currentFlow, wealthFlow, hookKeywords, ... }
  */
-window.applySajuPaywall = function(resultEl) {
+window.applySajuPaywall = function(resultEl, previewData) {
     if (!resultEl) return;
     
     // 격리 가드: 사주 결과 모달인지 확인
     if (resultEl.id !== 'sajuResultModal') {
-        console.warn('🚫 [V200.8.0] applySajuPaywall — sajuResultModal 아님 → 차단');
+        console.warn('🚫 [V200.8.1] applySajuPaywall — sajuResultModal 아님 → 차단');
         return;
     }
     
@@ -16010,9 +16401,9 @@ window.applySajuPaywall = function(resultEl) {
         return;
     }
     
-    // 페이월 블럭 삽입 (block3 ★ 앞에 ★)
+    // 페이월 블럭 삽입 (block3 ★ 앞에 ★) — V200.8.1: previewData 전달
     const paywallEl = document.createElement('div');
-    paywallEl.innerHTML = window.renderSajuPaywallBlockHTML();
+    paywallEl.innerHTML = window.renderSajuPaywallBlockHTML(previewData);
     const paywall = paywallEl.firstElementChild;
     block3Container.parentElement.insertBefore(paywall, block3Container);
     
@@ -17933,30 +18324,33 @@ function renderSajuResult(data) {
     console.log('✅ [V31 #134] 사주 결과 모달 DOM 추가 완료');
     
     // ════════════════════════════════════════════════════════════════════════
-    // ★★★ [V200.8.0] 사주 페이월 적용 ★★★
+    // ★★★ [V200.8.1] 사주 페이월 적용 (디자인 재설계 + previewData) ★★★
     //   FREE 사용자만 [3/6]~[6/6] 블러 + 페이월 표시
     //   BASIC/PREMIUM은 페이월 없음 (정상 결과 노출)
+    //   ★ V200.8.1 ★ data.preview (worker V200.8.0이 제공) 전달
+    //               → 페이월에 "현재 흐름 / 재물 흐름" 진짜 분석 미리보기
     //   격리: applySajuPaywall 함수 자체가 사주 결과 모달 외 영역엔 작동 X
     // ════════════════════════════════════════════════════════════════════════
     try {
         const _v8access = (typeof getSajuAccessLevel === 'function') ? getSajuAccessLevel() : 'free';
-        console.log('🎨 [V200.8.0] renderSajuResult 끝 — access:', _v8access);
+        const _v8preview = (data && data.preview) || null;
+        console.log('🎨 [V200.8.1] renderSajuResult 끝 — access:', _v8access, '/ preview:', _v8preview ? _v8preview._v : '(없음 — 폴백 사용)');
         
         if (_v8access === 'free' && typeof window.applySajuPaywall === 'function') {
-            // FREE 사용자 → 페이월 적용 (블러 + 990/4900 박스)
-            // setTimeout 0으로 DOM 안정화 후 적용
+            // FREE 사용자 → 페이월 적용 (블러 + 990/4900 카드 + 미리보기 박스)
+            // setTimeout 50ms로 DOM 안정화 후 적용
             setTimeout(function() {
                 try {
-                    window.applySajuPaywall(result);
+                    window.applySajuPaywall(result, _v8preview);  // ★ V200.8.1 previewData 전달
                 } catch (paywallErr) {
-                    console.warn('[V200.8.0] applySajuPaywall 예외:', paywallErr.message);
+                    console.warn('[V200.8.1] applySajuPaywall 예외:', paywallErr.message);
                 }
             }, 50);
         } else if (_v8access === 'basic' || _v8access === 'premium') {
-            console.log('  ✅ [V200.8.0] 결제 사용자 (' + _v8access + ') — 페이월 X, 풀 콘텐츠 노출');
+            console.log('  ✅ [V200.8.1] 결제 사용자 (' + _v8access + ') — 페이월 X, 풀 콘텐츠 노출');
         }
     } catch (v8Err) {
-        console.warn('[V200.8.0] 페이월 적용 분기 예외:', v8Err.message);
+        console.warn('[V200.8.1] 페이월 적용 분기 예외:', v8Err.message);
     }
     
     // 검증: 실제로 추가됐는지
