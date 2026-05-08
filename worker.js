@@ -6911,6 +6911,130 @@ function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
       data: tenStars  // 디버그/추가 활용용
     };
 
+    // ════════════════════════════════════════════════════════════════════
+    // ★ [V200.8.2] 십성 enrichment 필드 추가 ★ (개선 1+2+3)
+    //   목적: 클라이언트가 비주얼 바 + 오행색 + 인물형 라벨 렌더링
+    //   격리: tenStarsV2 신규 필드 (기존 tenStars 무손상)
+    // ════════════════════════════════════════════════════════════════════
+    proContent.tenStarsV2 = (function() {
+      try {
+        // 일간 (예: '갑') → 오행 (예: '목')
+        const dayMaster = meta.dayMaster;
+        const dayMasterOhaeng = STEM_TO_OHAENG[dayMaster] || '목';
+        
+        // 십성별 오행 계산 (일간 기준)
+        // 비견/겁재 = 일간과 같은 오행
+        // 식신/상관 = 일간이 생하는 오행 (목→화→토→금→수→목)
+        // 편재/정재 = 일간이 극하는 오행 (목→토, 화→금, 토→수, 금→목, 수→화)
+        // 편관/정관 = 일간을 극하는 오행 (역방향)
+        // 편인/정인 = 일간을 생하는 오행 (역방향)
+        const _生 = { '목':'화', '화':'토', '토':'금', '금':'수', '수':'목' };  // 내가 생함
+        const _剋 = { '목':'토', '화':'금', '토':'수', '금':'목', '수':'화' };  // 내가 극함
+        const _被生 = { '목':'수', '화':'목', '토':'화', '금':'토', '수':'금' };  // 나를 생함
+        const _被剋 = { '목':'금', '화':'수', '토':'목', '금':'화', '수':'토' };  // 나를 극함
+        
+        const sipsungOhaeng = {
+          비견: dayMasterOhaeng,    겁재: dayMasterOhaeng,
+          식신: _生[dayMasterOhaeng],   상관: _生[dayMasterOhaeng],
+          편재: _剋[dayMasterOhaeng],   정재: _剋[dayMasterOhaeng],
+          편관: _被剋[dayMasterOhaeng], 정관: _被剋[dayMasterOhaeng],
+          편인: _被生[dayMasterOhaeng], 정인: _被生[dayMasterOhaeng]
+        };
+        
+        // 분포 → 시각 카테고리 변환 (개선 1)
+        // 점수 분포 기반 상대적 등급 (max값 대비 비율)
+        const distEntries = Object.entries(tenStars.distribution || {})
+          .filter(([k, v]) => v > 0);
+        const maxScore = distEntries.length > 0 
+          ? Math.max(...distEntries.map(([k, v]) => v)) 
+          : 1;
+        
+        const categoryOf = (score) => {
+          const ratio = score / maxScore;
+          if (ratio >= 0.85) return { category: '매우 강함', level: 5, fillPct: 95 };
+          if (ratio >= 0.65) return { category: '강함',     level: 4, fillPct: 75 };
+          if (ratio >= 0.40) return { category: '보통',     level: 3, fillPct: 55 };
+          if (ratio >= 0.20) return { category: '약함',     level: 2, fillPct: 35 };
+          return                   { category: '매우 약함', level: 1, fillPct: 18 };
+        };
+        
+        const bars = distEntries
+          .sort((a, b) => b[1] - a[1])
+          .map(([sipsung, score]) => {
+            const cat = categoryOf(score);
+            const ohaeng = sipsungOhaeng[sipsung] || '토';
+            return {
+              sipsung,                                         // 십성 이름
+              short: V31_TEN_STARS_MATRIX[sipsung]?.short || sipsung,
+              ohaeng,                                          // 오행 (목/화/토/금/수)
+              score: Math.round(score * 10) / 10,              // 원본 점수 (디버그용)
+              category: cat.category,                          // 시각 카테고리
+              level: cat.level,                                // 1~5 레벨
+              fillPct: cat.fillPct                             // 바 채우기 %
+            };
+          });
+        
+        // 인물형 라벨 — 강한 십성 조합 매핑 (개선 3)
+        // 매우 강함 + 강함 카테고리에 든 십성으로 인물형 분류
+        const strongSipsungs = bars
+          .filter(b => b.level >= 4)
+          .map(b => b.sipsung);
+        
+        const archetypeMap = [
+          // [상관, 정재] → 자유 창작자형
+          { has: ['상관', '정재'], label: '🎨 자유 창작자형', tagline: '창의로 돈 버는 구조' },
+          { has: ['상관', '편재'], label: '🎨 프리랜스 혁신가형', tagline: '아이디어로 큰 돈 버는 구조' },
+          // [정관, 정재] → 안정 관리자형
+          { has: ['정관', '정재'], label: '💼 안정 관리자형', tagline: '조직에서 빛나는 구조' },
+          { has: ['정관', '정인'], label: '📚 권위 학자형',   tagline: '학문과 명예로 성장하는 구조' },
+          // [편관, 편재] → 도전 혁신가형
+          { has: ['편관', '편재'], label: '⚔️ 도전 혁신가형',  tagline: '변동에서 큰 결과 내는 구조' },
+          { has: ['편관', '상관'], label: '🔥 카리스마 리더형', tagline: '강한 표현으로 사람을 끄는 구조' },
+          // [정인, 식신] → 현인 멘토형
+          { has: ['정인', '식신'], label: '📚 현인 멘토형',     tagline: '지혜로 영향력 펼치는 구조' },
+          { has: ['편인', '상관'], label: '🔮 직관 창작자형',   tagline: '직관과 표현으로 빛나는 구조' },
+          // [식신, 정재] → 안정 사업가형
+          { has: ['식신', '정재'], label: '🌱 안정 사업가형',   tagline: '꾸준함으로 결실 맺는 구조' },
+          // [비견, 겁재] → 독립 추진가형
+          { has: ['비견', '겁재'], label: '💪 독립 추진가형',   tagline: '자기 힘으로 길을 여는 구조' },
+          // 단일 강함 패턴
+          { has: ['상관'], label: '🎨 표현 창작자형', tagline: '창의력이 핵심인 구조' },
+          { has: ['정재'], label: '💰 재물 관리형',   tagline: '안정 재물 흐름이 강한 구조' },
+          { has: ['편재'], label: '💎 변동 재물형',   tagline: '큰 흐름의 재물을 다루는 구조' },
+          { has: ['정관'], label: '👑 명예 관료형',   tagline: '책임과 권위가 강한 구조' },
+          { has: ['편관'], label: '⚔️ 도전 권력형',   tagline: '강한 추진력의 구조' },
+          { has: ['정인'], label: '📚 학문 연구형',   tagline: '지혜와 학습이 강한 구조' },
+          { has: ['편인'], label: '🔮 직관 분석형',   tagline: '독창적 통찰이 강한 구조' },
+          { has: ['식신'], label: '🌱 안정 베풂형',   tagline: '여유와 베풂의 구조' },
+          { has: ['비견'], label: '🤝 협력 동행형',   tagline: '동료와 함께 가는 구조' },
+          { has: ['겁재'], label: '💪 경쟁 추진형',   tagline: '도전 정신이 강한 구조' }
+        ];
+        
+        let archetype = { label: '☯ 균형 조화형', tagline: '다재다능 균형 구조' };
+        for (const def of archetypeMap) {
+          if (def.has.every(s => strongSipsungs.includes(s))) {
+            archetype = def;
+            break;
+          }
+        }
+        
+        return {
+          dayMaster,                  // 일간 (예: '갑')
+          dayMasterOhaeng,            // 일간 오행 (예: '목')
+          archetype,                  // { label, tagline }
+          bars,                       // [{ sipsung, ohaeng, category, level, fillPct, ... }, ...]
+          _v: 'V200.8.2'
+        };
+      } catch (e) {
+        return {
+          archetype: { label: '☯ 균형 조화형', tagline: '다재다능 균형 구조' },
+          bars: [],
+          _v: 'V200.8.2_fallback',
+          _err: String(e && e.message || e)
+        };
+      }
+    })();
+
     // ★ [V31 #137] 깊이 통찰 - 사주 본질 정밀
     let deepInsightContent = '';
     
@@ -6931,6 +7055,60 @@ function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
       title: '🔮 깊이 통찰 — 격국 분석',
       content: v31EnforceIntent(deepInsightContent, category, scenarioKey)
     };
+    
+    // ════════════════════════════════════════════════════════════════════
+    // ★ [V200.8.2] 격국 V2 — 인물형 서브타이틀 추가 ★ (개선 4)
+    //   목적: 격국 한자 옆에 1줄 인물형 서브타이틀 ("자유 영혼" 등)
+    //   격리: deepInsightV2 신규 필드 (기존 deepInsight 무손상)
+    // ════════════════════════════════════════════════════════════════════
+    proContent.deepInsightV2 = (function() {
+      try {
+        if (!gyeokGuk || !gyeokGuk.gyeokGuk || !gyeokGuk.info) {
+          return {
+            gyeokGuk: null,
+            archetype: { label: '균형형', tagline: '다재다능한 균형 흐름' },
+            features: '오행 분포의 균형과 십성의 흐름 조화',
+            flow: '안정형 운',
+            direction: '자기 강점 발휘 분야 — 성공 확률 ↑',
+            _v: 'V200.8.2'
+          };
+        }
+        
+        // 격국 → 인물형 매핑
+        const gyeokGukArchetype = {
+          '비견격':   { label: '독립 추진가',   tagline: '자기 힘으로 길을 여는 구조' },
+          '겁재격':   { label: '경쟁 도전가',   tagline: '도전 정신으로 빛나는 구조' },
+          '식신격':   { label: '안정 베풂',     tagline: '여유와 베풂의 흐름' },
+          '상관격':   { label: '자유 영혼',     tagline: '창작·혁신가형' },
+          '편재격':   { label: '큰 흐름 사업가', tagline: '변동 재물에 강한 구조' },
+          '정재격':   { label: '재물 관리자',   tagline: '안정 재물에 강한 구조' },
+          '편관격':   { label: '도전 권력가',   tagline: '강한 추진력 구조' },
+          '정관격':   { label: '명예 관료',     tagline: '책임·권위가 강한 구조' },
+          '편인격':   { label: '직관 분석가',   tagline: '독창적 통찰의 구조' },
+          '정인격':   { label: '학문 연구자',   tagline: '지혜와 학습의 구조' }
+        };
+        
+        const archetype = gyeokGukArchetype[gyeokGuk.gyeokGuk] 
+                       || { label: '특수 격국', tagline: '독특한 흐름의 구조' };
+        
+        return {
+          gyeokGuk: gyeokGuk.gyeokGuk,                            // '상관격'
+          name: gyeokGuk.info.name || gyeokGuk.gyeokGuk,          // '상관격(傷官格)'
+          archetype: archetype,                                    // { label: '자유 영혼', tagline: '창작·혁신가형' }
+          features: gyeokGuk.info.strong_point || '특징 분석 중',  // 강점
+          flow:     gyeokGuk.info.fortune || '흐름 분석 중',       // 운세 흐름
+          direction: gyeokGuk.info.suitable_career || '방향 분석 중', // 진로 방향
+          _v: 'V200.8.2'
+        };
+      } catch (e) {
+        return {
+          gyeokGuk: null,
+          archetype: { label: '균형형', tagline: '다재다능한 흐름' },
+          _v: 'V200.8.2_fallback',
+          _err: String(e && e.message || e)
+        };
+      }
+    })();
   }
 
   // ── PRO 30일권 (9,900원) — saju_premium도 동일 (4,900원 정밀 분석) ──
