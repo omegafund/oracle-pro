@@ -15750,6 +15750,80 @@ function buildSajuChatSequenceV185(data) {
         delay: 50
     });
     
+    // ★★★ [V202.3 결함 ②③ 수정] 명식 표 + 오행 분포 메시지 ★★★
+    //
+    //   결함 ② 진단: 사주 결과 상단에 입력값 확인 표시 없음
+    //                  사용자가 자기 입력값 검증 못함 (다른 만세력 앱은 모두 표시)
+    //
+    //   결함 ③ 진단: PREMIUM 카카오 UI에 명식 표가 ★ 누락 ★
+    //                  (BASIC 6블록 UI에는 [2/6] 사주 명식 표 있음)
+    //                  사장님 명령: "4900원 점사는 990원 사주를 포괄하여야 한다"
+    //
+    //   해결: BASIC + PREMIUM 모두에 명식 표 + 오행 분포 + 입력값 표시 메시지 추가
+    {
+        // 명식 데이터 추출 (worker.js 응답 구조)
+        const _pillars = (data && data.sajuData && data.sajuData.pillars)
+                      || (data && data.pillars)
+                      || (v && v.core && v.core.pillars)
+                      || {};
+        
+        // 명식 표가 있을 때만 표시
+        const hasPillars = _pillars.hour || _pillars.day || _pillars.month || _pillars.year;
+        
+        // 입력값 표시 (남/여 양력/음력 1975.06.05 06:25 형식)
+        let _inputDisplay = '';
+        try {
+            const _input = (data && data.input) || (window._sajuInput) || {};
+            const _gender = _input.gender === 'male' ? '남' : (_input.gender === 'female' ? '여' : '');
+            const _calendar = _input.isLunar || _input.calendar === 'lunar' ? '음력' : '양력';
+            const _y = _input.year, _m = _input.month, _d = _input.day;
+            const _hr = _input.hour, _min = _input.minute;
+            
+            if (_y && _m && _d) {
+                const _yStr = String(_y);
+                const _mStr = String(_m).padStart(2, '0');
+                const _dStr = String(_d).padStart(2, '0');
+                const _hrStr = (typeof _hr === 'number') ? String(_hr).padStart(2, '0') : '';
+                const _minStr = (typeof _min === 'number') ? String(_min).padStart(2, '0') : '00';
+                const _timePart = _hrStr ? ` ${_hrStr}:${_minStr}` : '';
+                _inputDisplay = `${_gender ? _gender + ' ' : ''}${_calendar} ${_yStr}.${_mStr}.${_dStr}${_timePart}`;
+                
+                // 음력 정보가 있으면 추가
+                const _lunar = (data && data.sajuData && data.sajuData.lunarDate) 
+                            || (data && data.lunarDate);
+                if (_lunar && _lunar.year && _calendar === '양력') {
+                    const _ly = String(_lunar.year);
+                    const _lm = String(_lunar.month).padStart(2, '0');
+                    const _ld = String(_lunar.day).padStart(2, '0');
+                    _inputDisplay += ` (음력 ${_ly}.${_lm}.${_ld})`;
+                }
+            }
+        } catch (e) {}
+        
+        if (hasPillars) {
+            messages.push({
+                type: 'pillars',
+                pillars: _pillars,
+                inputDisplay: _inputDisplay,
+                time: timeStr,
+                delay: 80
+            });
+        }
+        
+        // 오행 분포 (PREMIUM에서 별도 메시지로 표시되지만, BASIC에서도 보여야 함)
+        const _ohaengDist = (data && data.sajuData && data.sajuData.elements)
+                         || (v && v.core && v.core.elements)
+                         || (data && data.elements);
+        if (_ohaengDist) {
+            messages.push({
+                type: 'ohaeng',
+                distribution: _ohaengDist,
+                time: timeStr,
+                delay: 100
+            });
+        }
+    }
+    
     // ─── [공통] 메시지 2: 본질 (일주 물상) ───
     // ★★★ [V200 결정적 결함 수정] dayMaster 추출 경로 ★★★
     //   사장님 V199.9 검증: "어떤 생시 입력해도 '🌳 큰 나무 본성' 고정"
@@ -15956,6 +16030,68 @@ function buildSajuChatSequenceV185(data) {
 
 // ─── 메시지 → HTML ───
 function renderSajuChatMessageV185(msg, index) {
+    // ★★★ [V202.3 결함 ③ 수정] 명식 표 + 오행 분포 메시지 타입 추가 ★★★
+    //   원인: PREMIUM 카카오 UI에 명식 표가 ★ 없음 ★
+    //         (BASIC 6블록 UI에는 [2/6] 사주 명식 표 있음)
+    //   해결: 'pillars' / 'ohaeng' 새 메시지 타입 → BASIC + PREMIUM 모두 표시
+    //   사장님 명령: "4900원 점사는 990원 사주를 포괄하여야 한다"
+    if (msg.type === 'pillars') {
+        const p = msg.pillars || {};
+        const labels = ['시주', '일주', '월주', '년주'];
+        const keys = ['hour', 'day', 'month', 'year'];
+        const cells = labels.map((label, i) => {
+            const v = p[keys[i]];
+            if (!v) return `<div style="text-align:center; padding:8px 4px; background:rgba(255,255,255,0.04); border-radius:4px; color:rgba(255,255,255,0.3); font-size:0.65rem;">${label}<br><br>—<br>—</div>`;
+            const stem = String(v).charAt(0);
+            const branch = String(v).charAt(1);
+            return `<div style="text-align:center; padding:8px 4px; background:rgba(212,175,55,0.10); border:1px solid rgba(212,175,55,0.30); border-radius:6px;">
+                <div style="color:rgba(255,255,255,0.55); font-size:0.62rem; margin-bottom:3px;">${label}</div>
+                <div style="color:#FFD970; font-size:1.35rem; font-weight:900; line-height:1;">${stem}</div>
+                <div style="color:#FFE08A; font-size:1.12rem; font-weight:700; margin-top:3px;">${branch}</div>
+            </div>`;
+        }).join('');
+        return `
+        <div class="saju-chat-msg" style="animation-delay:${msg.delay || index*200}ms;">
+            <div class="saju-chat-avatar">☯️</div>
+            <div class="saju-chat-bubble">
+                <div class="saju-chat-bubble-title">📜 사주 명식</div>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:5px; margin-top:8px;">
+                    ${cells}
+                </div>
+                ${msg.inputDisplay ? `<div style="margin-top:10px; padding:7px 10px; background:rgba(255,255,255,0.05); border-radius:6px; font-size:0.7rem; color:rgba(255,255,255,0.7); text-align:center; font-weight:600;">${msg.inputDisplay}</div>` : ''}
+                <div class="saju-chat-bubble-time">${msg.time}</div>
+            </div>
+        </div>`;
+    }
+
+    if (msg.type === 'ohaeng') {
+        const dist = msg.distribution || {};
+        const elColors = { '목':'#27ae60', '화':'#e74c3c', '토':'#d4af37', '금':'#bdc3c7', '수':'#3498db' };
+        const elIcons = { '목':'🌳', '화':'🔥', '토':'🟫', '금':'⚙️', '수':'💧' };
+        const total = Object.values(dist).reduce((a, b) => a + (b || 0), 0);
+        const bars = ['목','화','토','금','수'].map(el => {
+            const val = dist[el] || 0;
+            const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+            const barW = Math.max(2, pct);
+            return `<div style="display:flex; align-items:center; gap:7px; margin-bottom:5px;">
+                <div style="width:34px; font-size:0.74rem;">${elIcons[el]} ${el}</div>
+                <div style="flex:1; background:rgba(255,255,255,0.06); height:11px; border-radius:6px; overflow:hidden;">
+                    <div style="width:${barW}%; height:100%; background:${elColors[el]}; opacity:0.85;"></div>
+                </div>
+                <div style="width:38px; text-align:right; font-size:0.72rem; color:rgba(255,255,255,0.85); font-weight:700;">${pct}%</div>
+            </div>`;
+        }).join('');
+        return `
+        <div class="saju-chat-msg" style="animation-delay:${msg.delay || index*200}ms;">
+            <div class="saju-chat-avatar">☯️</div>
+            <div class="saju-chat-bubble">
+                <div class="saju-chat-bubble-title">⚖️ 오행 분포</div>
+                <div style="margin-top:8px;">${bars}</div>
+                <div class="saju-chat-bubble-time">${msg.time}</div>
+            </div>
+        </div>`;
+    }
+
     const cls = msg.type === 'special' ? 'special' 
               : msg.type === 'warning' ? 'warning'
               : msg.type === 'highlight' ? 'highlight'
@@ -16198,13 +16334,21 @@ function renderSajuKakaoChatV185(data) {
         }
         
         // PAID 메시지 3: 모든 특수 패턴 (V184.7 5종 모두)
+        // [V202.3] oracle 점사 텍스트 추가 — 사장님 라이브 결함 수정
+        //   결함: 점수만 표시되고 점사 텍스트가 없어 "이게 무슨 점사야?" 환불 위험
+        //   해결: worker.js buildPotentialPatternsV184_7 oracle 필드 표시
         if (patterns.all && patterns.all.length > 0) {
             let patternsHtml = '';
             patterns.all.forEach(p => {
-                patternsHtml += `<div style="margin:4px 0; font-size:0.78rem;">
+                const oracleHtml = p.oracle 
+                    ? `<div style="margin:2px 0 8px 30px; font-size:0.72rem; color:rgba(255,255,255,0.78); line-height:1.55;">
+                          → ${p.oracle}
+                       </div>`
+                    : '';
+                patternsHtml += `<div style="margin:6px 0 2px; font-size:0.78rem;">
                     ${p.icon} ${p.label}: <strong style="color:${p.gradeColor};">${p.gradeLabel}</strong> 
                     <span style="color:rgba(255,255,255,0.5); font-size:0.7rem;">(${p.score})</span>
-                </div>`;
+                </div>${oracleHtml}`;
             });
             paidContent += `
             <div class="saju-chat-msg" style="animation-delay:150ms;">
@@ -16283,15 +16427,19 @@ function renderSajuKakaoChatV185(data) {
                                        : '#F39C12';
             
             // 8단계 막대 시각화
+            // [V202.3 결함 ④ 수정] 텍스트 좌측 정렬 강제
+            //   사장님 V202.2 라이브 결함: "10년대운 텍스트가 중앙우측에서 시작"
+            //   원인: 부모 컨테이너의 text-align 상속 → 일부 텍스트 인덴트
+            //   해결: 모든 대운 div에 text-align:left 명시
             let barsHtml = '';
             dwPaid.details.forEach((d, idx) => {
                 const color = scoreToColor(d.score);
                 const barWidth = Math.max(15, Math.min(100, d.score));
                 const isCur = d.isCurrent;
                 barsHtml += `
-                <div style="margin-bottom:6px; padding: ${isCur ? '6px 8px' : '0'}; background: ${isCur ? 'rgba(212,175,55,0.18)' : 'transparent'}; border-radius: ${isCur ? '6px' : '0'}; ${isCur ? 'border:1px solid #FFD970;' : ''}">
-                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-bottom:2px;">
-                        <span style="color: ${isCur ? '#FFD970' : 'rgba(255,255,255,0.85)'};">
+                <div style="margin-bottom:6px; padding: ${isCur ? '6px 8px' : '0'}; background: ${isCur ? 'rgba(212,175,55,0.18)' : 'transparent'}; border-radius: ${isCur ? '6px' : '0'}; ${isCur ? 'border:1px solid #FFD970;' : ''} text-align:left;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-bottom:2px; text-align:left;">
+                        <span style="color: ${isCur ? '#FFD970' : 'rgba(255,255,255,0.85)'}; text-align:left;">
                             ${isCur ? '★ ' : ''}${d.startAge}~${d.endAge}세 · <strong>${d.ganzhi}</strong>
                         </span>
                         <span style="color: ${color}; font-weight:900;">${d.score}</span>
@@ -16299,7 +16447,7 @@ function renderSajuKakaoChatV185(data) {
                     <div style="background:rgba(255,255,255,0.05); height:6px; border-radius:3px; overflow:hidden; margin-bottom:2px;">
                         <div style="width:${barWidth}%; height:100%; background:${color}; border-radius:3px;"></div>
                     </div>
-                    <div style="font-size:0.66rem; color:rgba(255,255,255,0.55); line-height:1.4;">
+                    <div style="font-size:0.66rem; color:rgba(255,255,255,0.55); line-height:1.4; text-align:left;">
                         ${d.tenStar} · ${d.luckPhase} · ${d.keyword.tone}
                     </div>
                 </div>`;
