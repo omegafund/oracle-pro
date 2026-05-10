@@ -31,7 +31,7 @@ function corsHeaders() {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     // [V20.8.1] admin.html이 사용하는 x-admin-pass 헤더 허용 추가
-    "Access-Control-Allow-Headers": "Content-Type, x-session-token, x-admin-pass"
+    "Access-Control-Allow-Headers": "Content-Type, x-session-token, x-admin-pass, cache-control, pragma, expires"
   };
 }
 
