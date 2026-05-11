@@ -711,11 +711,20 @@ function detectRiskGate(cardNames, intent) {
                            : '보통';
 
   // [V24.4] 발동 사유 우선순위: 단일 극값 > 다수결 > 평균 > 불확실성
+  // ★★★ [V202.14 사장님 명령] 사용자 친화적 표현으로 변경 ★★★
+  //   사장님 라이브 결함:
+  //     점사 결과 "🔍 흐름 진단" 박스에 
+  //     "CARD_DECISION_MAP 다수결 — HOLD 1장 + SELL 1장 = 2장..." 표출
+  //     = 내부 로직 코드 (사용자 X)
+  //     = 박스 아웃라인 벗어남 (텍스트가 너무 길어서 넘침)
+  //   해결: 사용자 친화적 표현으로 변경
+  //     예: "신중 흐름 — 2장 신중 카드 우세 (관망 권장)"
   let primaryReason;
   if (vol.hasExtremeCard) {
     primaryReason = vol.reason;
   } else if (majorityCaution) {
-    primaryReason = `CARD_DECISION_MAP 다수결: HOLD ${holdCount}장 + SELL ${sellCount}장 = ${cautionCount}장 신중 카드 우세 (BUY ${buyCount}장)`;
+    // ★ V202.14: 내부 코드명 ★ 제거 ★, 사용자 친화적 표현 ★
+    primaryReason = `신중 흐름 — 3장 중 ${cautionCount}장 신중 카드 (관망 권장)`;
   } else if (vol.isHighVolatility) {
     primaryReason = vol.reason;
   } else if (unc.isHighUncertainty) {
