@@ -3214,7 +3214,50 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.16';  // ★ V202.16: _sajuInput 복원을 V202.6 검사 전으로 이동 → 결제 후 음력 표시 정상화
+        const APP_VERSION = 'V202.17';  // ★ V202.17: _sajuInput 복원 ★ 페이지 로드 즉시 ★ 실행 (사장님 음력 표시 결함 잡음)
+        window.APP_VERSION = APP_VERSION;  // ★ V202.17: window 전역 노출 (사장님 콘솔 확인 가능) ★
+        
+        // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
+        //   사장님 라이브 결함 (V202.16 검증 후):
+        //     V202.16 _sajuInput 복원이 ★ setTimeout(1.5초) ★ 안에 있어서
+        //     메인 흐름이 1.5초 안에 이미 renderSajuResult 호출
+        //     → V202.16 복원 코드 ★ 너무 늦음 ★
+        //     → 결과 화면 이미 표시 ★ 폴백 텍스트 ★ ("양력 입력 — 절기 + 간지 100% 정확")
+        //   해결:
+        //     _sajuInput 복원을 ★ script 최상단 (페이지 로드 즉시) ★ 실행
+        //     → 메인 fetch / renderSajuResult 시작 전 ★ 미리 ★ window._sajuInput 준비
+        //     → 모든 렌더링이 _sajuInput 사용 가능
+        //   효과:
+        //     ✅ 결제 후 결과 화면 첫머리 입력값 + 음력 정상 표시
+        //     ✅ V202.6 자동 복원 중복 차단 그대로 유지
+        //     ✅ V202.8 paidEarlyOverlay 제거 그대로 유지
+        try {
+            const _v217Pending = localStorage.getItem('sajuPendingResult');
+            if (_v217Pending) {
+                const _v217Data = JSON.parse(_v217Pending);
+                if (_v217Data && _v217Data.input && typeof _v217Data.input === 'object') {
+                    window._sajuInput = {
+                        year: parseInt(_v217Data.input.year) || null,
+                        month: parseInt(_v217Data.input.month) || null,
+                        day: parseInt(_v217Data.input.day) || null,
+                        hour: (_v217Data.input.hour !== null && _v217Data.input.hour !== undefined && _v217Data.input.hour !== '') 
+                              ? parseInt(_v217Data.input.hour) 
+                              : null,
+                        minute: parseInt(_v217Data.input.minute) || 0,
+                        gender: _v217Data.input.gender === '남' || _v217Data.input.gender === 'male' || _v217Data.input.gender === 'M' 
+                              ? 'male' 
+                              : (_v217Data.input.gender === '여' || _v217Data.input.gender === 'female' || _v217Data.input.gender === 'F' 
+                                ? 'female' 
+                                : ''),
+                        calendar: _v217Data.input.calendar || 'solar',
+                        isLunar: _v217Data.input.calendar === 'lunar' || _v217Data.input.isLunar === true
+                    };
+                    console.log('🔁 [V202.17] _sajuInput ★ 즉시 ★ 복원 (페이지 로드 시점):', window._sajuInput);
+                }
+            }
+        } catch(_v217Err) {
+            console.warn('[V202.17] _sajuInput 즉시 복원 중 오류 (무시):', _v217Err);
+        }
         
         // ★★★ [V202.7 결정적 차단] 전역 fetch lock ★★★
         //   사장님 라이브 결함: 4,900원 결제 후 무한 로딩 (10초 timeout)
