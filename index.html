@@ -3214,7 +3214,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.14';  // ★ V202.14: 투자 점사 CARD_DECISION_MAP 내부 코드 제거 + 주식 실전 박스 위 구분선 제거 (사장님 명령)
+        const APP_VERSION = 'V202.15';  // ★ V202.15: 버전 배지 30% 진하게 (사장님 명령) + V202.14 보존
         
         // ★★★ [V202.7 결정적 차단] 전역 fetch lock ★★★
         //   사장님 라이브 결함: 4,900원 결제 후 무한 로딩 (10초 timeout)
@@ -3975,14 +3975,21 @@
                - 한 곳 (window.APP_VERSION) 만 갱신하면 자동 동기화
                - id="zeus-version-badge"의 textContent 자동 적용
              ════════════════════════════════════════════════════════════ -->
+        <!-- ★★★ [V202.15 사장님 명령] 버전 배지 30% 진하게 ★★★ -->
+        <!--   사장님 명령: "버전 표시 글자가 너무 희미하여 30%정도 진하게"          -->
+        <!--   변경:                                                                  -->
+        <!--     글자 색상 alpha: 0.55 → 0.72 (+30%)                                  -->
+        <!--     배경 색상 alpha: 0.35 → 0.50 (+~40%, 가독성 보강)                    -->
+        <!--   유지:                                                                  -->
+        <!--     글자 크기 0.58rem (사장님 명령: "글자 크기는 그대로")                 -->
         <div id="zeus-version-badge" style="
             position: fixed;
             top: 8px;
             right: 8px;
             z-index: 100;
             font-size: 0.58rem;
-            color: rgba(212,175,55,0.55);
-            background: rgba(0,0,0,0.35);
+            color: rgba(212,175,55,0.72);
+            background: rgba(0,0,0,0.50);
             padding: 3px 7px;
             border-radius: 3px;
             font-family: 'SF Mono', Menlo, Consolas, monospace;
