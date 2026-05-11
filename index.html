@@ -3214,7 +3214,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.15';  // ★ V202.15: 버전 배지 30% 진하게 (사장님 명령) + V202.14 보존
+        const APP_VERSION = 'V202.16';  // ★ V202.16: _sajuInput 복원을 V202.6 검사 전으로 이동 → 결제 후 음력 표시 정상화
         
         // ★★★ [V202.7 결정적 차단] 전역 fetch lock ★★★
         //   사장님 라이브 결함: 4,900원 결제 후 무한 로딩 (10초 timeout)
@@ -4843,6 +4843,54 @@ window.addEventListener('load', () => {
   // ════════════════════════════════════════════════════════════════════════
   setTimeout(() => {
     try {
+      // ════════════════════════════════════════════════════════════════════════
+      // ★★★ [V202.16 결정적 수정] _sajuInput 복원 ★ V202.6 검사 전 ★ ★★★
+      //   사장님 라이브 결함 (V202.15 검증 후):
+      //     사주 결과 첫머리에 "양력 입력 — 절기 + 간지 100% 정확" 그대로 표시
+      //   원인 (정밀 진단):
+      //     1. 사장님이 결제 후 ?paid=ok 진입
+      //     2. paidEarlyOverlay 표시됨
+      //     3. setTimeout 자동 복원 1.5초 후 실행
+      //     4. ★ V202.6 검사 ★ : paidEarlyOverlay 존재 → return (건너뜀)
+      //     5. ★ V202.12 _sajuInput 복원 코드 도달 X ★
+      //     6. 메인 흐름은 새 fetch 없이 자동 복원만 시도 → window._sajuInput 없음
+      //     7. 결과 첫머리 입력값 표시 ★ 안 됨 ★ → 폴백 텍스트
+      //   해결:
+      //     _sajuInput 복원을 ★ V202.6 건너뜀 검사 전에 ★ 실행
+      //     fetch 안 해도 입력값은 ★ 항상 복원 ★ (UI 표시용)
+      //   효과:
+      //     ✅ 결과 첫머리 입력값 + 음력 표시 정상 작동
+      //     ✅ V202.6 자동 복원 중복 차단 ★ 그대로 유지 ★
+      //     ✅ V202.8 paidEarlyOverlay 제거 ★ 그대로 유지 ★
+      // ════════════════════════════════════════════════════════════════════════
+      try {
+        const _v216Pending = localStorage.getItem('sajuPendingResult');
+        if (_v216Pending) {
+          const _v216Data = JSON.parse(_v216Pending);
+          if (_v216Data.input && typeof _v216Data.input === 'object') {
+            window._sajuInput = {
+              year: parseInt(_v216Data.input.year) || null,
+              month: parseInt(_v216Data.input.month) || null,
+              day: parseInt(_v216Data.input.day) || null,
+              hour: (_v216Data.input.hour !== null && _v216Data.input.hour !== undefined && _v216Data.input.hour !== '') 
+                    ? parseInt(_v216Data.input.hour) 
+                    : null,
+              minute: parseInt(_v216Data.input.minute) || 0,
+              gender: _v216Data.input.gender === '남' || _v216Data.input.gender === 'male' || _v216Data.input.gender === 'M' 
+                    ? 'male' 
+                    : (_v216Data.input.gender === '여' || _v216Data.input.gender === 'female' || _v216Data.input.gender === 'F' 
+                      ? 'female' 
+                      : ''),
+              calendar: _v216Data.input.calendar || 'solar',
+              isLunar: _v216Data.input.calendar === 'lunar' || _v216Data.input.isLunar === true
+            };
+            console.log('🔁 [V202.16] _sajuInput 복원 (V202.6 검사 전):', window._sajuInput);
+          }
+        }
+      } catch(_v216Err) {
+        console.warn('[V202.16] _sajuInput 복원 중 오류 (무시):', _v216Err);
+      }
+      
       // [V202.6] ★ 정상 흐름이 이미 진행 중이면 자동 복원 건너뜀 ★
       //   결제 직후 ?paid=ok 흐름이 sajuResultModal 또는 paidEarlyOverlay 표시 중
       //   = 메인 흐름이 이미 fetch 처리 중
