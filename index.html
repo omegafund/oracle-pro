@@ -3233,7 +3233,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.34';  // ★ V202.34: 용신+희신 한 줄, 행운 가이드 헤더 용신 명시, 🔥 사주 키워드 (용신 기반) 박스 마지막
+        const APP_VERSION = 'V202.35';  // ★ V202.35: 라이브 결함 - yongshin 경로 (v184_5) + PRO 펼침 닫기 위치 이동
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -18700,8 +18700,11 @@ function renderSajuResult(data) {
                     const _oracle = text.zeusSajuOracle;
                     if (!_oracle || !_oracle.coreStructure) return '';
                     
-                    // ★ 용신 실제 값 추출 ★
-                    const _ysData = data.yongshin || data.pro?.yongshin || null;
+                    // ★ 용신 실제 값 추출 ★ — V202.35 사장님 라이브 결함 수정
+                    //   결함: data.yongshin 경로 X → "용신: -" 표시 + 행운 가이드 박스 안 나옴
+                    //   원인: /saju/oracle 응답에서 yongshin은 data.v184_5.yongshin 경로
+                    //   해결: 3단 폴백 (v184_5 → 최상위 → pro)
+                    const _ysData = data.v184_5?.yongshin || data.yongshin || data.pro?.yongshin || null;
                     const _ysName = _ysData?.yongshin || '';
                     
                     // ★ V202.34 희신 자동 계산 (오행 상생: 용신을 생하는 오행) ★
@@ -18749,7 +18752,11 @@ function renderSajuResult(data) {
                 // 데이터: 워커 YONGSHIN_RECOMMENDATIONS (5종 → 10종 확장)
                 
                 // ★ yongshin 데이터 추출 (data.yongshin 또는 PRO에서) ★
-                const _yongshinRaw = data.yongshin || data.pro?.yongshin || null;
+                // ★ yongshin 데이터 추출 ★ — V202.35 사장님 라이브 결함 수정
+                //   결함: 행운 가이드 박스 안 나옴 (data.yongshin 경로 X)
+                //   원인: /saju/oracle 응답 실제 경로 data.v184_5.yongshin
+                //   해결: 3단 폴백
+                const _yongshinRaw = data.v184_5?.yongshin || data.yongshin || data.pro?.yongshin || null;
                 if (!_yongshinRaw || !_yongshinRaw.recommendations) return '';
                 
                 const _rec = _yongshinRaw.recommendations;
@@ -19716,21 +19723,13 @@ function renderSajuResult(data) {
                 //   새 위치: 라인 18820 부근 (ZEUS SAJU ORACLE 박스 직후)
                 
                 // ════════════════════════════════════════════════════════════
-                // ★ [V202.32 사장님 B-1 안] PRO 펼침 박스 ★ 닫기 ★
-                //   [4/6] [5/6] [6/6] [7/8] [8/8] 모든 박스 = ★ 펼침 안 ★
-                //   재방문 CTA는 ★ 펼침 밖 ★ (최하단 노출)
+                // ★ [V202.35 사장님 라이브 결함 수정] PRO 펼침 닫기 ★ 이동 ★
+                //   V202.32 결함: <details> 시작은 정적, 닫기는 IIFE 안 html 변수
+                //   = 변수 scope 불일치 → details 안 닫힘
+                //   해결 (V202.35): 닫기를 정적 HTML로 result.innerHTML 안으로 이동
+                //   = 여기서는 ★ 제거 ★ (중복 방지)
                 // ════════════════════════════════════════════════════════════
-                html += `
-                </div>
-                </details>
-                <style>
-                    .zeus-saju-deep-toggle[open] .zeus-saju-deep-chev { transform: rotate(180deg); }
-                    .zeus-saju-deep-toggle summary::-webkit-details-marker { display: none; }
-                    .zeus-saju-deep-toggle summary::marker { content: ''; }
-                    .zeus-saju-deep-toggle summary:hover { background: rgba(155,89,182,0.18); }
-                    .zeus-saju-deep-toggle[open] summary { background: rgba(155,89,182,0.20); border-bottom: 1px solid rgba(155,89,182,0.3); }
-                </style>
-                `;
+                // (PRO 펼침 박스 닫기는 result.innerHTML 안 라인 19808 부근에 정적으로 배치됨)
                 
                 // ─── [V31 #184.6] 재방문 CTA — "3일 뒤 재확인" ───
                 //   ZEUS 차별화 정체성 강화: "행동 → 결과" 메시지
@@ -19797,6 +19796,20 @@ function renderSajuResult(data) {
                 
                 return html;
             })() : ''}
+
+            <!-- ★★★ [V202.35 사장님 라이브 결함 수정] PRO 펼침 박스 닫기 ★★★ -->
+            <!--   결함: V202.32에서 <details> 시작은 정적 HTML, 닫기는 IIFE 안 html 변수 -->
+            <!--   원인: 변수 scope 불일치 → details가 안 닫혀서 [4/6]~[8/8] 펼쳐서 노출 -->
+            <!--   해결: 닫기를 정적 HTML로 IIFE 직후 이동 (구조 일관성) -->
+            </div>
+            </details>
+            <style>
+                .zeus-saju-deep-toggle[open] .zeus-saju-deep-chev { transform: rotate(180deg); }
+                .zeus-saju-deep-toggle summary::-webkit-details-marker { display: none; }
+                .zeus-saju-deep-toggle summary::marker { content: ''; }
+                .zeus-saju-deep-toggle summary:hover { background: rgba(155,89,182,0.18); }
+                .zeus-saju-deep-toggle[open] summary { background: rgba(155,89,182,0.20); border-bottom: 1px solid rgba(155,89,182,0.3); }
+            </style>
 
             <!-- ════════════════════════════════════════════════════════════
                  ★★★ [V200.7.4 사장님 명세 정확 적용] 4,900원 꼬시는 박스 ★★★
