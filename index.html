@@ -3303,7 +3303,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.37';  // ★ V202.37: 좌측정렬 결함 + 용어풀이 + 펼침창 시인성 + PRO헤더 + 대운8단계 풀이 + 조사 어법 자동분기
+        const APP_VERSION = 'V202.38';  // ★ V202.38: 사주 십성 조사 결함 (겁재이란?→겁재란?) + 투자 깊이점사창 시인성 진화 (ZEUS 매매 결정서)
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -12155,38 +12155,69 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
             // ★ [V202.28 사장님 D안] 5계층 박스 → ★ 강한 버튼 ★ 형식 ★
             //   사장님 진단: "+ 깊이 분석 (5계층 PRO)" 직관성 부족 — 유저 안 누름
             //   해결: 명확한 버튼 디자인 + 아이콘 + 펼침 화살표 + 강조 색상
+            // ★★★ [V202.38 #2 사장님 명령 — A안] ZEUS 매매 결정서 진화 ★★★
+            //   사장님 진단 (라이브): "시인성도 밝기도 어두워서 안 눌러진다"
+            //   변경:
+            //     • 보라/파랑 → 에메랄드 그린 (사주 펼침창과 ★ 시각 일관 ★)
+            //     • 타이틀 "깊이 점사 보기" → "🎯 ZEUS 매매 결정서"
+            //     • 영문 부제 "FULL DECISION ORACLE" 추가
+            //     • NEW 뱃지 (강 발광)
+            //     • 펄스 애니메이션 (안 펼친 사용자 클릭 유도)
+            //     • 명확 안내: "✦ 터치하여 펼쳐보기 ▼ (실전 매매·타이밍·리스크·행동 지침)"
+            //   격리: class="zeus-deep-toggle-v28" 그대로 유지 (V202.39 결과창 재설계 안전)
             const _layer5Wrapped = (_tv202_25 && layer5HTML)
                 ? `<details style="margin-top:12px; border-radius:12px; padding:0; overflow:hidden;
-                                   background: linear-gradient(135deg, rgba(155,89,182,0.12), rgba(52,152,219,0.08));
-                                   border: 2px solid rgba(155,89,182,0.45);
-                                   box-shadow: 0 0 14px rgba(155,89,182,0.18);"
+                                   background: linear-gradient(135deg, rgba(122,209,136,0.15), rgba(93,214,138,0.06));
+                                   border: 2px solid rgba(122,209,136,0.55);"
                             class="zeus-deep-toggle-v28">
-                    <summary style="padding:14px 16px; cursor:pointer; display:flex; align-items:center;
+                    <summary style="padding:16px 16px; cursor:pointer; display:flex; align-items:center;
                                     user-select:none; list-style:none; -webkit-tap-highlight-color:transparent;
-                                    background: rgba(155,89,182,0.10);">
-                        <span style="font-size:1.3rem; margin-right:11px; filter:drop-shadow(0 0 6px rgba(241,196,15,0.5));">🔮</span>
+                                    background: rgba(122,209,136,0.10);">
+                        <span style="font-size:1.6rem; margin-right:12px; filter:drop-shadow(0 0 8px rgba(93,214,138,0.6));">🎯</span>
                         <span style="display:flex; flex-direction:column; flex:1; min-width:0;">
-                            <span style="color:#fff; font-size:0.95rem; font-weight:800; letter-spacing:0.02em; margin-bottom:2px; line-height:1.3;">
-                                깊이 점사 보기
+                            <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                                <span style="color:#FFE08A; font-size:1.02rem; font-weight:900; letter-spacing:0.02em; line-height:1.3;">
+                                    ZEUS 매매 결정서
+                                </span>
+                                <span style="padding:1px 6px; background:linear-gradient(135deg, #5DD68A, #7AD188);
+                                             color:#0a1a0e; font-size:0.55rem; font-weight:900;
+                                             border-radius:7px; letter-spacing:0.04em;
+                                             box-shadow:0 0 8px rgba(93,214,138,0.55);">NEW</span>
+                            </div>
+                            <span style="color:#5DD68A; font-size:0.68rem; font-weight:900; letter-spacing:0.14em; margin-bottom:5px;">
+                                FULL DECISION ORACLE
                             </span>
-                            <span style="color:rgba(241,196,15,0.85); font-size:0.7rem; font-weight:700; letter-spacing:0.08em;">
-                                ✦ 5계층 PRO 콘텐츠 (눌러서 펼치기)
+                            <span style="color:rgba(255,255,255,0.78); font-size:0.72rem; font-weight:700; letter-spacing:0.02em; line-height:1.5;
+                                         word-break:keep-all; overflow-wrap:break-word;">
+                                ✦ 터치하여 펼쳐보기 ▼ (실전 매매·타이밍·리스크·행동 지침)
                             </span>
                         </span>
-                        <span class="zeus-deep-chev" style="color:#F1C40F; font-size:1.5rem; font-weight:900;
+                        <span class="zeus-deep-chev" style="color:#7AD188; font-size:1.5rem; font-weight:900;
                                                             transition: transform 0.3s ease;
-                                                            margin-left:6px; line-height:1;">
+                                                            margin-left:6px; line-height:1;
+                                                            filter:drop-shadow(0 0 4px rgba(122,209,136,0.6));">
                             ⌄
                         </span>
                     </summary>
                     <div style="padding:14px 8px 8px;">${layer5HTML}</div>
                 </details>
                 <style>
+                    @keyframes _v38_pulseGlowInv {
+                        0%, 100% { box-shadow: 0 0 14px rgba(122,209,136,0.28); }
+                        50%      { box-shadow: 0 0 22px rgba(122,209,136,0.55); }
+                    }
+                    .zeus-deep-toggle-v28:not([open]) {
+                        animation: _v38_pulseGlowInv 2.4s ease-in-out infinite;
+                    }
+                    .zeus-deep-toggle-v28[open] {
+                        animation: none;
+                        box-shadow: 0 0 14px rgba(122,209,136,0.20) !important;
+                    }
                     .zeus-deep-toggle-v28[open] .zeus-deep-chev { transform: rotate(180deg); }
                     .zeus-deep-toggle-v28 summary::-webkit-details-marker { display: none; }
                     .zeus-deep-toggle-v28 summary::marker { content: ''; }
-                    .zeus-deep-toggle-v28 summary:hover { background: rgba(155,89,182,0.18); }
-                    .zeus-deep-toggle-v28[open] summary { background: rgba(155,89,182,0.20); border-bottom: 1px solid rgba(155,89,182,0.3); }
+                    .zeus-deep-toggle-v28 summary:hover { background: rgba(122,209,136,0.20); }
+                    .zeus-deep-toggle-v28[open] summary { background: rgba(122,209,136,0.22); border-bottom: 1px solid rgba(122,209,136,0.35); }
                 </style>`
                 : layer5HTML;
 
@@ -19443,11 +19474,21 @@ function renderSajuResult(data) {
                             <div style="color:#C39BD3; font-weight:800; margin-bottom:5px; font-size:0.76rem;">
                                 ★ 십성 용어 풀이
                             </div>
-                            ${_v37_detectedSipsung.map(k => `
+                            ${_v37_detectedSipsung.map(k => {
+                                // ★ V202.38 #1 사장님 명령: 십성 풀이 조사 결함 수정 ★
+                                //   결함 (V202.37): '* ${k}이란?' 고정 → '겁재이란?' 어법 결함
+                                //   해결: 받침 자동 분기 (이란/란)
+                                //     '겁재(劫財)' (재-받침X) → '겁재란?'   ✅
+                                //     '정인(正印)' (인-받침O) → '정인이란?' ✅
+                                const _last = k[k.length - 1];
+                                const _code = _last.charCodeAt(0);
+                                const _ilanSuffix = (_code >= 0xAC00 && _code <= 0xD7A3 && ((_code - 0xAC00) % 28) !== 0) ? '이란' : '란';
+                                return `
                                 <div style="margin-bottom:3px;">
-                                    <span style="color:#FFE08A; font-weight:800;">* ${k}이란?</span> 
+                                    <span style="color:#FFE08A; font-weight:800;">* ${k}${_ilanSuffix}?</span> 
                                     ${_v37_sipsungGlossary[k]}
-                                </div>`).join('')}
+                                </div>`;
+                            }).join('')}
                         </div>` : '';
                     
                     return `
