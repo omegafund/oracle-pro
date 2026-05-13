@@ -18053,7 +18053,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.40",      // ★ V202.40: 사장님 핫픽스 - 연애 결과창 외곽/안쪽 padding 축소 (V202.39 투자와 동일 패턴 적용, 카테고리 시각 일관성)
+        version: "V202.41",      // ★ V202.41: 사장님 핫픽스 2종 - ① 황금/초록 테두리 ↔ 다음 선 빈 공간 30% 추가 축소 (투자+연애 공통) ② "미래 신탁 잠금 해제" 버튼 한 줄 (padding 35px → 18px)
         _ts: Date.now(),
         _ok: true
       }), {
