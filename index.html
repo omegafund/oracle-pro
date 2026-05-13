@@ -3303,7 +3303,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.36';  // ★ V202.36: 입력모달 버튼통합(A+X) + 일간 10종 진화 + 용신 아이콘 오행분기 + 점사창 폭/반응형 강화
+        const APP_VERSION = 'V202.37';  // ★ V202.37: 좌측정렬 결함 + 용어풀이 + 펼침창 시인성 + PRO헤더 + 대운8단계 풀이 + 조사 어법 자동분기
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -18865,6 +18865,23 @@ function renderSajuResult(data) {
                                     <strong style="color:#FFE08A;">${_v36_hsIcon} 희신:</strong>
                                     <span style="color:#C39BD3; font-weight:800; font-size:0.95rem;">${_hs.name}(${_hs.hanja})</span>` : ''}
                         </div>
+                        <!-- ★ V202.37 #2 사장님 명령: 용신/희신 용어 풀이 (20-30대 친화) ★ -->
+                        <div style="margin-top:10px; padding:9px 11px; 
+                                    background:rgba(127,205,255,0.08); 
+                                    border-left:2px solid rgba(127,205,255,0.4); 
+                                    border-radius:0 6px 6px 0;
+                                    font-size:0.74rem; line-height:1.6; color:rgba(255,255,255,0.75);
+                                    word-break:keep-all; overflow-wrap:break-word;">
+                            <div style="margin-bottom:3px;">
+                                <span style="color:#7FCDFF; font-weight:800;">* 용신이란?</span> 
+                                내 사주에 부족한 기운 — 채우면 운이 풀리는 핵심 성분
+                            </div>
+                            ${_hs ? `
+                            <div>
+                                <span style="color:#C39BD3; font-weight:800;">* 희신이란?</span> 
+                                용신을 돕는 보조 기운 — 함께 챙기면 효과가 배가됩니다
+                            </div>` : ''}
+                        </div>
                     </div>
                     `;
                 })()}
@@ -19024,30 +19041,57 @@ function renderSajuResult(data) {
 
             <!-- ════════════════════════════════════════════════════════════
                  ★★★ [V202.32 사장님 B-1 안] [4/6]~[8/8] PRO 펼침 통합 ★★★
+                 ★★★ [V202.37 #3 사장님 명령] 시인성 대폭 개선 ★★★
                  ════════════════════════════════════════════════════════════
-                 사장님 진단: "결제 직후 결론+행운 2박스만 노출, 깊이는 펼침"
-                 효과: 스크롤 9박스 → 2박스 + 1펼침 = 글로벌 UX 표준
-                 시인성: 투자 신탁 '🔮 깊이 점사 보기' 강한 버튼과 동일 패턴
+                 V202.37 변경:
+                   • 보라/파랑 → 에메랄드 그린 (saju-mint #7AD188 / #5DD68A)
+                   • 타이틀: "깊이 사주 분석 보기" → "🌟 맞춤 행운 가이드 LUCKY GUIDE"
+                   • 안내: "(눌러서 펼치기)" → "✦ 터치하여 펼쳐보기 ▼ (격국·운성·신살·대운)"
+                   • NEW 뱃지 추가 (강한 발광)
+                   • 펄스 애니메이션 (안 펼친 사용자 클릭 유도)
                  ════════════════════════════════════════════════════════════ -->
+            <style>
+                @keyframes _v37_pulseGlow {
+                    0%, 100% { box-shadow: 0 0 14px rgba(122,209,136,0.28); }
+                    50%      { box-shadow: 0 0 22px rgba(122,209,136,0.55); }
+                }
+                .zeus-saju-deep-toggle:not([open]) {
+                    animation: _v37_pulseGlow 2.4s ease-in-out infinite;
+                }
+                .zeus-saju-deep-toggle[open] {
+                    animation: none;
+                    box-shadow: 0 0 14px rgba(122,209,136,0.20) !important;
+                }
+            </style>
             <details style="margin:22px 0 14px; border-radius:12px; padding:0; overflow:hidden;
-                            background: linear-gradient(135deg, rgba(155,89,182,0.12), rgba(52,152,219,0.08));
-                            border: 2px solid rgba(155,89,182,0.45);
-                            box-shadow: 0 0 14px rgba(155,89,182,0.18);"
+                            background: linear-gradient(135deg, rgba(122,209,136,0.15), rgba(93,214,138,0.06));
+                            border: 2px solid rgba(122,209,136,0.55);"
                     class="zeus-saju-deep-toggle">
-                <summary style="padding:14px 16px; cursor:pointer; display:flex; align-items:center;
+                <summary style="padding:16px 16px; cursor:pointer; display:flex; align-items:center;
                                 user-select:none; list-style:none; -webkit-tap-highlight-color:transparent;
-                                background: rgba(155,89,182,0.10);">
-                    <span style="font-size:1.4rem; margin-right:12px; filter:drop-shadow(0 0 6px rgba(241,196,15,0.5));">🔮</span>
+                                background: rgba(122,209,136,0.10);">
+                    <span style="font-size:1.6rem; margin-right:12px; filter:drop-shadow(0 0 8px rgba(93,214,138,0.6));">🌟</span>
                     <span style="display:flex; flex-direction:column; flex:1; min-width:0;">
-                        <span style="color:#fff; font-size:0.98rem; font-weight:800; letter-spacing:0.02em; margin-bottom:2px; line-height:1.3;">
-                            깊이 사주 분석 보기
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                            <span style="color:#FFE08A; font-size:1.02rem; font-weight:900; letter-spacing:0.02em; line-height:1.3;">
+                                맞춤 행운 가이드
+                            </span>
+                            <span style="padding:1px 6px; background:linear-gradient(135deg, #5DD68A, #7AD188);
+                                         color:#0a1a0e; font-size:0.55rem; font-weight:900;
+                                         border-radius:7px; letter-spacing:0.04em;
+                                         box-shadow:0 0 8px rgba(93,214,138,0.55);">NEW</span>
+                        </div>
+                        <span style="color:#5DD68A; font-size:0.68rem; font-weight:900; letter-spacing:0.14em; margin-bottom:5px;">
+                            LUCKY GUIDE
                         </span>
-                        <span style="color:rgba(241,196,15,0.85); font-size:0.7rem; font-weight:700; letter-spacing:0.08em;">
-                            ✦ 종합 신탁 · 격국 · 신살 · 12운성 · 대운 · 6대 분야 (눌러서 펼치기)
+                        <span style="color:rgba(255,255,255,0.78); font-size:0.72rem; font-weight:700; letter-spacing:0.02em; line-height:1.5;
+                                     word-break:keep-all; overflow-wrap:break-word;">
+                            ✦ 터치하여 펼쳐보기 ▼ (격국·운성·신살·대운)
                         </span>
                     </span>
-                    <span class="zeus-saju-deep-chev" style="color:#F1C40F; font-size:1.5rem; font-weight:900;
-                                                            transition: transform 0.3s ease; margin-left:6px; line-height:1;">
+                    <span class="zeus-saju-deep-chev" style="color:#7AD188; font-size:1.5rem; font-weight:900;
+                                                            transition: transform 0.3s ease; margin-left:6px; line-height:1;
+                                                            filter:drop-shadow(0 0 4px rgba(122,209,136,0.6));">
                         ⌄
                     </span>
                 </summary>
@@ -19287,41 +19331,16 @@ function renderSajuResult(data) {
             ═══════════════════════════════════════════════════════════ -->
             ${(data.pro && data.pro.tier !== 'free' && data.pro.available) ? `
             <div style="margin:18px 0; padding:18px; background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06)); border:2px solid rgba(212,175,55,0.6); border-radius:10px; box-shadow:0 4px 18px rgba(212,175,55,0.2);">
-                <!-- [V31 #164] 6블록 라벨 추가 -->
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+                <!-- ★★★ [V202.37 #4 사장님 명령: PRO 헤더 변경] ★★★ -->
+                <!--   변경 전: ✦ PRO 정밀 분석 / ✨ PRO 신탁 (본인 사주 1회 (정밀) 이용권) -->
+                <!--   변경 후: ✦ 운명의 심층 구조 / 격국 · 용신 · 운성 흐름 정밀 해석 -->
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
                     <span style="font-size:0.7rem; color:#FFD970; font-weight:900; letter-spacing:0.05em;">[6/6]</span>
-                    <span style="color:#FFD970; font-size:0.86rem; font-weight:900;">✦ PRO 정밀 분석</span>
+                    <span style="color:#FFD970; font-size:0.95rem; font-weight:900;">✦ 운명의 심층 구조</span>
                 </div>
-                <div style="text-align:center; margin-bottom:14px;">
-                    <div style="display:inline-block; padding:6px 14px; background:linear-gradient(135deg, #D4AF37, #FFD970); color:#000; font-size:0.74rem; font-weight:900; border-radius:4px; letter-spacing:0.05em;">
-                        ✨ PRO 신탁 (${(function() {
-                          // [V31 #161] 사주 결제 plan 우선 → 워커 응답 tier 폴백
-                          //   사장님 진단: "990원 결제 후 30일 표시 / 3900원 결제 후 1일 표시 등"
-                          //   해결: localStorage.sajuPaidPlan 우선 (실제 결제 금액 기준)
-                          //   [V31 #195 사장님 핫픽스] saju_basic / saju_premium "1회 체험" 라벨
-                          let paidPlan = '';
-                          try { paidPlan = localStorage.getItem('sajuPaidPlan') || ''; } catch(e) {}
-                          
-                          // ★ V31 #195: 사주 전용 plan "1회 체험" 라벨 ★
-                          if (paidPlan === 'saju_basic')   return '본인 사주 1회 (기본)';
-                          if (paidPlan === 'saju_premium') return '본인 사주 1회 (정밀)';
-                          
-                          if (paidPlan === 'trial') return '1시간 체험';
-                          if (paidPlan === 'day') return '1일';
-                          if (paidPlan === 'month' || paidPlan === 'monthly') return '30일';
-                          if (paidPlan === 'yearly') return '1년';
-                          if (paidPlan === 'lifetime') return '평생';
-                          
-                          // 폴백 — 워커 응답 tier 사용
-                          if (data.pro.tier === 'saju_basic') return '본인 사주 1회 (기본)';
-                          if (data.pro.tier === 'saju_premium') return '본인 사주 1회 (정밀)';
-                          if (data.pro.tier === 'trial') return '1시간 체험';
-                          if (data.pro.tier === 'day') return '1일';
-                          if (data.pro.tier === 'month') return '30일';
-                          if (data.pro.tier === 'lifetime') return '평생';
-                          return '1회 체험';  // 안전 폴백 (사주는 1회가 정확)
-                        })()} 이용권)
-                    </div>
+                <div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(212,175,55,0.18);
+                            color:rgba(255,255,255,0.72); font-size:0.78rem; font-weight:600; letter-spacing:0.01em;">
+                    격국 · 용신 · 운성 흐름 정밀 해석
                 </div>
                 
                 ${data.pro.tenStars ? (() => {
@@ -19342,7 +19361,7 @@ function renderSajuResult(data) {
                         return `
                             <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                                 <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.tenStars.title || '⭐ 십성 분석'}</div>
-                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.tenStars.content || ''}</div>
+                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.tenStars.content || ''}</div>
                             </div>`;
                     }
                     
@@ -19395,6 +19414,42 @@ function renderSajuResult(data) {
                         .replace(/\n\n+/g, '\n\n')                       // 빈 줄 정리
                         .trim();
                     
+                    // ★★★ [V202.37 #2 사장님 명령: 십성 용어 풀이 (20-30대 친화)] ★★★
+                    //   사장님 진단: "정인이란? 겁재란? 용어 풀이가 단어 나오면 바로 아래에"
+                    //   해결: 본문에 등장한 십성 자동 검출 → 용어 풀이 박스 동적 생성
+                    const _v37_sipsungGlossary = {
+                        '비견': '같은 편 — 독립·자기 주도·동료 의식이 강해지는 성분',
+                        '겁재': '경쟁자 — 추진력 강하지만 갈등·돈 변동이 따라오는 성분',
+                        '식신': '여유·표현 — 즐거움·콘텐츠·생산성을 만들어내는 성분',
+                        '상관': '창의·도전 — 새로움과 자기 표현, 단 직설로 충돌도 부르는 성분',
+                        '편재': '활동 재물 — 큰 흐름의 돈, 사업·영업·투자에 적합한 성분',
+                        '정재': '안정 재물 — 차곡차곡 쌓는 자산, 저축·부동산에 강한 성분',
+                        '편관': '강한 책임 — 권력·압박·도전을 견디면 큰 성장이 따르는 성분',
+                        '정관': '명예 — 조직·자격·평판, 사회적 인정을 만드는 성분',
+                        '편인': '깊은 사고 — 혼자 파고드는 학습·통찰을 주는 성분',
+                        '정인': '보호·인성 — 안정·지지·균형을 주는 성분 (어머니 같은 성분)'
+                    };
+                    const _v37_detectedSipsung = [];
+                    Object.keys(_v37_sipsungGlossary).forEach(k => {
+                        if (cleanContent && cleanContent.indexOf(k) >= 0) _v37_detectedSipsung.push(k);
+                    });
+                    const _v37_glossaryHTML = _v37_detectedSipsung.length > 0 ? `
+                        <div style="margin-top:12px; padding:10px 12px;
+                                    background:rgba(195,155,211,0.07);
+                                    border-left:2px solid rgba(195,155,211,0.4);
+                                    border-radius:0 6px 6px 0;
+                                    font-size:0.74rem; line-height:1.65; color:rgba(255,255,255,0.78);
+                                    word-break:keep-all; overflow-wrap:break-word;">
+                            <div style="color:#C39BD3; font-weight:800; margin-bottom:5px; font-size:0.76rem;">
+                                ★ 십성 용어 풀이
+                            </div>
+                            ${_v37_detectedSipsung.map(k => `
+                                <div style="margin-bottom:3px;">
+                                    <span style="color:#FFE08A; font-weight:800;">* ${k}이란?</span> 
+                                    ${_v37_sipsungGlossary[k]}
+                                </div>`).join('')}
+                        </div>` : '';
+                    
                     return `
                         <div style="margin-bottom:14px; padding:14px; background:rgba(0,0,0,0.28); border-left:3px solid #FFD970; border-radius:0 8px 8px 0;">
                             <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:10px;">⭐ 핵심 구조</div>
@@ -19406,10 +19461,16 @@ function renderSajuResult(data) {
                             </div>
                             
                             ${cleanContent ? `
+                                <!-- ★ V202.37 #1 사장님 명령: 좌측 정렬 결함 수정 ★
+                                     결함: white-space:pre-wrap + 템플릿 들여쓰기 31자 공백
+                                           → 라이브에 "                              당신의 사주는..." 표시
+                                     해결: pre-wrap → pre-line (줄바꿈 보존 + 연속공백 1개로 축소) -->
                                 <div style="padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); 
-                                            color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.65; white-space:pre-wrap;">
-                                    ${cleanContent}
+                                            color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.65; 
+                                            white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">
+${cleanContent}
                                 </div>` : ''}
+                            ${_v37_glossaryHTML}
                         </div>`;
                 })() : ''}
                 
@@ -19426,7 +19487,7 @@ function renderSajuResult(data) {
                         return `
                             <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                                 <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.deepInsight.title || '🔮 깊이 통찰'}</div>
-                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.deepInsight.content || ''}</div>
+                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.deepInsight.content || ''}</div>
                             </div>`;
                     }
                     
@@ -19468,37 +19529,37 @@ function renderSajuResult(data) {
                 ${data.pro.hiddenRisk ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(231,76,60,0.08); border-left:3px solid #e74c3c; border-radius:0 6px 6px 0;">
                     <div style="color:#FF8870; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.hiddenRisk.title || '⚠ 숨은 리스크'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.hiddenRisk.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.hiddenRisk.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.timingPrecision ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(46,204,113,0.08); border-left:3px solid #2ecc71; border-radius:0 6px 6px 0;">
                     <div style="color:#5DD68A; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.timingPrecision.title || '⏱ 타이밍 정밀'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.timingPrecision.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.timingPrecision.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.luckPhase12 ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.luckPhase12.title || '🌀 12운성'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.luckPhase12.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.luckPhase12.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.shinSal ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(255,165,80,0.08); border-left:3px solid #FFB870; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.shinSal.title || '⚔️ 신살'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.shinSal.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.shinSal.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.familyPackage ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(155,89,182,0.08); border-left:3px solid #9b59b6; border-radius:0 6px 6px 0;">
                     <div style="color:#C39BD3; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.familyPackage.title || '👨‍👩‍👧 가족 사주'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.familyPackage.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.familyPackage.content || ''}</div>
                 </div>` : ''}
                 
                 ${data.pro.yearlyOutlook ? `
                 <div style="padding:12px; background:rgba(52,152,219,0.08); border-left:3px solid #3498db; border-radius:0 6px 6px 0;">
                     <div style="color:#7FCDFF; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.yearlyOutlook.title || '📅 연운 흐름'}</div>
-                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-wrap;">${data.pro.yearlyOutlook.content || ''}</div>
+                    <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.yearlyOutlook.content || ''}</div>
                 </div>` : ''}
             </div>
             ` : ''}
@@ -19805,7 +19866,7 @@ function renderSajuResult(data) {
                         const barWidth = Math.max(15, Math.min(100, d.score));
                         const isCur = d.isCurrent;
                         dwBars += `
-                        <div style="margin-bottom:8px; padding: ${isCur ? '8px 10px' : '0'}; background: ${isCur ? 'rgba(212,175,55,0.18)' : 'transparent'}; border-radius: ${isCur ? '6px' : '0'}; ${isCur ? 'border:1px solid #FFD970;' : ''}">
+                        <div style="margin-bottom:10px; padding: ${isCur ? '10px 12px' : '6px 0'}; background: ${isCur ? 'rgba(212,175,55,0.18)' : 'transparent'}; border-radius: ${isCur ? '6px' : '0'}; ${isCur ? 'border:1px solid #FFD970;' : 'border-bottom:1px solid rgba(255,255,255,0.05);'}">
                             <div style="display:flex; justify-content:space-between; font-size:0.74rem; margin-bottom:3px;">
                                 <span style="color: ${isCur ? '#FFD970' : 'rgba(255,255,255,0.85)'}; font-weight:${isCur?'900':'700'};">
                                     ${isCur ? '★ ' : ''}${d.startAge}~${d.endAge}세 · <strong>${d.ganzhi}</strong>
@@ -19818,6 +19879,13 @@ function renderSajuResult(data) {
                             <div style="font-size:0.68rem; color:rgba(255,255,255,0.6); line-height:1.4;">
                                 ${d.tenStar} · ${d.luckPhase} · ${d.keyword.tone}
                             </div>
+                            ${d.keyword.explain ? `
+                                <!-- ★ V202.37 #5 사장님 명령: 십성 풀이 (20-30대 친화) ★ -->
+                                <div style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.10); 
+                                            font-size:0.72rem; color:rgba(255,255,255,0.82); line-height:1.6; 
+                                            word-break:keep-all; overflow-wrap:break-word;">
+                                    ${d.keyword.explain}
+                                </div>` : ''}
                         </div>`;
                     });
                     
@@ -19942,8 +20010,8 @@ function renderSajuResult(data) {
                 .zeus-saju-deep-toggle[open] .zeus-saju-deep-chev { transform: rotate(180deg); }
                 .zeus-saju-deep-toggle summary::-webkit-details-marker { display: none; }
                 .zeus-saju-deep-toggle summary::marker { content: ''; }
-                .zeus-saju-deep-toggle summary:hover { background: rgba(155,89,182,0.18); }
-                .zeus-saju-deep-toggle[open] summary { background: rgba(155,89,182,0.20); border-bottom: 1px solid rgba(155,89,182,0.3); }
+                .zeus-saju-deep-toggle summary:hover { background: rgba(122,209,136,0.20); }
+                .zeus-saju-deep-toggle[open] summary { background: rgba(122,209,136,0.22); border-bottom: 1px solid rgba(122,209,136,0.35); }
             </style>
 
             <!-- ════════════════════════════════════════════════════════════
