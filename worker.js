@@ -11745,10 +11745,140 @@ function splitCardsByRole(cards, revFlags) {
   };
 }
 
+// ════════════════════════════════════════════════════════════
+// ★★★ [V202.51.0 사장님 안] coreInsight 핵심 구조문 + 흐름 키 풀 ★★★
+//   목적: line3 핵심 구조문(content.relationship_type) + 흐름 키(content.core_decision)
+//         두 영역을 9개 서브타입별 ~10개 풀로 분기
+//   사장님 통찰 (V202.50.1 라이브 결함 후): "대공사 매트릭스보다 효율 ★ 매우 큼 ★ + 유지보수 단순"
+//   효과: 사용자 1달 5-6회 같은 서브타입 점사 시 어휘 분산 + 다른 서브타입 점사 시 ★ 톤 자체가 다름 ★
+//   안전: 풀 미매핑 시 (fallback) → 기존 content 그대로 사용 (V25.27 정신 보존)
+//   서브타입 9종: compatibility / marriage / breakup / reunion / crush / thumb / contact / mindread / general
+// ════════════════════════════════════════════════════════════
+const LOVE_RELATIONSHIP_TYPE_POOL = {
+  compatibility: [
+    '본질적 합 검토 단계', '결의 매칭이 진행되는 구조', '본질 정렬이 가능한 흐름',
+    '에너지 결 점검 단계', '본질 호환 검증 구간', '결의 일치 가능성 분기',
+    '조화 가능성 진단 단계', '본질 결합 잠재성 평가', '두 에너지 정합성 구조', '핵심 결 매칭 검증'
+  ],
+  marriage: [
+    '결혼 본질 합의 단계', '장기 결합 검증 구조', '결혼 결단 정렬 흐름',
+    '본질 가치관 일치 검증', '결혼 진행 조건 점검', '삶의 결 융합 분기',
+    '장기 합의 구조 형성', '결혼 단계 진입 흐름', '본질 결합 결단 구간', '결혼 의지 정렬 단계'
+  ],
+  breakup: [
+    '감정 정리 우선 단계', '관계 종결 흐름 진행', '자기 회복 우선 구조',
+    '거리 두기 정렬 단계', '감정 잔재 처리 흐름', '관계 정리 분기점',
+    '회복 우선 진입 구조', '정리 과정 진행 단계', '감정 분리 흐름 형성', '관계 종결 자연화 구간'
+  ],
+  reunion: [
+    '거리감 회복 진행 단계', '감정 재정렬 구조', '신뢰 재건 흐름',
+    '재회 조건 점검 단계', '잔존 감정 재해석 구간', '관계 결 재정립 흐름',
+    '재진입 가능성 분기', '감정 재해석 진행', '거리 회복 검증 단계', '재회 결단 조율 흐름'
+  ],
+  crush: [
+    '감정 표현 타이밍 분기', '내면 정리 우선 단계', '상대 인지 검증 흐름',
+    '고백 시점 점검 구간', '감정 균형 회복 단계', '관찰 vs 진전 분기점',
+    '감정 정리 우선 흐름', '내면 흐름 정돈 단계', '감정 표현 분기 구간', '일방 감정 균형 흐름'
+  ],
+  thumb: [
+    '타이밍 분기 단계', '신호 강도 검증 구조', '호감 페이스 조율 구간',
+    '접근 흐름 결정 단계', '신호 정렬 분기점', '감정 표현 시점 검증',
+    '거리 좁힘 흐름 분기', '신호 강도 조율 구조', '다음 단계 진입 검증', '관계 정의 분기점'
+  ],
+  contact: [
+    '연락 흐름 자연화 단계', '신호 빈도 조율 구조', '접점 형성 분기',
+    '다가가는 타이밍 검증', '연락 방식 재정렬 단계', '거리 조율 흐름',
+    '신호 강도 점검 단계', '접근 흐름 분기점', '연락 균형 회복 구조', '신호 톤 조정 단계'
+  ],
+  mindread: [
+    '감정 표면 vs 내면 분기', '진심 해석 흐름 진행', '표현되지 않은 결 점검',
+    '내면 흐름 추정 구조', '감정 깊이 검증 단계', '숨겨진 신호 해석 분기',
+    '내면 진심 흐름 진단', '표현 vs 본심 분기점', '감정 결 추정 흐름', '내면 흐름 정렬 구간'
+  ],
+  general: [
+    '관계 흐름 관찰 단계', '전반 흐름 정렬 구조', '관계 기준 정리 흐름',
+    '흐름 점검 분기점', '관계 방향 검증 단계', '전반 결 정돈 구간',
+    '흐름 안정화 진행', '관계 결 점검 흐름', '기준 정렬 분기 단계', '흐름 자연화 구조'
+  ]
+};
+
+const LOVE_FLOW_KEY_POOL = {
+  compatibility: [
+    '본질 정렬이 결과를 가른다', '차이 인정이 깊이를 좌우', '결의 매칭이 분기점',
+    '본질 호환 여부가 핵심', '조화 가능성을 자연스럽게 키우는 것', '결을 강요하지 않는 자세',
+    '본질 결합의 잠재성 활용', '두 에너지의 자연 정합', '차이를 활용하는 방식', '본질 결의 신중한 검증'
+  ],
+  marriage: [
+    '본질 합의가 결혼을 좌우', '결혼 결단의 명확성이 핵심', '가치관 정렬이 분기점',
+    '본질보다 형식에 매이지 않기', '장기 결합의 자연 흐름 유지', '결혼 의지의 솔직한 정렬',
+    '삶의 결 융합이 결과를 가른다', '본질 합의 우선의 자세', '결혼 조건의 본질 점검', '장기 합의의 단계적 진행'
+  ],
+  breakup: [
+    '감정 정리가 회복을 좌우', '거리 두기가 우선', '자기 회복이 분기점',
+    '관계 종결의 자연스러움', '감정 잔재의 신중한 처리', '회복 시간 확보가 핵심',
+    '정리 흐름의 자연 진행', '감정 분리의 단계적 진행', '관계 종결의 솔직한 인정', '자기 중심 회복 우선'
+  ],
+  reunion: [
+    '거리감 회복이 재회를 좌우', '감정 재해석이 분기점', '신뢰 재건의 신중한 진행',
+    '재회 조건의 본질 점검', '잔존 감정의 솔직한 정리', '관계 결 재정립의 자연 흐름',
+    '재진입의 단계적 검증', '감정 재해석의 시간 확보', '거리 회복이 핵심', '재회 결단의 신중한 조율'
+  ],
+  crush: [
+    '감정 표현 타이밍이 결과를 가른다', '내면 정리가 우선', '상대 인지의 신중한 검증',
+    '고백 시점의 자연 흐름', '감정 균형의 회복이 분기점', '관찰 vs 진전의 신중한 판단',
+    '감정 정리의 단계적 진행', '내면 흐름의 자연 정돈', '일방 감정의 균형 회복', '표현 타이밍이 핵심'
+  ],
+  thumb: [
+    '타이밍이 호감을 좌우', '신호 강도가 분기점', '접근 페이스가 핵심',
+    '감정 표현 시점이 결과를 가른다', '거리 좁힘의 자연 흐름', '신호 정렬의 단계적 진행',
+    '다음 단계 진입의 신중한 검증', '관계 정의의 시점 조율', '신호 톤의 자연화', '호감 페이스의 신중한 조율'
+  ],
+  contact: [
+    '연락 흐름의 자연화가 분기점', '신호 빈도의 신중한 조율', '접점 형성의 단계적 진행',
+    '다가가는 타이밍이 핵심', '연락 방식의 자연 재정렬', '거리 조율의 본질 점검',
+    '신호 강도의 자연 검증', '접근 흐름의 신중한 결정', '연락 균형의 자연 회복', '신호 톤의 조정이 결과를 가른다'
+  ],
+  mindread: [
+    '감정 표면 vs 내면 해석이 핵심', '진심 추정의 신중한 자세', '표현되지 않은 결의 점검',
+    '내면 흐름의 자연 해석', '감정 깊이의 단계적 검증', '숨겨진 신호의 신중한 읽기',
+    '내면 진심의 흐름 추정', '표현 vs 본심의 분기 해석', '감정 결의 자연 추정', '내면 흐름의 정렬 검증'
+  ],
+  general: [
+    '관계 흐름 관찰이 우선', '전반 흐름의 자연 정렬', '관계 기준의 단계적 정리',
+    '흐름 점검이 분기점', '관계 방향의 신중한 검증', '전반 결의 자연 정돈',
+    '흐름 안정화가 핵심', '관계 결의 신중한 점검', '기준 정렬이 결과를 가른다', '흐름 자연화의 단계적 진행'
+  ]
+};
+
 // ── 6 박스 빌더 ──
-function buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags) {
+function buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags, loveSubType) {
   // [V25.27] 카드 인식형 서술 + 한글 조사 자동 처리
   const rf = revFlags || [false, false, false];
+  
+  // ════════════════════════════════════════════════════════════
+  // ★★★ [V202.51.0 사장님 안] 풀 기반 분기 (서브타입별 ~10개) ★★★
+  //   _relationshipType: line3 핵심 구조문 — 풀 매핑되면 시드 선택, 아니면 content.relationship_type fallback
+  //   _flowKey: 흐름 키 (coreKey) — 풀 매핑되면 시드 선택, 아니면 content.core_decision fallback
+  //   안전: 매트릭스 무손상 + Gemini 프롬프트 무손상 + 다른 박스 영향 0
+  // ════════════════════════════════════════════════════════════
+  const _subKey = loveSubType || 'general';
+  const _pastLen = (cards && cards[0]) ? String(cards[0]).length : 7;
+  const _presLen = (cards && cards[1]) ? String(cards[1]).length : 7;
+  const _futLen  = (cards && cards[2]) ? String(cards[2]).length : 7;
+  
+  const _relTypePool = LOVE_RELATIONSHIP_TYPE_POOL[_subKey];
+  let _relationshipType = content.relationship_type;  // fallback
+  if (_relTypePool && _relTypePool.length > 0) {
+    const _relSeed = (_pastLen * 13 + _presLen * 7 + _futLen * 3) % _relTypePool.length;
+    _relationshipType = _relTypePool[_relSeed];
+  }
+  
+  const _flowKeyPool = LOVE_FLOW_KEY_POOL[_subKey];
+  let _flowKey = content.core_decision;  // fallback
+  if (_flowKeyPool && _flowKeyPool.length > 0) {
+    const _fkSeed = (_presLen * 11 + _futLen * 5 + (_pastLen || 1)) % _flowKeyPool.length;
+    _flowKey = _flowKeyPool[_fkSeed];
+  }
   const past    = cards && cards[0];
   const present = cards && cards[1];
   const future  = cards && cards[2];
@@ -11789,7 +11919,7 @@ function buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags) 
   //   사장님 통찰: "1달 5-6회 사용자 패턴 인지" 결함 (8개 매트릭스 작동 중에도 coreInsight는 정적)
   //   해결: 카드 이름 해시 기반 시드 → 5종 시작 표현 분산
   //   안전: 의미 100% 동일, 시작 어휘만 변경 (기존 line3 구조 보존)
-  const _hasStructWord = String(content.relationship_type || '').includes('구조');
+  const _hasStructWord = String(_relationshipType || '').includes('구조');
   const _line3Suffix = _hasStructWord ? '의 흐름이며' : ' 구조이며';
   
   // [V202.49.0] line3 시작 표현 다양화 (5종)
@@ -11801,7 +11931,7 @@ function buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags) 
     '두 분 관계의 중심 흐름은'
   ];
   const _coreSeed = (pastName.length * 13 + presentName.length * 7 + futureName.length * 3) % _line3Starters.length;
-  const line3 = `${_line3Starters[_coreSeed]} ${content.relationship_type}${_line3Suffix}, ${content.structure_sentence}.`;
+  const line3 = `${_line3Starters[_coreSeed]} ${_relationshipType}${_line3Suffix}, ${content.structure_sentence}.`;
   
   // line4: 중심축
   // [V202.49.0] line4 시작 표현 다양화 (5종)
@@ -11827,7 +11957,7 @@ function buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags) 
     line3,
     line4,
     line5,
-    coreKey: content.core_decision, flowArrow, metaPattern
+    coreKey: _flowKey, flowArrow, metaPattern
   };
 }
 
@@ -13762,7 +13892,7 @@ function buildLoveOracleV25_24({ totalScore, cards, revFlags, loveSubType, numer
   return {
     version: 'V25.24', score: totalScore, scoreCategory, subtype, flowArrow, metaPattern,
     boxes: {
-      coreInsight: buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags),
+      coreInsight: buildLoveCoreInsight(content, flowArrow, metaPattern, cards, revFlags, subtype),
       relationEssence: buildLoveRelationEssence(content, cards, revFlags, subtype, prompt),
       actionGuide: buildLoveActionGuide(content, subtype, cards, prompt, revFlags),
       timing: buildLoveTiming(content, numerology, cards, subtype, prompt, revFlags),
