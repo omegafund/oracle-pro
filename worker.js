@@ -18370,7 +18370,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.46",      // ★ V202.46: 사주 성향 신호 시스템 - 사장님 5케이스(히키코모리 3 + 고위공직자 2) 검증 기반 명리 신호 12종 추출 매트릭스 (위험 7 + 균형 5), 진단 X 신호만 표시, 법적 안전 면책
+        version: "V202.47",      // ★ V202.47: 사주 결제 민원 핫픽스 - 990원(saju_basic) 결제 사용자에게 4900원(saju_premium) 결제 옵션 자체 차단 (이중 청구 결함 → 법적 안전 + 매출 보호 + 사용자 신뢰)
         _ts: Date.now(),
         _ok: true
       }), {
