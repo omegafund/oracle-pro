@@ -17158,7 +17158,176 @@ function buildYongShinV184_5(core) {
   };
 }
 
-// ─── [Sec 11] Tier 1 — 6대 분야 운세 ───
+// ══════════════════════════════════════════════════════════════════
+// ★★★ [V202.46 사장님 명령 — 사주 성향 신호 시스템] ★★★
+// ══════════════════════════════════════════════════════════════════
+//   사장님 명령: "히키코모리·고위공직자 5케이스 검증 명리 신호 추출"
+//   원칙:
+//     ① 진단 X (우울/자살/장애 단어 절대 금지)
+//     ② 신호 X 가능성 X 경향 X 만 표현
+//     ③ 의료/심리 상담 권유 면책
+//     ④ 법적 안전 100%
+//   
+//   사장님 5케이스 검증 매핑:
+//     • 남 2000.07.28 미시 (히키코모리)
+//     • 남 1993.03.20 진시 (히키코모리)
+//     • 남 2000.07.05 오시 (히키코모리 + 자살시도)
+//     • 여 1975.05.18 사시 (검사장)
+//     • 남 1974.07.16 오시 (검찰국장)
+//   
+//   신호 12종 (위험 7 + 균형 5)
+// ══════════════════════════════════════════════════════════════════
+
+// 명리 신호 매트릭스 — 12종
+const _v46_signalMatrix = {
+  // 🔴 위험 신호 (히키코모리/우울 경향) — 진단 X
+  T1_innerWithdrawal:    { type:'risk', label:'내향 에너지 강함',     element:'인성 과다 또는 수 과다' },
+  T2_socialFatigue:      { type:'risk', label:'사회 피로 민감',         element:'관성 부담 또는 부재' },
+  T3_externalShutdown:   { type:'risk', label:'외부 차단 경향',         element:'수 과다 + 화 부재' },
+  T4_selfImmersion:      { type:'risk', label:'과몰입 성향',             element:'비겁 과다 또는 식상 과다' },
+  T5_emotionalOverflow:  { type:'risk', label:'감정 순환 과다',         element:'화 과다 또는 양인살' },
+  T6_perfectionPressure: { type:'risk', label:'완벽주의 압박',           element:'관성 과다 또는 인성 강' },
+  T7_realityAvoidance:   { type:'risk', label:'현실 회피 경향',         element:'식상 강 + 재성 부재' },
+  
+  // 🟢 균형 신호 (안정/리더 경향)
+  B1_fiveElementBalance: { type:'balance', label:'오행 균형 흐름',       element:'5행 모두 10%+' },
+  B2_disciplineStable:   { type:'balance', label:'규율 안정 신호',       element:'관성 명확 10~25%' },
+  B3_growthBalance:      { type:'balance', label:'성장·통제·표현 균형',   element:'인성·관성·식상 균형' },
+  B4_stimulusControl:    { type:'balance', label:'자극·통제 양립',       element:'충 + 합 양립' },
+  B5_steadyDrive:        { type:'balance', label:'추진력 안정 신호',     element:'일간 강 + 대운 안정' }
+};
+
+// ★ 신호 검출 함수 ★
+//   입력: core (사주 명식 객체), interpretation (해석)
+//   출력: 검출된 신호 배열 [{type, label, element, reason}, ...]
+function _v46_detectSignals(core, interpretation, yongshin) {
+  const signals = [];
+  if (!core || !core.ohaengPercent) return signals;
+  
+  const oh = core.ohaengPercent;
+  const ts = interpretation?.tenStars?.distribution || {};
+  const dmStrength = yongshin?.strength || 'balanced';  // V202.45 신강/신약 활용
+  
+  // ─── 위험 신호 검출 ───
+  
+  // T1: 내향 에너지 강함 — 인성 과다(편인+정인 > 30%) 또는 수 과다(40%+)
+  const insungTotal = (ts['편인'] || 0) + (ts['정인'] || 0);
+  if (insungTotal > 30 || (oh['수'] || 0) > 40) {
+    signals.push({
+      ..._v46_signalMatrix.T1_innerWithdrawal,
+      reason: insungTotal > 30 ? '인성 ' + insungTotal.toFixed(0) + '%' : '수 ' + (oh['수']||0).toFixed(0) + '%'
+    });
+  }
+  
+  // T2: 사회 피로 민감 — 관성 과다(40%+) 또는 관성 부재(5% 이하)
+  const gwanseong = (ts['편관'] || 0) + (ts['정관'] || 0);
+  if (gwanseong > 40 || gwanseong < 5) {
+    signals.push({
+      ..._v46_signalMatrix.T2_socialFatigue,
+      reason: gwanseong > 40 ? '관성 ' + gwanseong.toFixed(0) + '% (과다)' : '관성 부재'
+    });
+  }
+  
+  // T3: 외부 차단 경향 — 수 과다 + 화 부재(10% 이하)
+  if ((oh['수'] || 0) > 35 && (oh['화'] || 0) < 10) {
+    signals.push({
+      ..._v46_signalMatrix.T3_externalShutdown,
+      reason: '수 ' + (oh['수']||0).toFixed(0) + '% / 화 ' + (oh['화']||0).toFixed(0) + '%'
+    });
+  }
+  
+  // T4: 과몰입 성향 — 비겁 과다(35%+) 또는 식상 과다(35%+)
+  const bigeob = (ts['비견'] || 0) + (ts['겁재'] || 0);
+  const sikSang = (ts['식신'] || 0) + (ts['상관'] || 0);
+  if (bigeob > 35 || sikSang > 35) {
+    signals.push({
+      ..._v46_signalMatrix.T4_selfImmersion,
+      reason: bigeob > 35 ? '비겁 ' + bigeob.toFixed(0) + '%' : '식상 ' + sikSang.toFixed(0) + '%'
+    });
+  }
+  
+  // T5: 감정 순환 과다 — 화 과다(35%+) — 양인살은 별도 검출
+  if ((oh['화'] || 0) > 35) {
+    signals.push({
+      ..._v46_signalMatrix.T5_emotionalOverflow,
+      reason: '화 ' + (oh['화']||0).toFixed(0) + '%'
+    });
+  }
+  
+  // T6: 완벽주의 압박 — 정관 강(15%+) + 인성 강(20%+)
+  if ((ts['정관'] || 0) > 15 && insungTotal > 20) {
+    signals.push({
+      ..._v46_signalMatrix.T6_perfectionPressure,
+      reason: '정관 ' + (ts['정관']||0).toFixed(0) + '% + 인성 ' + insungTotal.toFixed(0) + '%'
+    });
+  }
+  
+  // T7: 현실 회피 경향 — 식상 강(25%+) + 재성 부재(5% 이하)
+  const jaeseong = (ts['편재'] || 0) + (ts['정재'] || 0);
+  if (sikSang > 25 && jaeseong < 5) {
+    signals.push({
+      ..._v46_signalMatrix.T7_realityAvoidance,
+      reason: '식상 ' + sikSang.toFixed(0) + '% / 재성 부재'
+    });
+  }
+  
+  // ─── 균형 신호 검출 ───
+  
+  // B1: 5행 균형 — 모든 오행이 10% 이상
+  const allElementsPresent = ['목','화','토','금','수'].every(e => (oh[e] || 0) >= 10);
+  if (allElementsPresent) {
+    const min = Math.min(...['목','화','토','금','수'].map(e => oh[e] || 0));
+    const max = Math.max(...['목','화','토','금','수'].map(e => oh[e] || 0));
+    if (max - min < 25) {  // 편차 25% 이내면 균형
+      signals.push({
+        ..._v46_signalMatrix.B1_fiveElementBalance,
+        reason: '5행 ' + min.toFixed(0) + '~' + max.toFixed(0) + '%'
+      });
+    }
+  }
+  
+  // B2: 규율 안정 — 관성 10~25%
+  if (gwanseong >= 10 && gwanseong <= 25) {
+    signals.push({
+      ..._v46_signalMatrix.B2_disciplineStable,
+      reason: '관성 ' + gwanseong.toFixed(0) + '%'
+    });
+  }
+  
+  // B3: 성장·통제·표현 균형 — 인성·관성·식상 모두 10~25%
+  if (insungTotal >= 10 && insungTotal <= 25 &&
+      gwanseong >= 10 && gwanseong <= 25 &&
+      sikSang >= 10 && sikSang <= 25) {
+    signals.push({
+      ..._v46_signalMatrix.B3_growthBalance,
+      reason: '인성·관성·식상 균형'
+    });
+  }
+  
+  // B5: 추진력 안정 — 일간 신강(V202.45 활용)
+  if (dmStrength === 'strong') {
+    signals.push({
+      ..._v46_signalMatrix.B5_steadyDrive,
+      reason: '일간 신강 + 안정 흐름'
+    });
+  }
+  
+  // 최대 5개로 제한 (UX 가독성)
+  return signals.slice(0, 5);
+}
+
+// ★ 클라이언트 노출용 빌더 ★
+function buildSajuSignalsV202_46(core, interpretation, yongshin) {
+  const signals = _v46_detectSignals(core, interpretation, yongshin);
+  if (signals.length === 0) return null;
+  
+  return {
+    signals: signals,
+    disclaimer: '본 신호는 명리 명식 기반 ★ 성향 흐름 ★ 입니다. 진단·판단·예측이 아닙니다.'
+  };
+}
+
+
 function build6DomainLuckV184_5(core, interpretation) {
   // 십성 분포 + 격국 + 12운성 종합 → 분야별 점수
   const ts = interpretation?.tenStars?.distribution || {};
@@ -18050,6 +18219,7 @@ function buildSajuSafeCoreV184_5(input) {
     let interpretation = null, ohaengAnalysis = null, yongshin = null, sixDomain = null, timeSeries = null;
     let potentialPatterns = null;  // [V31 #184.7] 특수 잠재력 패턴
     let daewoon = null;  // [V31 #186] 대운 8단계
+    let sajuSignals = null;  // ★ V202.46 사주 성향 신호 ★
     try { interpretation = buildSajuInterpretationV184_5(core); } catch (_) { interpretation = { error: 'interpretation_failed' }; }
     try { ohaengAnalysis = buildOhaengAnalysisV184_5(core); }    catch (_) { /* null */ }
     try { yongshin       = buildYongShinV184_5(core); }          catch (_) { /* null */ }
@@ -18059,6 +18229,8 @@ function buildSajuSafeCoreV184_5(input) {
     try { potentialPatterns = buildPotentialPatternsV184_7(core, interpretation); } catch (_) { /* null */ }
     // [V31 #186] 대운 8단계 — 메이저 앱 #1 결제 이유
     try { daewoon = buildDaewoonV186(core, interpretation); } catch (_) { /* null */ }
+    // ★ V202.46 사주 성향 신호 — 사장님 5케이스 검증 기반 12종 신호 ★
+    try { sajuSignals = buildSajuSignalsV202_46(core, interpretation, yongshin); } catch (_) { /* null */ }
     
     sajuCB_V184_5.record({ error: false });
     
@@ -18067,6 +18239,7 @@ function buildSajuSafeCoreV184_5(input) {
       core, interpretation, ohaengAnalysis, yongshin, sixDomain, timeSeries,
       potentialPatterns,  // [V31 #184.7] 특수 잠재력 응답 추가
       daewoon,            // [V31 #186] 대운 8단계 응답 추가
+      sajuSignals,        // ★ V202.46 사주 성향 신호 응답 추가 ★
       _meta: { version: 'V31_197_TIER_BRANCH_FIX' }
     };
   } catch (e) {
@@ -18197,7 +18370,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.45",      // ★ V202.45: 사주 명리 정확성 강화 - 사장님 임수1966 케이스 (신약→금 도움 색인데 시스템이 은색 삼가하라 출력 결함) - inferYongShinV184_5에 신강/신약 분기 추가 + YONGSHIN_RECOMMENDATIONS 동적 avoidColors (신약 시 금 도움 색 반전)
+        version: "V202.46",      // ★ V202.46: 사주 성향 신호 시스템 - 사장님 5케이스(히키코모리 3 + 고위공직자 2) 검증 기반 명리 신호 12종 추출 매트릭스 (위험 7 + 균형 5), 진단 X 신호만 표시, 법적 안전 면책
         _ts: Date.now(),
         _ok: true
       }), {
@@ -18261,6 +18434,7 @@ export default {
               timeSeries:     v184_5Result.timeSeries,        // 대운/세운/월운/일운
               potentialPatterns: v184_5Result.potentialPatterns, // [V31 #184.7] 특수 잠재력
               daewoon:        v184_5Result.daewoon,            // [V31 #186] 대운 8단계 ★
+              sajuSignals:    v184_5Result.sajuSignals,        // ★ V202.46 사주 성향 신호 ★
               ohaengPercent:  v184_5Result.core && v184_5Result.core.ohaengPercent,
               interpretation: v184_5Result.interpretation,    // 십성/12운성/격국/신살
               _meta:          v184_5Result._meta,
