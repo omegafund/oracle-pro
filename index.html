@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.48.8';  // ★ V202.48.8: 사장님 라이브 명령 — 워커 버전 숫자 사용자 노출 차단 (V200.7.5 원칙 일관 적용). 8개 도메인 일괄 정리: (1) LOVE: "ZEUS LOVE ORACLE · V25.24" → "ZEUS LOVE ORACLE" (2) FORTUNE 7종: wealth/health/career/today/newyear/general/etc 모두 · V25.32 또는 · V25.33 부분 제거. 워커 메타 버전은 개발용 console.log만 유지, 사용자 화면 노출 0.
+        const APP_VERSION = 'V202.49.1';  // ★ V202.49.1: 사장님 통찰 — 자문 톤 일관성. (1) ACTION GUIDE 박스 "☒ 절대 피할 것" → "⚠ 주의가 필요한 행동" (자문 톤, 사용자 자율성 보호, 법적 안전망 강화) (2) "위험 ·" → "유의점 ·" 라벨 일관성 (3) 잔재 정리 2건: index.html box3 옛 영역의 동일 표현 (12730, 12977) 일괄 통일 (4) 라인 9720 사용자 직접 노출 "충동적 재연락 절대 금지" → "충동적 재연락은 권하지 않습니다" 권유형 변경. 점사의 본질(가능성 제시 + 사용자 자기 결정) + 엔터테인먼트 콘텐츠 면책 정합성 강화.
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -9717,7 +9717,7 @@ function getLuckyTiming(cards, qRaw, loveSubType = '') {
         } else if (totalPower >= 0) {
             return `✨ 감정 정리의 분기점: <strong>${pick2(moonPhases)}</strong> 이후 ${bestZone}부터 마음이 가라앉습니다. <strong>${bestTime}</strong>에 자기 돌봄과 휴식 권장.`;
         } else {
-            return `✨ 회복 우선 시기: 현재 감정의 깊은 흐름 구간입니다. <strong>${bestZone2}</strong>의 <strong>${pick2(timeZones)}</strong>에 충분한 자기 시간을 가지세요. 충동적 재연락 절대 금지.`;
+            return `✨ 회복 우선 시기: 현재 감정의 깊은 흐름 구간입니다. <strong>${bestZone2}</strong>의 <strong>${pick2(timeZones)}</strong>에 충분한 자기 시간을 가지세요. 충동적 재연락은 권하지 않습니다.`;
         }
     }
 
@@ -12495,13 +12495,47 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
             </div>` : '';
             
             // [7] 🛡 다음 행동 — 🟢 녹색톤 (액션 차원) — 체크리스트 형태
+            // ════════════════════════════════════════════════════════════
+            // ★★★ [V202.49.0 매니페스토 #7] ACTION GUIDE 체크리스트 완성도 보강 ★★★
+            //   사장님 진단: V202.48.1 일부 적용된 체크리스트의 시각 위계 미흡
+            //   해결:
+            //     ① 우선순위 배지 — #1/#2 동그란 녹색 배지로 명확화
+            //     ② 체크박스 마크 — ☑ (큰 박스) + ☒ (피할 것은 빨간 박스) 시각 강화
+            //     ③ 행동 텍스트 굵게 + 들여쓰기 깊이 일관 (14px / 28px)
+            //     ④ 결과 화살표 ⤷ 더 짙은 녹색 + 결과 라벨 명시
+            //     ⑤ "절대 피할 것" 별도 빨간 톤 박스로 분리 (시각 경고)
+            // ════════════════════════════════════════════════════════════
             const _v48_actionBox = (b.actionGuide) ? `
             <div style="${boxBase} background:rgba(46,204,113,0.06); border:1px solid rgba(46,204,113,0.35); border-left:3px solid #2ecc71;">
                 <div style="${labelBase} color:#2ecc71;">🛡 다음 행동</div>
                 <div style="${bodyBase}">
-                    ${b.actionGuide.action1 ? `<div style="margin-bottom:6px;"><b style="color:#2ecc71;">✔ 해야 할 행동 1</b></div><div style="padding-left:14px; margin-bottom:4px;">→ ${b.actionGuide.action1}</div>${b.actionGuide.actionResult1 ? `<div style="padding-left:28px; margin-bottom:10px; font-size:0.82rem; color:rgba(255,255,255,0.75);">⤷ ${b.actionGuide.actionResult1}</div>` : ''}` : ''}
-                    ${b.actionGuide.action2 ? `<div style="margin-bottom:6px;"><b style="color:#2ecc71;">✔ 해야 할 행동 2</b></div><div style="padding-left:14px; margin-bottom:4px;">→ ${b.actionGuide.action2}</div>${b.actionGuide.actionResult2 ? `<div style="padding-left:28px; margin-bottom:10px; font-size:0.82rem; color:rgba(255,255,255,0.75);">⤷ ${b.actionGuide.actionResult2}</div>` : ''}` : ''}
-                    ${b.actionGuide.avoidAction ? `<div style="margin-bottom:6px; margin-top:8px;"><b style="color:#FF8080;">✘ 절대 피할 것</b></div><div style="padding-left:14px;">→ ${b.actionGuide.avoidAction}</div>${b.actionGuide.riskEffect ? `<div style="padding-left:28px; margin-top:4px; font-size:0.82rem; color:rgba(255,200,200,0.85);">⤷ ${b.actionGuide.riskEffect}</div>` : ''}` : ''}
+                    ${b.actionGuide.action1 ? `
+                    <div style="margin-bottom:12px; padding:10px 12px; background:rgba(46,204,113,0.04); border-radius:8px; border-left:2px solid rgba(46,204,113,0.55);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#2ecc71; color:#fff; font-size:0.72rem; font-weight:900;">1</span>
+                            <span style="color:#7AD188; font-weight:800; font-size:0.82rem; letter-spacing:0.02em;">☑ 해야 할 행동</span>
+                        </div>
+                        <div style="padding-left:30px; color:rgba(255,255,255,0.95); font-weight:600; line-height:1.6;">${b.actionGuide.action1}</div>
+                        ${b.actionGuide.actionResult1 ? `<div style="padding-left:30px; margin-top:6px; font-size:0.82rem; color:rgba(122,209,136,0.85); line-height:1.55;">⤷ 결과 · ${b.actionGuide.actionResult1}</div>` : ''}
+                    </div>` : ''}
+                    ${b.actionGuide.action2 ? `
+                    <div style="margin-bottom:12px; padding:10px 12px; background:rgba(46,204,113,0.04); border-radius:8px; border-left:2px solid rgba(46,204,113,0.55);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#2ecc71; color:#fff; font-size:0.72rem; font-weight:900;">2</span>
+                            <span style="color:#7AD188; font-weight:800; font-size:0.82rem; letter-spacing:0.02em;">☑ 해야 할 행동</span>
+                        </div>
+                        <div style="padding-left:30px; color:rgba(255,255,255,0.95); font-weight:600; line-height:1.6;">${b.actionGuide.action2}</div>
+                        ${b.actionGuide.actionResult2 ? `<div style="padding-left:30px; margin-top:6px; font-size:0.82rem; color:rgba(122,209,136,0.85); line-height:1.55;">⤷ 결과 · ${b.actionGuide.actionResult2}</div>` : ''}
+                    </div>` : ''}
+                    ${b.actionGuide.avoidAction ? `
+                    <div style="margin-top:14px; padding:10px 12px; background:rgba(231,76,60,0.06); border-radius:8px; border-left:2px solid rgba(231,76,60,0.55);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:#E74C3C; color:#fff; font-size:0.82rem; font-weight:900;">!</span>
+                            <span style="color:#FF8E72; font-weight:800; font-size:0.82rem; letter-spacing:0.02em;">⚠ 주의가 필요한 행동</span>
+                        </div>
+                        <div style="padding-left:30px; color:rgba(255,200,200,0.95); font-weight:600; line-height:1.6;">${b.actionGuide.avoidAction}</div>
+                        ${b.actionGuide.riskEffect ? `<div style="padding-left:30px; margin-top:6px; font-size:0.82rem; color:rgba(255,142,114,0.85); line-height:1.55;">⤷ 유의점 · ${b.actionGuide.riskEffect}</div>` : ''}
+                    </div>` : ''}
                 </div>
             </div>` : '';
             
@@ -12693,7 +12727,7 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
                             <span style="font-size:0.78rem; color:rgba(255,255,255,0.7);">&nbsp;&nbsp;&nbsp;&nbsp;⤷ ${ag.actionResult2}</span>
                         </div>
                         <div>
-                            <span style="color:#E74C3C; font-weight:800;">✘ 절대 피할 것</span><br>
+                            <span style="color:#E74C3C; font-weight:800;">⚠ 주의가 필요한 행동</span><br>
                             &nbsp;&nbsp;→ ${ag.avoidAction}<br>
                             <span style="font-size:0.78rem; color:rgba(255,140,100,0.85);">&nbsp;&nbsp;&nbsp;&nbsp;⤷ 관계를 ${ag.riskEffect} 방향으로 밀어버립니다</span>
                         </div>
@@ -12940,7 +12974,7 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
                     <div style="margin-bottom:6px;"><b style="color:#2ecc71;">✔ 해야 할 행동 2</b></div>
                     <div style="padding-left:12px; margin-bottom:4px;">→ ${ag.action2}</div>
                     <div style="padding-left:24px; margin-bottom:10px; font-size:0.82rem; color:rgba(255,255,255,0.78);">⤷ ${ag.actionResult2}</div>
-                    <div style="margin-bottom:6px;"><b style="color:#FF8080;">✘ 절대 피할 것</b></div>
+                    <div style="margin-bottom:6px;"><b style="color:#FF8080;">⚠ 주의가 필요한 행동</b></div>
                     <div style="padding-left:12px; margin-bottom:4px;">→ ${ag.avoidAction}</div>
                     <div style="padding-left:24px; font-size:0.82rem; color:rgba(255,140,100,0.85);">⤷ 흐름을 ${ag.riskEffect}${_josa(ag.riskEffect, 'ro')} 밀어버립니다</div>
                 </div>
