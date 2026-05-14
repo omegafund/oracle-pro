@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.50.1';  // ★ V202.50.1: 사장님 라이브 결함 2건 (B+C 묶음 진행, A는 V202.51.0 분리). (#B 워커) Gemini 프롬프트에 카드 정역방향 의미 매핑 강화 — Ten of Cups 정방향(완전한 행복) 부정 해석 같은 결함 차단. 정방향 절대 부정 해석 금지 10개 카드 예시 + line1과 본문 일치 검증 절대 규칙 추가. (#C 워커) buildLoveCoreInsight _line4Starters "관계의 감정적 무게는" → "관계의 감정 흐름은" 자연 결합 (무게 vs 균형 모순 해소). 워커 매트릭스 시스템 무손상.
+        const APP_VERSION = 'V202.51.0';  // ★ V202.51.0: 사장님 안 — coreInsight 핵심 구조문 + 흐름 키 9개 서브타입별 풀 분기 (대공사 매트릭스 대비 효율 ★ 매우 큼 ★, 유지보수 단순). (#1 worker) LOVE_RELATIONSHIP_TYPE_POOL + LOVE_FLOW_KEY_POOL 정의 (9개 서브타입 × ~10개 = 180개 텍스트). (#2 worker) buildLoveCoreInsight 시그니처에 loveSubType 추가 + 풀 시드 기반 선택 + content.* fallback 안전. (#3 worker) line3에서 _relationshipType 변수 사용 (content.relationship_type 직접 참조 대체). (#4 worker) coreKey에서 _flowKey 변수 사용 (content.core_decision 직접 참조 대체). (#5 worker) 호출부에서 subtype 전달. 매트릭스 8개 무손상 + Gemini 프롬프트 무손상 + 다른 박스 영향 0.
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
