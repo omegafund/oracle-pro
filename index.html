@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.47';  // ★ V202.47: 사주 결제 민원 핫픽스 - 990원 결제자에게 4900원 옵션 차단
+        const APP_VERSION = 'V202.47.1';  // ★ V202.47.1: 사주 성향 신호 박스 헤더 한 줄 통합 (NATAL TENDENCY · 명식 기반 → NATAL TENDENCY, 줄바꿈 결함 해결)
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -19020,10 +19020,16 @@ function renderSajuResult(data) {
                                 border-left:2px solid rgba(155,89,182,0.45); 
                                 border-radius:0 8px 8px 0;
                                 word-break:keep-all; overflow-wrap:break-word;">
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                        <!-- ★★★ [V202.47.1 사장님 명령] 헤더 한 줄 통합 ★★★
+                             사장님 진단: "성향 신호 + NATAL TENDENCY · 명식 기반 = 깨짐 + 외계어"
+                             해결: ① 명식 기반 ★ 제거 ★
+                                   ② 한 줄: "🌟 성향 신호 (NATAL TENDENCY)"
+                                   ③ flex → 단일 span (줄바꿈 방지)
+                             격리: 박스 구조/색상 ★ 보존 ★, 헤더 텍스트만 변경 -->
+                        <div style="margin-bottom:8px; line-height:1.4;">
                             <span style="color:#C39BD3; font-weight:900; font-size:0.84rem;">🌟 성향 신호</span>
-                            <span style="color:rgba(195,155,211,0.55); font-size:0.66rem; font-weight:700; letter-spacing:0.06em;">
-                                NATAL TENDENCY · 명식 기반
+                            <span style="color:rgba(195,155,211,0.55); font-size:0.66rem; font-weight:700; letter-spacing:0.04em; margin-left:6px;">
+                                (NATAL TENDENCY)
                             </span>
                         </div>
                         ${_v46_signals.signals.map(sig => {
