@@ -20193,12 +20193,26 @@ ${cleanContent}
                    
                    위치: [6/6] PRO 정밀 분석 ★ 끝난 후 ★ 면책 ★ 직전 ★
                    조건: saju_basic 결제자만 표시 (PREMIUM은 이미 다 봄)
+                 ════════════════════════════════════════════════════════════
+                 ★★★ [V202.47 핫픽스 — 사장님 결제 민원 차단] ★★★
+                   결함 발견 (라이브):
+                     V200.7.4 박스가 saju_basic 결제자에게 ★ 4,900원 정밀 분석 ★ 유도
+                     → 사장님 진단: "990 결제자가 4900 클릭 시 같은 점사 5890원 = 민원"
+                   해결: V202.47 핫픽스 — ★ 이 박스 자체 ★ 차단
+                         조건 변경: saju_basic ★ 차단 ★ (PREMIUM/FREE 그대로)
+                   법적 안전: 이중 청구 차단 (토스 약관 + 전자상거래법 준수)
                  ════════════════════════════════════════════════════════════ -->
             ${(function() {
                 let _paidPlan = '';
                 try { _paidPlan = localStorage.getItem('sajuPaidPlan') || ''; } catch(_) {}
                 const isBasic = _paidPlan === 'saju_basic';
-                if (!isBasic) return ''; // PREMIUM/FREE는 표시 안 함
+                // ★ V202.47 핫픽스 ★ saju_basic 결제자에게 4900 업셀 박스 ★ 차단 ★
+                //   사장님 결정 ('안 ①' — 자동 업그레이드 + 4900 차단):
+                //     "4900원만 안 보이면 모든 게 끝이다 — 그다음은 유저 선택"
+                //   원래 의도: saju_basic에게 4900 유도 (V200.7.4)
+                //   변경 의도: saju_basic에게 4900 유도 ★ 제거 ★ (V202.47)
+                if (isBasic) return '';  // ★ V202.47: 결제자에게 4900 업셀 X ★
+                if (!isBasic) return ''; // PREMIUM/FREE도 표시 안 함 (옛 기본 동작)
                 
                 return `
                 <div style="margin:24px 0; padding:24px 20px; 
