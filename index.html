@@ -13567,8 +13567,48 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
                     : null;
 
                 // 무료 영역 — V25.24 (최우선) → 5계층 결과 → 기존 _renderLoveBlock
+                // ════════════════════════════════════════════════════════════
+                // ★★★ [V202.48 핫픽스 — 사장님 진단 결함 차단] ★★★
+                //   결함: v25_24Oracle 있으면 layer5HTML(펼침 4박스) ★ 사용 안 됨 ★
+                //   → V202.48 매니페스토 "메인 3 + 펼침 4 = 7박스" 차질
+                //   → 사장님 진단 "구현 안 됨" 정확
+                //   해결: v25_24HTML 있어도 layer5HTML을 ★ "✨ 심층 흐름 해석" ★
+                //         펼침 토글로 ★ 추가 노출 ★
+                //   효과: 메인 3박스 + 펼침 4박스 = ★ 7박스 ★ 완성
+                //   격리: v25_24Oracle 없는 케이스는 옛 흐름 그대로
+                // ════════════════════════════════════════════════════════════
+                const _v48_loveDeepToggle = (v25_24HTML && layer5HTML) ? `
+                <details class="zeus-love-deep-toggle" style="margin-top:18px; cursor:pointer;
+                            background:linear-gradient(135deg, rgba(255,123,172,0.10), rgba(212,175,55,0.06));
+                            border:1.5px solid rgba(255,123,172,0.35); border-radius:14px;
+                            box-shadow:0 4px 16px rgba(255,123,172,0.12); overflow:hidden;">
+                    <summary style="padding:16px 18px; list-style:none; display:flex;
+                                    align-items:center; justify-content:space-between;
+                                    color:#FFD970; font-weight:900; font-size:0.96rem;
+                                    letter-spacing:0.02em; user-select:none;">
+                        <span>✨ 심층 흐름 해석</span>
+                        <span style="color:rgba(255,217,112,0.7); font-size:0.78rem; font-weight:700;">
+                            더 깊은 분석 4가지 ▼
+                        </span>
+                    </summary>
+                    <div style="padding:4px 14px 14px 14px; border-top:1px solid rgba(255,123,172,0.18);">
+                        ${layer5HTML}
+                    </div>
+                </details>
+                <style>
+                    .zeus-love-deep-toggle[open] summary {
+                        background:rgba(255,123,172,0.12);
+                        border-bottom:1px solid rgba(255,123,172,0.25);
+                    }
+                    .zeus-love-deep-toggle summary::-webkit-details-marker { display: none; }
+                    .zeus-love-deep-toggle summary::marker { content: ''; }
+                    .zeus-love-deep-toggle summary:hover {
+                        background:rgba(255,123,172,0.08);
+                    }
+                </style>` : '';
+                
                 const freeContent = v25_24HTML
-                    ? v25_24HTML
+                    ? v25_24HTML + _v48_loveDeepToggle   // ★ V202.48 핫픽스: 메인 3박스 + 펼침 4박스 ★
                     : (layer5HTML
                         ? `<div style="padding:18px; background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.4); border-radius:12px; margin-top:18px;">
                             <h3 style="color:#FF7BAC; text-align:center; margin:0 0 15px 0; font-size:1.1rem; border-bottom:1px solid rgba(255,123,172,0.35); padding-bottom:10px;">
