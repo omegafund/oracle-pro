@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.48.6';  // ★ V202.48.6: 사장님 라이브 명령 — 모바일 헤더 짤림 해결. (1) box1 한글 "🧠 핵심 흐름 해석" 위 / 영문 "CORE INSIGHT" 아래 2줄 분리 (가로 flex 제거) (2) box2 한글 "💘 관계 본질" 위 / 영문 "RELATION ESSENCE" 아래 2줄 분리 (3) box6 한글 "✨ 최종 신탁" ★ 신규 추가 ★ 위 / 영문 "FINAL VERDICT" 아래 2줄 (TOP VERDICT="최종 결론"과 차별화 + ZEUS 브랜드 톤). 토글은 V202.48.5 유지 (사장님 "토글창 너무 잘되었다" 확인).
+        const APP_VERSION = 'V202.48.7';  // ★ V202.48.7: 매니페스토 #6 RELATION ESSENCE 점수 바 — box2 헤더 직후에 관계 진척도 시각화 추가. (1) 워커 데이터 활용: o.score (-10~+10) + o.scoreCategory (advance/maintain/realign/close) (2) 정규화: (score + 10) × 5 → 0~100% 진척도 (3) 4단계 색상 분기: advance(녹색)/maintain(황금)/realign(주황)/close(분홍) (4) 카테고리 라벨 + 점수 숫자 + 진척도 막대 + 한줄 설명 일관 구조. 모바일 flex-wrap 적용으로 짤림 차단.
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -12598,12 +12598,60 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
 
             // ── Box 2: Relation Essence (2:2 구조) ──
             const re = b.relationEssence;
+            
+            // ════════════════════════════════════════════════════════════
+            // ★★★ [V202.48.7 매니페스토 #6] RELATION ESSENCE 점수 바 ★★★
+            //   목적: 관계 진척도를 카드별 점수 + 카테고리로 즉시 시각화
+            //   데이터: o.score (-10~+10) + o.scoreCategory (advance/maintain/realign/close)
+            //   정규화: (score + 10) × 5 → 0~100% 진척도
+            //   색상 분기: 4단계 (녹색→황금→주황→분홍)
+            //   위치: box2 헤더 직후, 유저/상대 그리드 직전 (시각 위계 정점)
+            // ════════════════════════════════════════════════════════════
+            const _re_scoreNum = (typeof o.score === 'number') ? o.score : 0;
+            const _re_scoreCat = o.scoreCategory || 'maintain';
+            const _re_scorePct = Math.max(4, Math.min(100, (_re_scoreNum + 10) * 5));
+            const _re_scoreVis = ({
+                advance:  { color:'#2ecc71', label:'발전 흐름',   note:'안정적 결합으로 가는 단계',       arrow:'↗' },
+                maintain: { color:'#FFD970', label:'유지 흐름',   note:'균형 검증이 결과를 가르는 단계',   arrow:'→' },
+                realign:  { color:'#F39C12', label:'재정렬 구간', note:'관계 결 재점검이 필요한 단계',     arrow:'↻' },
+                close:    { color:'#E74C3C', label:'정리 구간',   note:'자기 회복이 우선되는 단계',         arrow:'⊘' }
+            }[_re_scoreCat]) || { color:'#FFD970', label:'유지 흐름', note:'균형 검증 단계', arrow:'→' };
+            const _re_scoreBarHTML = `
+                <div style="margin: 4px 0 14px; padding: 11px 13px;
+                            background: rgba(0,0,0,0.22); border-radius: 8px;
+                            border-left: 3px solid ${_re_scoreVis.color};">
+                    <div style="display:flex; align-items:center; justify-content:space-between;
+                                margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                        <div style="color: ${_re_scoreVis.color}; font-size:0.80rem;
+                                    font-weight:900; letter-spacing:0.04em;">
+                            ${_re_scoreVis.arrow} 관계 진척도 · ${_re_scoreVis.label}
+                        </div>
+                        <div style="font-size:0.72rem; color:rgba(255,255,255,0.75);">
+                            점수 <b style="color:${_re_scoreVis.color}; font-size:0.86rem;">${_re_scoreNum >= 0 ? '+' : ''}${_re_scoreNum}</b>
+                        </div>
+                    </div>
+                    <div style="height:10px; background:rgba(0,0,0,0.42);
+                                border:1px solid rgba(255,255,255,0.12); border-radius:5px;
+                                overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,0.35);">
+                        <div style="height:100%; width:${_re_scorePct}%;
+                                    background:linear-gradient(90deg, ${_re_scoreVis.color}99, ${_re_scoreVis.color});
+                                    border-radius:4px; transition:width 0.8s ease;
+                                    box-shadow:0 0 8px ${_re_scoreVis.color}66;"></div>
+                    </div>
+                    <div style="margin-top:8px; font-size:0.74rem;
+                                color:rgba(255,255,255,0.78); text-align:center;
+                                letter-spacing:0.02em;">
+                        └ ${_re_scoreVis.note}
+                    </div>
+                </div>`;
+            
             const box2 = `
                 <div style="${boxBase} ${greenBorder}">
                     <div style="margin-bottom:12px;">
                         <div style="${labelStyle}">💘 관계 본질</div>
                         <div style="font-size:0.7rem; color:rgba(46,204,113,0.75); font-weight:700; letter-spacing:0.18em; margin-top:3px;">RELATION ESSENCE</div>
                     </div>
+                    ${_re_scoreBarHTML}
                     <div style="font-size:0.88rem; color:rgba(255,255,255,0.92);">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
                             <div style="padding:8px 10px; background:rgba(46,204,113,0.08); border-radius:6px;">
