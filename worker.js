@@ -2195,39 +2195,7 @@ async function classifyByLLM(prompt, apiKey) {
   }
 }
 
-function detectRealEstateIntent(prompt) {
-  const txt = (prompt || "").toLowerCase();
-  // [V27.0 Priority 1] '팔릴까' vs '팔까' 분기 신설 — 사장님 진단 결함 해소
-  //   사장님 케이스: "자양 현대 언제 팔릴까요" (수동·매수자 기다림)
-  //                  → 매도 전략 답변 출력되는 결함 (의미 충돌)
-  //   해결: 한국어 어미 분류
-  //     'sell_passive' (수동·시장 진단): 매수자 유입 시기 / 시장 흐름
-  //     'sell_active'  (능동·매도 전략): 호가 전략 / 매도 타이밍 (현 기능)
-  //     'sell'         (구분 어려운 경우 / 호환): 기존 처리
-  //   답변 차별화: PIVOT_PHRASE 매트릭스에서 sell_passive vs sell_active 분기
-  //
-  //   ※ 가격 정보 X / 의도 분류만 → 자본시장법·공인중개사법 안전 지대
-  
-  // 수동 어미 (시장이 매수자를 보내주길 기다림): 팔릴까/팔리지/안팔려/팔리/안팔린
-  const isSellPassive = /팔릴|팔리지|안팔려|안 팔려|안팔리|안 팔리|팔리는|팔릴지|언제 팔리/.test(txt);
-  // 능동 어미 (내가 매도 결심): 팔까/팔지/팔아/매각/매도/처분/양도/내놓
-  const isSellActive  = /팔까|팔지|팔아|매각|매도|처분|양도|내놓|매물 등록/.test(txt);
-  // 일반 sell (애매한 경우 fallback)
-  const isSellFallback = /팔/.test(txt);
-  
-  const isBuy  = /살까|취득|분양|청약|입주|살려|사고|매수/.test(txt);
-  const isTiming = /언제|시기|타이밍|적기|시점/.test(txt);
-  
-  // 우선순위: passive > active > buy > generic sell
-  if (isTiming && isSellPassive) return "sell_passive";
-  if (isTiming && isSellActive)  return "sell_active";
-  if (isTiming && isBuy)         return "buy";
-  if (isSellPassive) return "sell_passive";
-  if (isSellActive)  return "sell_active";
-  if (isBuy)         return "buy";
-  if (isSellFallback) return "sell_active"; // fallback: 매도 일반 처리
-  return "hold";
-}
+// [V202.26] detectRealEstateIntent 제거 — realestate 카테고리는 V202.0에서 사주로 통합됨 (V53.5 dead code 정리)
 
 // [V19.9] 주식 매도/매수 intent 감지 — 점사 일관성 보장
 function detectStockIntent(prompt) {
@@ -3016,25 +2984,7 @@ function buildPhraseFromBlocks(blocks, seed, fallback) {
 
 // [V27.0.4] 블록 Linter — 안전 어휘 자동 검증
 //   SELL 블록에 '진입/매수' 단어 들어가면 즉시 감지 (Boot 시 검증)
-//   Boot 시 자동 호출 — 결함 발견 시 console.error
-function _validateBlockMatrix(blockMap, mapName) {
-  const errors = [];
-  Object.entries(blockMap || {}).forEach(([scenarioKey, blocks]) => {
-    const isSellScenario = scenarioKey.includes('sell') || scenarioKey === 'wait_sell';
-    if (!isSellScenario) return;
-    
-    // SELL 블록의 모든 텍스트에서 매수 어휘 검증
-    ['CORE', 'TURN', 'RISK'].forEach(blockType => {
-      (blocks[blockType] || []).forEach((text, idx) => {
-        // '진입' / '매수' 단어 검출 (단, '추가 진입보다' 같은 부정 표현은 제외)
-        if (/(?<!추가 )진입(?!보다)|(?<!비)매수/.test(text)) {
-          errors.push(`[${mapName}] ${scenarioKey}.${blockType}[${idx}]: SELL에 매수어휘 — "${text}"`);
-        }
-      });
-    });
-  });
-  return errors;
-}
+//   [V27] _validateBlockMatrix 제거 — 호출처 0, 빌드 타임 검증용이었음 (V53.5 dead code 정리)
 
 // [V27.0.3] TLDR (한줄 결론) 단일 매트릭스 — V27.0.4 Fallback (안전망)
 //   V27.0.4 블록 시스템이 길이 가드 등 실패 시 자동 복귀
@@ -3959,59 +3909,7 @@ function applyZeusEngineV28(metrics) {
 //   목적: BUY 풀에 '익절/청산' 0건, SELL 풀에 '진입/매수' 0건
 //   사장님 V27.0.3 결함 ('진입' 매도 노출) 사전 차단
 // ══════════════════════════════════════════════════════════════════
-function _v28_lintIntentMatrix(matrix, intentName, forbiddenKeywords) {
-  const errors = [];
-  if (!matrix || !matrix[intentName]) return errors;
-  
-  // [V28.A 정밀화] 정상 의미 어휘 예외 (false positive 차단)
-  //   '매수자' = 부동산 거래 상대방 (정상 의미)
-  //   '매수자 유입 시점' = 매도 시 정상 표현
-  //   '매수 의향' = 정상
-  //   → 단순 단어 매칭 → 의미 단위 검증으로 정밀화
-  const FALSE_POSITIVE_PATTERNS = [
-    /매수자/,        // 부동산 거래 상대방
-    /매수 의향/,     // 거래 상대방의 의향
-    /매수세/,        // 시장 흐름 표현
-    /익절·매도/,     // 매도 트레이딩 표현 (정상)
-  ];
-  
-  const checkPool = (pool, location) => {
-    if (!Array.isArray(pool)) return;
-    pool.forEach((text, idx) => {
-      if (typeof text !== 'string') return;
-      forbiddenKeywords.forEach(forbidden => {
-        if (!text.includes(forbidden)) return;
-        // false positive 검증 — 정상 의미 어휘는 통과
-        const isFalsePositive = FALSE_POSITIVE_PATTERNS.some(p => {
-          // 금지 단어가 false positive 패턴 안에 포함되는지
-          const matches = text.match(p);
-          return matches && matches[0].includes(forbidden);
-        });
-        if (isFalsePositive) return;  // 정상 의미 — 통과
-        errors.push(`[${location}][${idx}] '${forbidden}' 어휘 충돌: "${text.substring(0, 40)}..."`);
-      });
-    });
-  };
-  
-  // CORE_MATRIX는 시나리오별 분기 구조
-  if (matrix === V28_CORE_MATRIX) {
-    Object.keys(matrix[intentName]).forEach(scenario => {
-      checkPool(matrix[intentName][scenario], `${intentName}.${scenario}`);
-    });
-  }
-  // RISK_POOL은 common 풀
-  else if (matrix === V28_RISK_POOL && matrix[intentName].common) {
-    checkPool(matrix[intentName].common, `${intentName}.common`);
-  }
-  // TONE_MATRIX / GUIDE_POOL / TIMING_POOL은 직접 배열
-  else if (Array.isArray(matrix[intentName])) {
-    checkPool(matrix[intentName], intentName);
-  }
-  
-  return errors;
-}
-
-// Boot 시 1회 자동 검증
+// [V28] _v28_lintIntentMatrix 제거 — 부트 시 검증 함수, 호출처 0 (V53.5 dead code 정리)
 
 // ══════════════════════════════════════════════════════════════════
 // 🔥 [V28.B] enforceIntent 정밀 후처리 — 표현/판단 충돌 차단
@@ -7286,6 +7184,539 @@ const V31_DAY_MASTER_ESSENCE = {
   "계해": "맑은 물이 자기 자리를 찾은 깊은 직관 흐름"
 };
 
+// ════════════════════════════════════════════════════════════════════
+// ★★★★★ [V202.54.0] 사주 프리미엄 톤 전면 재설계 ★★★★★
+//   사장님 7원칙:
+//     ① 사전식 명사  → 행동 서사 (의지·인내·통찰을 행동 패턴으로 묘사)
+//     ② 수치 노출    → 감각 번역 (49% → '스스로를 과하게 몰아붙여')
+//     ③ 사주 용어    → 일상 언어 ('신약 본질' → '관계 작동 방식')
+//     ④ 시스템 메시지 → 사람의 통찰 ('구조적 균형+상승' → '리듬을 정렬할수록...')
+//     ⑤ 명령형       → 권유형 ('5분 점검 없으면 끊김' → '짧게라도 정리해두면...')
+//     ⑥ 추상         → 행동 묘사 ('도화: 매력' → '사람의 시선을 자연스럽게 끄는...')
+//     ⑦ 결과         → 결과+그림자 (프리미엄 깊이 — 양면성 동시 제시)
+//   본질: AI가 점치는 게 아니라, 통찰력 있는 사람이 옆에서 말해주는 느낌
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * V54_DAY_NATURE_POOL — 일주 본질 결 (서사형 깊이)
+ * V31_DAY_MASTER_ESSENCE의 한 줄 라벨을 보완하는 4~6줄 본질 결.
+ * 60갑자 모두 정의 시간 필요 — Phase 1.1에서는 10일간 대표 갑자 우선 + 일간 fallback
+ * 사용처: v31GenerateText → 응답 필드 dayNatureEssence
+ */
+const V54_DAY_NATURE_POOL = {
+  // ── 갑(甲) 일간 — 곧은 결단력 + 책임 부담 ──
+  "갑인": "큰 나무가 자기 자리에 단단히 뿌리내린 결입니다.\n주변이 흔들려도 자기 방향을 좀처럼 바꾸지 않는 타입이며,\n결정의 무게를 혼자 지려는 경향이 강합니다.\n\n믿을 만한 동행과 짐을 나눌 때\n흐름이 빠르게 살아납니다.",
+  "갑오": "큰 나무가 강한 햇살 아래 자란 결입니다.\n생각보다 표현이 직설적이고,\n자기 의견을 분명히 드러내는 편입니다.\n\n다만 표현 강도가 관계에서 부담을 만들 수 있어,\n속도를 한 박자 늦출 때 진심이 더 잘 전달됩니다.",
+  // ── 을(乙) 일간 — 부드러운 적응 + 숨은 강함 ──
+  "을묘": "부드러운 풀이 자기 자리를 찾은 결입니다.\n겉으로는 양보하는 듯 보여도,\n내면의 방향은 좀처럼 흔들리지 않습니다.\n\n충돌보다 시간으로 풀어가는 방식이 강점이지만,\n그 인내가 쌓이면 갑자기 거리를 두기도 합니다.",
+  "을사": "부드러운 풀이 태양을 향해 자란 결입니다.\n사람을 끌어들이는 표현력과\n자기 영역을 지키는 단호함이 함께 있습니다.\n\n다만 '맞춰주는 자기'와 '본인의 욕구' 사이에서\n자주 피로를 느끼는 구조입니다.",
+  // ── 병(丙) 일간 — 빛·표현·과열 ──
+  "병오": "한낮의 태양이 정점에 떠 있는 결입니다.\n시선을 끄는 에너지가 강하고,\n자기 빛으로 주변을 데우려는 경향이 있습니다.\n\n다만 그 빛을 스스로 끄지 못해\n쉬는 시간조차 머릿속이 뜨거운 타입에 가깝습니다.",
+  "병자": "태양이 깊은 물 위에 비친 결입니다.\n표현은 밝지만 내면은 차분히 가라앉아 있어,\n겉과 속의 온도차가 자주 큽니다.\n\n혼자 정리하는 시간이 충분히 확보될 때\n표현이 가장 안정된 형태로 나옵니다.",
+  // ── 정(丁) 일간 — 작은 불빛·섬세 ──
+  "정사": "작은 불빛이 태양을 만나 더 밝아진 결입니다.\n섬세한 감각과 빠른 직관이 강점이며,\n분위기를 빠르게 읽어내는 타입입니다.\n\n다만 그 감각이 늘 켜져 있어,\n사람들 사이에서 쉽게 지치는 구조이기도 합니다.",
+  "정묘": "작은 불빛이 부드러운 바람을 받는 결입니다.\n사람을 따뜻하게 만드는 흐름이 있지만,\n그 따뜻함을 스스로 받아주는 시간은 부족합니다.\n\n자기를 돌보는 한 가지 루틴을 가질 때\n관계의 균형도 함께 살아납니다.",
+  // ── 무(戊) 일간 — 산·중심·고집 ──
+  "무인": "큰 산이 든든히 자리잡은 결입니다.\n쉽게 흔들리지 않는 무게감과\n사람들의 중심에 서는 안정감이 있습니다.\n\n다만 '내가 안 챙기면 무너질 것 같은' 부담이 누적되어,\n쉬는 법을 배워야 흐름이 길게 갑니다.",
+  "무진": "큰 산이 비옥한 토양 위에 자리한 결입니다.\n포용력과 책임감이 자연스럽게 작동하며,\n사람들이 기대오는 자리에 자주 놓입니다.\n\n그 기대를 다 받아내려다 정작 자기 욕구를\n뒤로 미루는 구조이기도 합니다.",
+  // ── 기(己) 일간 — 작은 토양·양육 ──
+  "기축": "비옥한 작은 들판이 차분히 펼쳐진 결입니다.\n주변 사람을 자연스럽게 키워주는 흐름이지만,\n그 양육이 자기 소진으로 이어지기 쉽습니다.\n\n받는 사람만 보지 말고\n주는 자기 자신의 회복을 먼저 챙길 때 균형이 잡힙니다.",
+  "기미": "작은 들판이 따뜻한 햇살 아래 무르익은 결입니다.\n사람의 마음을 편하게 만드는 자질이 강하며,\n관계의 윤활유 역할을 자주 맡습니다.\n\n다만 자기 의견을 미루는 습관이\n장기적으로 답답함을 만들 수 있습니다.",
+  // ── 경(庚) 일간 — 강한 금속·결단 ──
+  "경신": "잘 벼린 칼이 자기 자리에 놓인 결입니다.\n결정이 빠르고 옳고 그름의 기준이 분명합니다.\n불필요한 감정을 잘라내는 능력이 강점이지만,\n\n관계에서는 그 단호함이\n차가움으로 읽힐 수 있어 톤 조절이 핵심입니다.",
+  "경오": "강한 금속이 강한 불을 만난 결입니다.\n자기를 단단히 다듬는 흐름이 강하지만,\n그 과정에서 스스로를 너무 몰아붙입니다.\n\n결과만 보지 말고 과정의 자기 소모를 인지할 때\n오래 갈 수 있는 구조입니다.",
+  // ── 신(辛) 일간 — 정교·예민·자기검열 ──
+  "신유": "정교하게 다듬어진 금속이 빛나는 결입니다.\n세부를 보는 감각이 뛰어나고\n자기 기준이 높은 타입입니다.\n\n그 기준이 자기 자신에게 향할 때\n작은 실수에도 오래 머무는 구조이기도 합니다.",
+  "신묘": "섬세한 금속이 부드러운 바람과 만난 결입니다.\n관계의 결을 잘 읽지만,\n그 읽음이 과도해지면 스스로 피곤해집니다.\n\n분석 모드를 잠시 끄는 시간이\n관계도 자기도 함께 회복시킵니다.",
+  // ── 임(壬) 일간 — 큰 물·포용·흐름 ──
+  "임자": "큰 물이 깊은 바다와 만난 결입니다.\n포용력과 적응력이 모두 강하며,\n사람과 상황을 자기 안에 담는 능력이 있습니다.\n\n다만 너무 많이 담으면 정작 자기 흐름이 흐려져,\n경계를 분명히 둘 때 더 깊어지는 구조입니다.",
+  "임술": "큰 물이 든든한 산을 만난 결입니다.\n흐름은 자유롭되 중심은 단단한 타입으로,\n변화 속에서도 자기 기준을 유지합니다.\n\n다만 그 자기 기준을 표현하지 않으면\n주변이 오해하기 쉬운 구조입니다.",
+  // ── 계(癸) 일간 — 작은 물·직관·통찰 ──
+  "계사": "맑은 물이 태양과 만나 반짝이는 결입니다.\n겉으로는 차분해 보여도,\n내면에서는 끊임없이 생각이 흐르는 구조입니다.\n\n감정 자체보다 '상황을 어떻게 정리할지'\n먼저 계산하려는 경향이 강합니다.",
+  "계해": "맑은 물이 자기 자리를 찾은 결입니다.\n직관이 깊고 분위기를 빠르게 읽어내는 타입이며,\n혼자만의 시간에서 가장 충전됩니다.\n\n다만 그 깊은 직관이 표현되지 않을 때\n주변과의 거리가 자기도 모르게 멀어집니다."
+};
+
+/**
+ * V54_DAY_NATURE_BY_GAN — 일간(천간 10) 기본 본질 (60갑자 fallback)
+ * 일주가 위 풀에 없는 케이스에서 사용 (예: '갑자' → 갑 일간 기본 본질)
+ */
+const V54_DAY_NATURE_BY_GAN = {
+  "갑": "큰 나무처럼 자기 방향이 분명한 결입니다.\n결정의 무게를 혼자 지려는 경향이 있으며,\n믿을 만한 동행과 짐을 나눌 때 흐름이 살아납니다.",
+  "을": "부드러운 풀처럼 적응력이 강한 결입니다.\n충돌보다 시간으로 풀어가는 방식이 강점이지만,\n인내가 쌓이면 갑자기 거리를 두기도 하는 구조입니다.",
+  "병": "한낮의 태양처럼 표현력이 강한 결입니다.\n주변을 데우는 에너지가 있지만,\n그 빛을 스스로 끄지 못해 자주 과열되는 타입입니다.",
+  "정": "작은 불빛처럼 섬세한 감각의 결입니다.\n분위기를 빠르게 읽지만,\n그 감각이 늘 켜져 있어 사람들 사이에서 쉽게 지칩니다.",
+  "무": "큰 산처럼 중심이 단단한 결입니다.\n쉽게 흔들리지 않는 무게감이 강점이지만,\n'내가 안 챙기면 안 된다'는 부담이 자주 누적됩니다.",
+  "기": "작은 들판처럼 사람을 키우는 결입니다.\n주변을 자연스럽게 양육하는 자질이 있지만,\n그 양육이 자기 소진으로 이어지기 쉬운 구조입니다.",
+  "경": "잘 벼린 칼처럼 결정이 명확한 결입니다.\n옳고 그름의 기준이 뚜렷하지만,\n관계에서는 그 단호함이 차가움으로 읽힐 수 있습니다.",
+  "신": "정교하게 다듬어진 금속처럼 세밀한 결입니다.\n세부를 보는 감각이 뛰어나지만,\n그 기준이 자기에게 향하면 작은 실수에도 오래 머뭅니다.",
+  "임": "큰 물처럼 포용력이 강한 결입니다.\n사람과 상황을 자기 안에 담는 능력이 있지만,\n너무 많이 담으면 정작 자기 흐름이 흐려지는 구조입니다.",
+  "계": "맑은 물처럼 직관이 깊은 결입니다.\n생각이 끊임없이 흐르는 타입이며,\n감정보다 '상황을 어떻게 정리할지' 먼저 계산하는 경향입니다."
+};
+
+/**
+ * V54_ELEMENT_NARRATIVE — 오행 편중 에너지 구조 (행동 묘사)
+ * V31_ELEMENT_BALANCE_POOL의 한 줄 사전형을 보완.
+ * 사용처: v31GenerateText → 응답 필드 elementNarrative
+ */
+const V54_ELEMENT_NARRATIVE = {
+  balanced: "오행이 고르게 분포된 흐름입니다.\n어느 한쪽으로 치우치지 않는 균형감이 강점이며,\n상황에 따라 다른 모드로 자유롭게 전환됩니다.\n\n다만 그 균형이 결정의 순간에는\n선택을 미루는 모습으로 나타나기도 합니다.",
+  wood_strong: "성장하려는 추진력이 강하게 작동하는 흐름입니다.\n한번 방향을 정하면 좀처럼 멈추지 않으며,\n새로운 영역을 개척하려는 에너지가 자연스럽게 발휘됩니다.\n\n다만 멈춤 신호를 자주 놓쳐\n과로와 번아웃이 누적되기 쉬운 구조입니다.",
+  fire_strong: "한 번 몰입하면 스스로를 과하게 밀어붙이는 흐름입니다.\n표현력과 카리스마가 강한 반면,\n쉬는 중에도 머릿속 긴장이 남아 있어\n생각 피로가 누적되기 쉬운 타입에 가깝습니다.\n\n결과를 향한 가속을 한 박자 줄일 때\n오히려 흐름이 길게 갑니다.",
+  earth_strong: "주변을 받쳐주는 안정감이 강한 흐름입니다.\n사람의 기대를 자연스럽게 받아내는 자질이 있지만,\n그 기대를 다 들어주려다\n자기 욕구를 뒤로 미루는 구조이기도 합니다.\n\n받기만 하지 말고 자기를 위한 시간을 따로 두는 게 핵심입니다.",
+  metal_strong: "결단과 정리 에너지가 강한 흐름입니다.\n불필요한 것을 빠르게 잘라내는 능력이 강점이지만,\n관계에서는 그 단호함이\n차가움으로 읽힐 수 있어 톤 조절이 필요한 구조입니다.\n\n부드러운 표현 한 줄이 결정의 무게를 크게 줄여줍니다.",
+  water_strong: "직관과 통찰 에너지가 깊게 흐르는 구조입니다.\n분위기를 빠르게 읽지만,\n그 읽음이 과도해지면 결정을 미루는 패턴이 됩니다.\n\n생각보다 작은 행동 하나가\n흐름을 명확하게 만들어주는 시기입니다.",
+  // 약(weak) 케이스
+  wood_weak: "성장 동력이 부족한 흐름입니다.\n혼자 끌고가려 할수록 흐름이 막히고,\n역할을 나눌 수 있는 관계가 들어올 때 운이 살아납니다.\n\n지금은 시작보다 신뢰 관계를 만드는 시기로 보입니다.",
+  fire_weak: "표현이 가라앉아 있는 흐름입니다.\n속도를 내려 해도 마음이 따라가지 않을 수 있으며,\n작은 성취감 하나를 의식적으로 만들어줄 때\n에너지가 다시 살아나는 구조입니다.",
+  earth_weak: "기반이 흔들리기 쉬운 흐름입니다.\n결정을 너무 빨리 내리면 후회로 돌아오기 쉬워,\n루틴 한 가지를 안정시키는 것이\n다른 모든 흐름의 균형을 잡아주는 시기입니다.",
+  metal_weak: "결단이 약해지는 흐름입니다.\n선택의 순간을 미루는 경향이 강해지지만,\n작은 결정 하나라도 끝까지 마무리할 때\n자기 신뢰가 다시 쌓이는 구조입니다.",
+  water_weak: "직관이 흐려지는 흐름입니다.\n생각이 많아도 정리가 안 되는 상태에 가깝고,\n혼자 결정하기보다\n믿을 만한 사람의 시선을 한 번 빌릴 때 길이 열립니다."
+};
+
+/**
+ * V54_STRENGTH_NARRATIVE — 신강/신약 관계 작동 방식
+ * V31_STRENGTH_ESSENCE_POOL의 한 줄 사전형을 보완.
+ */
+const V54_STRENGTH_NARRATIVE = {
+  extra_strong: "혼자서 다 해내려는 흐름이 매우 강한 구조입니다.\n자기 추진력이 강점이지만,\n그 강함이 주변과의 균열을 만들기도 합니다.\n\n조언을 듣는 자세 한 가지만 추가해도\n흐름이 훨씬 길게 안정됩니다.",
+  strong: "자기 흐름을 단단히 끌고 가는 구조입니다.\n결정과 추진이 안정적으로 작동하며,\n주변의 기대도 자연스럽게 받아내는 편입니다.\n\n다만 자기 페이스에 너무 맞춰지면\n관계가 일방향이 될 수 있어 속도 조절이 핵심입니다.",
+  balanced: "자기와 주변의 균형이 자연스럽게 잡힌 구조입니다.\n주도할 때와 따라갈 때를 잘 구분하며,\n관계의 톤을 안정적으로 유지하는 자질이 있습니다.\n\n결정이 필요한 순간에는 한 박자 빠르게 움직일 때\n흐름의 방향이 더 분명해집니다.",
+  weak: "혼자 버티려 할수록 흐름이 막히고,\n믿을 수 있는 사람과 역할을 나눌 때\n운이 살아나는 구조입니다.\n\n협력은 약함이 아니라 이 구조의 강점 활용 방식이며,\n신뢰 관계 한 줄이 결정의 무게를 크게 줄여줍니다.",
+  extra_weak: "혼자 결정하려 할수록 에너지가 빠르게 소진되는 구조입니다.\n주변의 도움을 받는 것이 약함이 아니라,\n이 구조에서 가장 자연스러운 흐름 활용 방식입니다.\n\n믿을 만한 한 사람의 시선을 빌리는 것이\n복잡한 상황을 단순하게 만들어주는 시기입니다."
+};
+
+/**
+ * V54_GYEOKGUK_NARRATIVE — 격국 행동 구조 (양면 설명)
+ * 라인 7735, 7817의 짧은 라벨을 깊이 있는 행동 묘사로 확장.
+ */
+const V54_GYEOKGUK_NARRATIVE = {
+  '정관격': {
+    label: '💼 규범 기반형 구조',
+    body: "원칙과 절차에 안정감을 느끼는 타입입니다.\n조직 안에서 자기 자리를 정확히 만들어내는 자질이 강하며,\n흐트러진 흐름을 정리하는 데서 만족을 얻습니다.\n\n다만 규범 밖의 변수가 들어오면\n경직되는 모습이 함께 나타나는 구조입니다."
+  },
+  '편관격': {
+    label: '⚡ 압박 돌파형 구조',
+    body: "위기와 압박 속에서 오히려 더 분명해지는 타입입니다.\n빠른 결단과 행동력이 강점이며,\n남들이 망설이는 자리에서 자기 색을 드러냅니다.\n\n다만 평온한 시기에는\n오히려 답답함을 느끼기 쉬운 구조이기도 합니다."
+  },
+  '정재격': {
+    label: '💰 현실 기반형 구조',
+    body: "큰 모험보다, 쌓아가는 방식에서 안정감을 느끼는 타입입니다.\n즉흥 승부보다\n관리·유지·축적 능력이 강하게 작동합니다.\n\n다만 큰 변화가 필요한 시기에는\n움직임이 느려지는 모습이 함께 나타나는 구조입니다."
+  },
+  '편재격': {
+    label: '🎯 기회 포착형 구조',
+    body: "흐름의 틈을 빠르게 읽는 타입입니다.\n관계와 정보의 가치를 직관적으로 알아보며,\n작은 기회를 큰 결과로 연결하는 자질이 있습니다.\n\n다만 다음 기회로 빠르게 옮겨가는 습관이\n시작한 일을 마무리하는 데서 약점이 되기도 합니다."
+  },
+  '정인격': {
+    label: '📚 학습 축적형 구조',
+    body: "이해와 정리를 통해 안정감을 얻는 타입입니다.\n새로운 영역도 자기 방식으로 흡수해내는 자질이 강하며,\n주변에서 신뢰를 자연스럽게 얻습니다.\n\n다만 행동의 시작이 자주 늦어져,\n생각을 행동으로 끊는 한 박자가 필요한 구조입니다."
+  },
+  '편인격': {
+    label: '🔍 통찰 직관형 구조',
+    body: "표면보다 본질을 보려는 타입입니다.\n남들이 놓치는 결을 빠르게 짚어내는 직관이 강점이며,\n혼자만의 사색에서 큰 통찰을 얻습니다.\n\n다만 그 직관이 외부와 단절될 때\n현실 감각이 흔들리기 쉬운 구조입니다."
+  },
+  '식신격': {
+    label: '🌱 표현 생성형 구조',
+    body: "자기 안의 것을 자연스럽게 풀어내는 타입입니다.\n표현·창작·돌봄 같이\n무언가를 키워내는 자리에서 흐름이 살아납니다.\n\n다만 표현하지 못한 감정이 쌓이면\n갑자기 가라앉는 모습이 함께 나타나는 구조입니다."
+  },
+  '상관격': {
+    label: '✨ 변화 추진형 구조',
+    body: "기존 틀을 그대로 받아들이지 않는 타입입니다.\n새로운 방식과 표현을 만들어내는 능력이 강점이며,\n남들과 다른 길에서 자기 색을 드러냅니다.\n\n다만 그 강한 표현이 관계에서 마찰을 만들 수 있어,\n톤 조절이 결정적인 변수가 되는 구조입니다."
+  },
+  '비견격': {
+    label: '🤝 동료 협력형 구조',
+    body: "혼자보다 같이 움직일 때 흐름이 살아나는 타입입니다.\n공동의 목표 안에서 자기 자리를 잘 만들며,\n경쟁보다 협력 안에서 강점을 발휘합니다.\n\n다만 자기 의견을 너무 미루면\n장기적으로 답답함이 누적되는 구조입니다."
+  },
+  '겁재격': {
+    label: '🔥 경쟁 돌파형 구조',
+    body: "경쟁 환경에서 더 분명해지는 타입입니다.\n자기 자리를 지키는 본능과\n앞서가려는 추진력이 강하게 작동합니다.\n\n다만 그 경쟁심이 가까운 관계로 향하면\n흐름이 빠르게 흔들리는 구조이기도 합니다."
+  }
+};
+
+/**
+ * V54_SHINSAL_NARRATIVE — 신살 행동 신호 (행동/그림자)
+ * 사장님 예시: "🌸 도화살: 매력과 인기가 강한 살" → "🌸 관계 끌림 신호..."
+ * 라벨을 행동 신호로 + 양면(끌림+피로) 설명 추가.
+ */
+const V54_SHINSAL_NARRATIVE = {
+  '천을귀인': {
+    label: '🌟 결정적 도움 신호',
+    body: "어려운 순간에 의외의 도움이 들어오는 흐름이 있습니다.\n사람을 통해 길이 열리는 경험이 반복되며,\n혼자 풀려 하지 않고 한 번 더 손을 내밀 때\n생각보다 빠르게 매듭이 풀립니다."
+  },
+  '도화살': {
+    label: '🌸 관계 끌림 신호',
+    body: "사람의 시선을 자연스럽게 끄는 흐름이 있습니다.\n다만 관계 초반엔 강하게 끌리지만,\n감정 피로가 누적되면\n혼자 거리 조절하려는 경향도 함께 나타납니다."
+  },
+  '역마살': {
+    label: '✈️ 이동 변화 신호',
+    body: "한 자리에 오래 머물지 못하는 흐름이 있습니다.\n환경 변화와 이동에서 오히려 안정감을 얻으며,\n새로운 자리에서 자기 색이 빠르게 드러납니다.\n\n다만 변화 자체가 목적이 되면\n축적이 어려워지는 구조이기도 합니다."
+  },
+  '화개살': {
+    label: '🎨 사색 깊이 신호',
+    body: "혼자만의 시간에서 충전되는 흐름이 있습니다.\n예술·종교·연구 같은 깊이 있는 영역에서\n자기 색이 분명해지는 자질이 있습니다.\n\n다만 그 깊이가 외부와 단절될 때\n관계에서 거리감이 만들어지기 쉽습니다."
+  },
+  '공망': {
+    label: '🌫 비움 학습 신호',
+    body: "원하는 것을 잡으려 할수록 비어 보이는 자리가 있습니다.\n그 자리는 채우는 곳이 아니라\n비움을 배우는 영역에 가깝습니다.\n\n집착을 풀면 오히려 다른 통로로\n예상치 못한 결과가 들어옵니다."
+  },
+  '양인살': {
+    label: '⚔️ 강한 추진 신호',
+    body: "결단력과 추진력이 강하게 작동하는 흐름입니다.\n위기 상황에서 가장 빛나는 자질이지만,\n평온한 시기에는 그 강도가 너무 세져\n주변에 부담을 주기도 합니다.\n\n쓰는 자리를 의식적으로 고를 때 강점이 됩니다."
+  },
+  '월덕귀인': {
+    label: '🌙 안정 보호 신호',
+    body: "큰 충격을 자연스럽게 완화하는 흐름이 있습니다.\n위기 속에서도 부드러운 출구가 만들어지며,\n주변의 호의와 관용을 자주 경험합니다.\n\n다만 그 보호가 익숙해지면\n결정의 무게를 가볍게 여기기 쉬운 구조입니다."
+  },
+  '괴강살': {
+    label: '🗡 카리스마 신호',
+    body: "사람을 끌어모으는 강한 색이 있는 흐름입니다.\n자기 자리에서 분명한 존재감을 드러내며,\n결정의 중심에 자주 서게 됩니다.\n\n다만 그 강한 색이 관계에서 거리감을 만들 수 있어,\n부드러운 표현 한 줄이 큰 차이를 만듭니다."
+  }
+};
+
+/**
+ * V54_TRIGGER_NARRATIVE — '강제 트리거' 부드러운 권유 변환
+ * 사장님 예시: "오늘 안에 일정 5분 점검 없으면 흐름이 끊깁니다" (명령형 거부감)
+ *           → "오늘 해야 할 일을 짧게라도 정리해두면..." (권유형 부드러움)
+ */
+const V54_TRIGGER_NARRATIVE = {
+  schedule_check: "오늘 해야 할 일을\n짧게라도 정리해두면,\n흩어진 흐름이 다시 안정되기 시작합니다.",
+  rest_check: "잠깐 쉬는 시간을 의식적으로 두면,\n과열된 머릿속이 한 박자 식으며\n다음 결정이 훨씬 명확해집니다.",
+  contact_check: "미루던 연락 한 통을 짧게라도 건네면,\n흐릿했던 관계의 결이\n생각보다 빠르게 정리됩니다.",
+  decision_check: "오늘 안에 큰 결정을 미룰 수 있다면,\n하루 더 두고 보는 쪽이\n후행 흐름을 더 단단하게 만들어줍니다.",
+  recovery_check: "몸이 보내는 신호를 한 번만 더 들어두면,\n무리한 가속이 멈추면서\n전반적인 흐름이 다시 살아납니다."
+};
+
+// ════════════════════════════════════════════════════════════════════
+// ★★★★★ [V202.54.0] 3계층 사주 정밀 엔진 (사장님 + 외부 의견 통합) ★★★★★
+//   설계 철학:
+//     1층 (구조 판정): 사주 → profile 상태값만 생성 (문장 0)
+//     2층 (Trait 조합): profile → 중간 trait (인터넷 사주 차단)
+//     3층 (문장 풀):    trait → 사전 정의 블록 (환각 0)
+//     [4층 (LLM 자연화): 별도 단계, 블록을 자연 연결]
+//   사장님 비전: 일간 무시 X / 사전식 X / 수치 노출 X / 시스템 톤 X
+//   → "통찰력 있는 사람이 옆에서 말해주는 느낌"
+// ════════════════════════════════════════════════════════════════════
+
+// ── 1층 헬퍼: 일간 오행 → 십성 매핑 ──
+/**
+ * 일간 오행 기준 5십성의 오행 매핑
+ * 비겁=같은 오행 / 식상=내가 생함 / 재성=내가 극함 / 관성=나를 극함 / 인성=나를 생함
+ */
+const V54_SIPSUNG_BY_DAY_EL = {
+  '목': { 비겁: '목', 식상: '화', 재성: '토', 관성: '금', 인성: '수' },
+  '화': { 비겁: '화', 식상: '토', 재성: '금', 관성: '수', 인성: '목' },
+  '토': { 비겁: '토', 식상: '금', 재성: '수', 관성: '목', 인성: '화' },
+  '금': { 비겁: '금', 식상: '수', 재성: '목', 관성: '화', 인성: '토' },
+  '수': { 비겁: '수', 식상: '목', 재성: '화', 관성: '토', 인성: '금' }
+};
+
+/**
+ * 십성 강도 계산
+ * @param {Object} elements - { '목': 1, '화': 4.9, '토': 1.2, '금': 0.1, '수': 3.7 } 형태
+ * @param {string} dayMasterEl - 일간 오행 ('목'/'화'/'토'/'금'/'수')
+ * @returns {Object} { 비겁: 'high', 식상: 'low', ... }
+ */
+function v54_calculateSipsungStrength(elements, dayMasterEl) {
+  const map = V54_SIPSUNG_BY_DAY_EL[dayMasterEl] || V54_SIPSUNG_BY_DAY_EL['수'];
+  const out = {};
+  for (const [sipsung, el] of Object.entries(map)) {
+    const val = elements[el] || 0;
+    out[sipsung] =
+      val >= 2.0 ? 'high' :
+      val >= 1.0 ? 'mid'  :
+      val >= 0.4 ? 'low'  : 'none';
+  }
+  return out;
+}
+
+/**
+ * ★★★ 1계층 — 구조 판정층 (Deterministic Core) ★★★
+ * 사주 계산 결과 → profile 객체 (상태값만, 문장 0건)
+ * @returns {Object} profile — 17 상태 코드
+ */
+function v54_buildSajuProfile(sajuData) {
+  const { elements, strength, meta } = sajuData;
+  const dayMasterEl = meta.dayMasterElement;
+  
+  // 십성 강도 (5)
+  const sipsung = v54_calculateSipsungStrength(elements, dayMasterEl);
+  
+  // 오행 편중
+  const elValues = Object.values(elements);
+  const elMax = Math.max(...elValues);
+  const elMin = Math.min(...elValues);
+  const elRange = elMax - elMin;
+  const imbalanceLevel = elRange >= 2.5 ? 'severe' : elRange >= 1.5 ? 'moderate' : 'balanced';
+  let dominantEl = null, deficientEl = null;
+  for (const [el, val] of Object.entries(elements)) {
+    if (val === elMax) dominantEl = el;
+    if (val === elMin) deficientEl = el;
+  }
+  
+  // 심리/사회/행동 코드 (조건 분기 — 사주학적 + 심리학적 매핑)
+  const emotionalMode =
+    sipsung.식상 === 'high' && sipsung.관성 === 'none' ? 'volatile' :
+    sipsung.관성 === 'high' && sipsung.식상 === 'low'  ? 'suppressed' :
+    sipsung.인성 === 'high' && strength.level !== 'weak' ? 'stable' :
+    sipsung.식상 === 'high' ? 'volatile' :
+    sipsung.관성 === 'high' ? 'suppressed' : 'open';
+  
+  const socialMask =
+    (sipsung.관성 === 'high' || sipsung.인성 === 'high') &&
+    sipsung.식상 !== 'high' ? 'high' :
+    sipsung.관성 === 'none' && sipsung.식상 === 'high' ? 'low' : 'mid';
+  
+  const leadership =
+    sipsung.관성 === 'high' && sipsung.비겁 !== 'low' ? 'high' :
+    sipsung.식상 === 'high' && sipsung.비겁 === 'high' ? 'high' :
+    sipsung.비겁 === 'high' ? 'mid' :
+    sipsung.관성 === 'high' ? 'mid' : 'low';
+  
+  const isolation =
+    sipsung.인성 === 'high' && sipsung.비겁 === 'low' ? 'high' :
+    sipsung.관성 === 'high' && strength.level === 'weak' ? 'high' :
+    sipsung.식상 === 'high' && sipsung.인성 === 'none' ? 'low' :
+    strength.level === 'weak' ? 'mid' : 'low';
+  
+  const decisionStyle =
+    sipsung.인성 === 'high' && sipsung.식상 === 'low' ? 'cautious' :
+    dayMasterEl === '수' ? 'analytical' :
+    dayMasterEl === '화' ? 'instinctive' :
+    dayMasterEl === '금' ? 'analytical' :
+    dayMasterEl === '목' ? 'instinctive' : 'cautious';
+  
+  const recoveryStyle =
+    sipsung.비겁 === 'high' && sipsung.인성 !== 'high' ? 'solo' :
+    sipsung.식상 === 'high' && sipsung.재성 === 'high' ? 'work' :
+    sipsung.인성 === 'high' || (sipsung.비겁 === 'high' && sipsung.식상 === 'high') ? 'social' : 'solo';
+  
+  const burnoutRisk =
+    sipsung.재성 === 'high' && strength.level === 'weak' ? 'high' :
+    sipsung.관성 === 'high' && strength.level === 'weak' ? 'high' :
+    sipsung.재성 === 'high' && sipsung.식상 === 'high' ? 'mid' :
+    sipsung.관성 === 'high' && sipsung.식상 === 'high' ? 'mid' : 'low';
+  
+  return {
+    // 기본 사주
+    dayMaster:      meta.dayMaster,      // 천간 10
+    dayMasterEl:    dayMasterEl,         // 오행 5
+    strength:       strength.level,      // extra_strong/strong/balanced/weak/extra_weak
+    // 십성 강도 (5)
+    selfDrive:      sipsung.비겁,
+    outputDrive:    sipsung.식상,
+    wealthPursuit:  sipsung.재성,
+    officerPressure:sipsung.관성,
+    supportLevel:   sipsung.인성,
+    // 오행 편중
+    dominantEl, deficientEl, imbalanceLevel,
+    // 심리/사회/행동 (7)
+    emotionalMode, socialMask, leadership, isolation,
+    decisionStyle, recoveryStyle, burnoutRisk
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ★★★ 2계층 — Trait 매트릭스 (인터넷 사주 차단) ★★★
+//   "편관 강 = 군인형" 직결 차단
+//   상태값 조합 → 중간 trait → 풍부한 변별
+// ════════════════════════════════════════════════════════════════════
+
+const V54_TRAIT_RULES = [
+  // ─── 리더십 패턴 (3종 — 편관 강을 3가지로 구분) ───
+  { id: 'controlled_leader',   when: p => p.officerPressure === 'high' && p.leadership === 'high' && p.emotionalMode === 'suppressed' },
+  { id: 'reactive_responder',  when: p => p.officerPressure === 'high' && p.emotionalMode === 'volatile' && p.leadership !== 'high' },
+  { id: 'hidden_manager',      when: p => p.officerPressure === 'high' && p.isolation === 'high' && p.leadership !== 'high' },
+  
+  // ─── 감정 패턴 (4종) ───
+  { id: 'emotional_burnout',   when: p => p.burnoutRisk === 'high' && p.recoveryStyle !== 'social' },
+  { id: 'emotional_suppression', when: p => p.outputDrive === 'low' && p.emotionalMode === 'suppressed' },
+  { id: 'emotional_surge',     when: p => p.emotionalMode === 'volatile' && p.dominantEl === '화' },
+  { id: 'emotional_stability', when: p => p.emotionalMode === 'stable' && p.strength !== 'weak' && p.strength !== 'extra_weak' },
+  
+  // ─── 관계 패턴 (4종) ───
+  { id: 'mask_with_distance',  when: p => p.socialMask === 'high' && p.isolation === 'high' },
+  { id: 'lonely_resilience',   when: p => p.supportLevel === 'low' && (p.strength === 'weak' || p.strength === 'extra_weak') },
+  { id: 'warm_connector',      when: p => p.supportLevel === 'high' && p.outputDrive !== 'low' && p.socialMask !== 'high' },
+  { id: 'protective_nurturer', when: p => p.outputDrive === 'high' && (p.dayMasterEl === '토' || p.dayMasterEl === '목') },
+  
+  // ─── 결단 패턴 (4종) ───
+  { id: 'intuitive_strategist', when: p => p.decisionStyle === 'analytical' && p.dayMasterEl === '수' },
+  { id: 'impulsive_actor',      when: p => p.decisionStyle === 'instinctive' && p.dayMasterEl === '화' },
+  { id: 'cautious_perfectionist', when: p => p.decisionStyle === 'cautious' && p.supportLevel === 'high' },
+  { id: 'decisive_cutter',      when: p => p.dayMasterEl === '금' && p.officerPressure !== 'none' && p.officerPressure !== 'low' },
+  
+  // ─── 자기 동력 (3종) ───
+  { id: 'self_powered',     when: p => p.selfDrive === 'high' && p.strength !== 'weak' && p.strength !== 'extra_weak' },
+  { id: 'low_drive',        when: p => p.selfDrive === 'low' && (p.strength === 'weak' || p.strength === 'extra_weak') },
+  { id: 'over_independent', when: p => p.selfDrive === 'high' && p.supportLevel === 'low' },
+  
+  // ─── 표현/창작 (3종) ───
+  { id: 'creative_expresser', when: p => p.outputDrive === 'high' && (p.dayMasterEl === '목' || p.dayMasterEl === '화') },
+  { id: 'innovative_breaker', when: p => p.outputDrive === 'high' && (p.officerPressure === 'low' || p.officerPressure === 'none') },
+  { id: 'silent_observer',    when: p => p.outputDrive === 'low' && p.socialMask === 'high' },
+  
+  // ─── 목표/추구 (3종) ───
+  { id: 'goal_chaser',          when: p => p.wealthPursuit === 'high' && p.strength !== 'weak' && p.strength !== 'extra_weak' },
+  { id: 'self_depleting_chaser', when: p => p.wealthPursuit === 'high' && (p.strength === 'weak' || p.strength === 'extra_weak') },
+  { id: 'direction_seeker',     when: p => (p.wealthPursuit === 'low' || p.wealthPursuit === 'none') && (p.outputDrive === 'low' || p.outputDrive === 'none') },
+  
+  // ─── 보호/지지 (2종) ───
+  { id: 'supported_growth', when: p => p.supportLevel === 'high' && p.strength !== 'extra_weak' },
+  { id: 'lonely_decision',  when: p => p.supportLevel === 'low' && p.officerPressure === 'high' },
+  
+  // ─── 회복 (2종) ───
+  { id: 'solitary_recharger', when: p => p.recoveryStyle === 'solo' && p.isolation !== 'low' },
+  { id: 'social_recharger',   when: p => p.recoveryStyle === 'social' && p.supportLevel !== 'low' }
+];
+
+/**
+ * profile → trait 배열 매칭
+ * @returns {string[]} 매칭된 trait id 배열
+ */
+function v54_matchTraits(profile) {
+  const traits = [];
+  for (const rule of V54_TRAIT_RULES) {
+    try {
+      if (rule.when(profile)) traits.push(rule.id);
+    } catch (e) { /* skip rule */ }
+  }
+  return traits;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ★★★ 3계층 — 문장 풀 (LLM 환각 0, 워커 100% 사전 정의) ★★★
+//   각 trait 본문은 4~6줄 깊이 서사 (사장님 7원칙)
+//   양면성 (그림자) 포함 (사장님 7원칙 ⑦)
+// ════════════════════════════════════════════════════════════════════
+
+const V54_TRAIT_POOL = {
+  // ─── 리더십 (편관 강을 3가지로 구분 — 인터넷 사주 차단) ───
+  controlled_leader: "감정 노출보다 통제를 우선하는 결입니다.\n책임의 무게를 표현 없이 받아내는 자질이 강하지만,\n그 통제가 가까운 관계에서 거리감으로 읽힐 수 있는 양면이 있습니다.",
+  reactive_responder: "외부 자극에 빠르게 반응하는 결입니다.\n순간 판단력과 위기 대응이 강점이지만,\n그 반응이 자기 페이스를 흔드는 양면이 있어 호흡을 가다듬는 게 핵심입니다.",
+  hidden_manager: "표면보다 본질을 읽으려는 결입니다.\n조직 안에서 보이지 않게 흐름을 정리하는 자질이 강하지만,\n그 보이지 않음이 자기 인정을 받지 못하는 양면을 만들기도 합니다.",
+  
+  // ─── 감정 (4종) ───
+  emotional_burnout: "목표를 향한 추구가 자기를 마르게 하는 결입니다.\n생각이 끊임없이 흐르지만 그 생각이 자기를 소진시키는 구조이며,\n결과 가속을 한 박자 줄일 때 오히려 흐름이 길게 갑니다.",
+  emotional_suppression: "감정을 안으로 누르는 결입니다.\n속에 담긴 것을 꺼내기까지 시간이 걸리지만,\n그 누름이 쌓이면 갑자기 거리를 두는 패턴이 됩니다.",
+  emotional_surge: "감정의 파동이 크게 일렁이는 결입니다.\n표현은 분명하지만 그 강도가 주변에 부담을 주기 쉬워,\n속도 조절이 관계의 핵심 변수가 됩니다.",
+  emotional_stability: "감정의 결이 안정적으로 흐르는 결입니다.\n자기 페이스를 잘 지키며,\n주변의 흔들림에 쉽게 휩쓸리지 않는 자질이 있습니다.",
+  
+  // ─── 관계 (4종) ───
+  mask_with_distance: "사회적 가면을 자연스럽게 쓰는 결입니다.\n관계의 결을 빠르게 읽지만,\n그 읽음이 거리를 만드는 양면이 함께 있어 가까운 사람에게는 진심의 결을 드러낼 때 흐름이 살아납니다.",
+  lonely_resilience: "혼자 버티는 힘이 강한 결이지만,\n그 강함이 도움을 받지 못하는 패턴으로 굳어지기 쉽습니다.\n협력은 약함이 아니라 이 구조의 강점 활용 방식입니다.",
+  warm_connector: "사람을 따뜻하게 만드는 결입니다.\n관계의 윤활유 역할을 자연스럽게 맡으며,\n주변의 신뢰를 자연스럽게 얻는 자질이 있습니다.",
+  protective_nurturer: "주변 사람을 키우는 결입니다.\n양육과 보호 자질이 자연스럽게 작동하지만,\n그 돌봄이 자기 소진으로 이어지기 쉬워 자기 회복 시간이 핵심입니다.",
+  
+  // ─── 결단 (4종) ───
+  intuitive_strategist: "감정 자체보다 '상황을 어떻게 정리할지' 먼저 계산하려는 결입니다.\n직관이 깊지만 그 직관을 행동으로 옮길 때 한 박자 늦어지는 구조이기도 합니다.",
+  impulsive_actor: "결정이 빠르고 행동도 빠른 결입니다.\n순간 판단력이 강점이지만,\n그 속도가 후행 흐름에 부담을 줄 수 있어 한 박자 늦추는 게 균형의 핵심입니다.",
+  cautious_perfectionist: "신중함과 완성도가 함께 작동하는 결입니다.\n세부를 보는 감각이 뛰어나지만,\n그 완성도 욕구가 시작을 늦추는 양면이 있어 '80% 완성에서 시작'이 핵심입니다.",
+  decisive_cutter: "결단이 명확하고 단호한 결입니다.\n불필요한 것을 빠르게 잘라내는 자질이 강점이지만,\n관계에서는 그 단호함이 차가움으로 읽힐 수 있어 톤 조절이 결정적 변수입니다.",
+  
+  // ─── 자기 동력 (3종) ───
+  self_powered: "자기 동력이 강하게 작동하는 결입니다.\n혼자서도 흐름을 끌고 가는 자질이 있지만,\n그 강함이 주변과의 균열을 만들기도 해 조언을 듣는 자세 한 가지가 큰 차이를 만듭니다.",
+  low_drive: "자기 동력이 약해진 시기입니다.\n혼자 끌고 가려는 부담이 누적되어,\n믿을 만한 사람과 짐을 나눌 때 흐름이 살아납니다.",
+  over_independent: "독립 성향이 강한 결입니다.\n혼자 결정하는 자질이 강점이지만,\n도움을 받지 못하는 패턴으로 굳어지기 쉬운 구조라 받는 연습이 필요합니다.",
+  
+  // ─── 표현/창작 (3종) ───
+  creative_expresser: "자기 안의 것을 자연스럽게 풀어내는 결입니다.\n표현과 창작의 자질이 강하며,\n무언가를 키워내는 자리에서 흐름이 살아납니다.",
+  innovative_breaker: "기존 틀을 그대로 받아들이지 않는 결입니다.\n새로운 방식을 만들어내는 자질이 강점이지만,\n관계에서 마찰을 만들 수 있어 톤 조절이 결정적 핵심입니다.",
+  silent_observer: "표현보다 관찰을 우선하는 결입니다.\n분위기를 빠르게 읽지만,\n그 관찰이 자기 의견을 미루는 패턴이 되기 쉬워 작은 표현 하나부터 회복이 핵심입니다.",
+  
+  // ─── 목표/추구 (3종) ───
+  goal_chaser: "목표를 향한 추진력이 강하게 작동하는 결입니다.\n결과를 만드는 자질이 강점이지만,\n속도 조절이 장기 흐름의 핵심 변수입니다.",
+  self_depleting_chaser: "추구가 자기를 마르게 하는 결입니다.\n목표 동력은 강하지만 그 추구가 자기 소진으로 이어지는 구조이며,\n결과 가속을 한 박자 줄일 때 오히려 길게 갑니다.",
+  direction_seeker: "방향을 찾는 시기에 가깝습니다.\n무엇을 향해 가야 할지 흐릿한 시기로,\n작은 결과 하나를 의식적으로 만들 때 방향이 살아납니다.",
+  
+  // ─── 보호/지지 (2종) ───
+  supported_growth: "보호와 지지 흐름이 자연스럽게 들어오는 결입니다.\n주변의 도움이 자연스럽지만,\n그 의존이 결정의 무게를 미루는 패턴이 되기 쉬워 작은 결단 하나를 스스로 내는 게 핵심입니다.",
+  lonely_decision: "혼자 결정해야 하는 부담이 누적되는 시기입니다.\n외부 압박은 강하지만 받쳐주는 에너지가 약한 구조로,\n신뢰할 한 사람의 시선을 빌릴 때 길이 빨리 열립니다.",
+  
+  // ─── 회복 (2종) ───
+  solitary_recharger: "혼자만의 시간에서 충전되는 결입니다.\n조용한 시간이 회복의 핵심이며,\n사람들 사이에서 쌓인 피로를 의식적으로 해소해야 흐름이 길게 갑니다.",
+  social_recharger: "사람을 통해 회복되는 결입니다.\n관계 안에서 에너지가 살아나며,\n혼자 너무 오래 있으면 흐름이 가라앉기 쉬운 구조입니다."
+};
+
+// ════════════════════════════════════════════════════════════════════
+// ★★★ 4영역 본문 생성 함수 (사장님 비전 — [3/6] 박스 안 텍스트 대치) ★★★
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * 💭 일주 본질 결 — V54_DAY_NATURE_POOL (60갑자) 또는 일간 fallback
+ */
+function v54_buildEssenceCore(dayPillar, dayMaster) {
+  return V54_DAY_NATURE_POOL[dayPillar] ||
+         V54_DAY_NATURE_BY_GAN[dayMaster] ||
+         "자기 결을 자연스럽게 따라가는 흐름입니다.\n주변의 결에 휘둘리지 않고\n자기 페이스를 지켜갈 때 본질이 가장 잘 드러나는 구조입니다.";
+}
+
+/**
+ * 💭 에너지 작동 방식 — 일간 + 강한 십성 trait 본문 매칭
+ */
+function v54_buildEnergyOperation(profile, traits) {
+  // 우선순위: 가장 강한 trait 중 에너지 영역 우선
+  const energyTraits = ['emotional_burnout', 'self_depleting_chaser', 'self_powered',
+                        'creative_expresser', 'emotional_surge', 'low_drive',
+                        'goal_chaser', 'innovative_breaker'];
+  for (const t of energyTraits) {
+    if (traits.includes(t) && V54_TRAIT_POOL[t]) return V54_TRAIT_POOL[t];
+  }
+  // fallback: 오행 편중 기반
+  return V54_ELEMENT_NARRATIVE[`${({목:'wood',화:'fire',토:'earth',금:'metal',수:'water'}[profile.dominantEl])}_strong`] ||
+         V54_ELEMENT_NARRATIVE.balanced;
+}
+
+/**
+ * 💭 관계 작동 방식 — 신강신약 + 관계 trait
+ */
+function v54_buildRelationOperation(profile, traits) {
+  const relationTraits = ['lonely_resilience', 'mask_with_distance', 'protective_nurturer',
+                          'warm_connector', 'over_independent', 'lonely_decision', 'supported_growth'];
+  for (const t of relationTraits) {
+    if (traits.includes(t) && V54_TRAIT_POOL[t]) return V54_TRAIT_POOL[t];
+  }
+  // fallback: 신강신약 기반
+  return V54_STRENGTH_NARRATIVE[profile.strength] || V54_STRENGTH_NARRATIVE.balanced;
+}
+
+/**
+ * 💭 심리 작동 패턴 — 매칭된 trait 2~3개 조합 (성향 신호 영역)
+ */
+function v54_buildPsychePattern(traits) {
+  const psycheTraits = ['emotional_suppression', 'emotional_stability', 'controlled_leader',
+                        'hidden_manager', 'reactive_responder', 'cautious_perfectionist',
+                        'intuitive_strategist', 'decisive_cutter', 'impulsive_actor',
+                        'silent_observer', 'solitary_recharger', 'social_recharger',
+                        'direction_seeker'];
+  const matched = traits.filter(t => psycheTraits.includes(t)).slice(0, 3);
+  if (matched.length === 0) return null;
+  return matched.map(t => V54_TRAIT_POOL[t]).filter(Boolean).join('\n\n');
+}
+
+/**
+ * ★ 통합 함수 — 사주 데이터 → V54 4영역 본문 ★
+ * v31GenerateText에서 1회 호출하여 응답에 노출
+ */
+function v54_buildDeepInsight(sajuData) {
+  const { pillars, meta } = sajuData;
+  const profile = v54_buildSajuProfile(sajuData);
+  const traits  = v54_matchTraits(profile);
+  const dayPillar = pillars.day.ganzhi;
+  
+  return {
+    essenceCore:        v54_buildEssenceCore(dayPillar, meta.dayMaster),
+    energyOperation:    v54_buildEnergyOperation(profile, traits),
+    relationOperation:  v54_buildRelationOperation(profile, traits),
+    psychePattern:      v54_buildPsychePattern(traits),
+    _profile:           profile,    // 디버그용
+    _traits:            traits,     // 디버그용
+    _v:                 'V202.54.0'
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// [V202.54.0] 3계층 사주 정밀 엔진 종료
+// ════════════════════════════════════════════════════════════════════
+
 /**
  * 오행 균형 표현 풀
  * V25.22 정신: 사전 정의
@@ -7427,6 +7858,31 @@ function v31GenerateText(sajuData, judgeResult) {
                        V31_STRENGTH_ESSENCE_POOL.balanced;
   const strengthPhrase = v31SeededPick(strengthPool, seeds.seedOracle);
 
+  // ★★★ [V202.54.0] 3계층 사주 정밀 엔진 호출 ★★★
+  //   1층 buildSajuProfile → 2층 matchTraits → 3층 trait pool 조합
+  //   결과: 4영역 깊이 본문 (essenceCore/energyOperation/relationOperation/psychePattern)
+  //   환각 0 (워커 사전 정의 풀에서 100% 생성)
+  //   사장님 비전: 일간 × 십성 × 강도 + 심리 trait 모두 반영
+  let v54DeepInsight = null;
+  try {
+    v54DeepInsight = v54_buildDeepInsight(sajuData);
+  } catch (e) {
+    v54DeepInsight = { _error: String(e && e.message || e), _v: 'V202.54.0_fallback' };
+  }
+  
+  // ────────────────────────────────────────────────────────────────
+  // ★★★ [V202.54.0] 사주 프리미엄 톤 신규 풀 적용 ★★★
+  //   사장님 7원칙: 사전식 → 서사식 / 수치 → 감각 / 시스템 → 통찰
+  //   기존 풀은 그대로 유지 (라벨), 신규 풀은 본질 결 (4~6줄 서사)
+  // ────────────────────────────────────────────────────────────────
+  const dayNatureEssence = V54_DAY_NATURE_POOL[dayPillar] ||
+                           V54_DAY_NATURE_BY_GAN[meta.dayMaster] ||
+                           null;
+  const elementNarrative = V54_ELEMENT_NARRATIVE[balanceKey] ||
+                           V54_ELEMENT_NARRATIVE.balanced;
+  const strengthNarrative = V54_STRENGTH_NARRATIVE[strength.level] ||
+                            V54_STRENGTH_NARRATIVE.balanced;
+
   // ── 4. 매트릭스 본문 적용 ──
   const tldr = matrix?.tldr || '균형 흐름이 작동하는 구간으로 해석됩니다';
   const action = matrix?.action || '균형 유지 + 신중 진행';
@@ -7441,27 +7897,33 @@ function v31GenerateText(sajuData, judgeResult) {
   const scenarioLabel = V31_SCENARIO_LABELS[category]?.[scenarioKey];
   const labelText = scenarioLabel?.ko || scenarioKey;
 
-  // ── 6.5 [V31 #138] 동적 라벨 — 모순 버그 수정 ──
-  // 오행 라벨: 균형이면 "오행 균형", 편중이면 "오행 분포"
+  // ── 6.5 [V31 #138] 동적 라벨 — V202.54.0 사장님 톤 보강 ──
+  //   사장님 7원칙 ③: 사주 용어 → 일상 언어
+  //   기존 라벨('오행 편중'/'신약 본질') ★ 보존 ★ (호환) + V54 라벨 신규 추가
+  //   클라이언트가 V54 라벨을 노출하면 즉시 톤 변화 체감
   let balanceLabel = '오행 균형';
+  let balanceLabelV54 = '에너지 구조';  // ★ V54 신규 ★
   if (balanceKey !== 'balanced') {
     // 화/금이 거의 0 등 심한 편중 시
     if (elRange >= 2.5) {
       balanceLabel = '오행 편중';
+      balanceLabelV54 = '에너지 편향 구조';  // V54: 행동형
     } else {
       balanceLabel = '오행 분포';
+      balanceLabelV54 = '에너지 분포 구조';  // V54: 행동형
     }
   }
 
   // 신강/신약 라벨: strength.level에 따라 동적
   let strengthLabel = '신강 본질';
+  let strengthLabelV54 = '관계 작동 방식';  // ★ V54 신규 ★ — '신강/신약' 사주 용어 → 일상 언어
   switch (strength.level) {
-    case 'extra_strong': strengthLabel = '신왕 본질'; break;
-    case 'strong':       strengthLabel = '신강 본질'; break;
-    case 'balanced':     strengthLabel = '균형 본질'; break;
-    case 'weak':         strengthLabel = '신약 본질'; break;
-    case 'extra_weak':   strengthLabel = '극신약 본질'; break;
-    default:             strengthLabel = '본질 흐름';
+    case 'extra_strong': strengthLabel = '신왕 본질';   strengthLabelV54 = '독립 추진 구조'; break;
+    case 'strong':       strengthLabel = '신강 본질';   strengthLabelV54 = '자기 주도 구조'; break;
+    case 'balanced':     strengthLabel = '균형 본질';   strengthLabelV54 = '균형 작동 구조'; break;
+    case 'weak':         strengthLabel = '신약 본질';   strengthLabelV54 = '협력 활용 구조'; break;
+    case 'extra_weak':   strengthLabel = '극신약 본질'; strengthLabelV54 = '신뢰 기반 구조'; break;
+    default:             strengthLabel = '본질 흐름';   strengthLabelV54 = '관계 작동 방식';
   }
 
   // ── 7. 종합 결과 ──
@@ -7479,9 +7941,28 @@ function v31GenerateText(sajuData, judgeResult) {
     balancePhrase: balancePhrase,
     strengthPhrase: strengthPhrase,
 
+    // ★★★ [V202.54.0] 사주 프리미엄 톤 신규 필드 ★★★
+    //   사장님 7원칙 반영 — 사전식 → 서사식 깊이
+    //   클라이언트가 이 필드들을 노출하면 사용자가 즉시 변화 체감
+    //   기존 dayEssence/balancePhrase/strengthPhrase는 ★ 보존 ★ (호환성)
+    dayNatureEssence:   dayNatureEssence,    // 일주 본질 결 (4~6줄 서사)
+    elementNarrative:   elementNarrative,    // 오행 에너지 구조 (행동 묘사)
+    strengthNarrative:  strengthNarrative,   // 관계 작동 방식 (행동 패턴)
+    
+    // ★★★★★ [V202.54.0 ★ 핵심 ★] 3계층 정밀 엔진 출력 ★★★★★
+    //   사장님 + 외부 의견 통합:
+    //   1계층 profile → 2계층 trait → 3계층 풀 → 4영역 본문
+    //   [3/6] 박스 + 🌟 성향 신호 박스에 노출되어 사주학적 깊이 표현
+    //   환각 0, 사주학적 정확, 일간 × 십성 × 심리 모두 반영
+    deepInsight:        v54DeepInsight,      // { essenceCore, energyOperation, relationOperation, psychePattern, _profile, _traits }
+
     // [V31 #138] 동적 라벨 — 모순 버그 수정
     balanceLabel: balanceLabel,
     strengthLabel: strengthLabel,
+
+    // ★★★ [V202.54.0] 사주 프리미엄 라벨 (사장님 7원칙 ③ 일상 언어) ★★★
+    balanceLabelV54:  balanceLabelV54,   // '에너지 구조' / '에너지 편향 구조'
+    strengthLabelV54: strengthLabelV54,  // '관계 작동 방식' / '협력 활용 구조' 등
 
     // 매트릭스 (V28.B 통합 처리)
     tldr: enforcedTldr,
@@ -7845,10 +8326,24 @@ function v31GeneratePro(sajuData, judgeResult, tier = 'free') {
           { has: ['겁재'], label: '💪 경쟁 추진형',   tagline: '도전 정신이 강한 구조' }
         ];
         
-        let archetype = { label: '☯ 균형 조화형', tagline: '다재다능 균형 구조' };
+        let archetype = { label: '☯ 균형 조화형', tagline: '다재다능 균형 구조', v54_label: null, v54_body: null };
         for (const def of archetypeMap) {
           if (def.has.every(s => strongSipsungs.includes(s))) {
-            archetype = def;
+            // ★★★ [V202.54.0] V54 격국 깊이 매핑 ★★★
+            //   단일 십성 패턴(예: ['정재'])만 V54_GYEOKGUK_NARRATIVE 매핑
+            //   조합형(예: ['정관','정재'])은 기존 라벨 유지 (호환성)
+            //   효과: 사장님 예시 "재물 관리형: 안정" → "현실 기반형 구조: 큰 모험보다 쌓아가는 방식..."
+            let v54_label = null;
+            let v54_body  = null;
+            if (def.has.length === 1) {
+              const _gyeokGukKey = def.has[0] + '격';
+              const _gyeokGukData = V54_GYEOKGUK_NARRATIVE[_gyeokGukKey];
+              if (_gyeokGukData) {
+                v54_label = _gyeokGukData.label;
+                v54_body  = _gyeokGukData.body;
+              }
+            }
+            archetype = { ...def, v54_label, v54_body };
             break;
           }
         }
@@ -8923,7 +9418,10 @@ const V31_SHIN_SAL_MATRIX = {
     meaning: '하늘이 보호하는 귀인 — 어려움 시 도와주는 귀한 인연 만남',
     effect: '위기 극복 + 인덕 + 명예 향상',
     advice: '귀인 만남에 감사 + 베풀고 살면 더욱 강해짐',
-    rare: 'high'
+    rare: 'high',
+    // ★ V202.54.0 ★ 사장님 6원칙: 추상 → 행동 묘사
+    v54_label: '🌟 결정적 도움 신호',
+    v54_body: "어려운 순간에 의외의 도움이 들어오는 흐름이 있습니다.\n사람을 통해 길이 열리는 경험이 반복되며,\n혼자 풀려 하지 않고 한 번 더 손을 내밀 때\n생각보다 빠르게 매듭이 풀립니다."
   },
   도화: {
     name: '도화살(桃花殺)',
@@ -8933,7 +9431,10 @@ const V31_SHIN_SAL_MATRIX = {
     meaning: '매력과 인기가 강한 살 — 이성에게 인기 + 예술적 끼',
     effect: '인기 + 매력 + 예술 재능 / 단, 유혹 주의',
     advice: '재능 활용 + 절제 필요 (관계 흐름 주의)',
-    rare: 'medium'
+    rare: 'medium',
+    // ★ V202.54.0 ★ 사장님 6원칙: 추상 → 행동 묘사
+    v54_label: '🌸 관계 끌림 신호',
+    v54_body: "사람의 시선을 자연스럽게 끄는 흐름이 있습니다.\n다만 관계 초반엔 강하게 끌리지만,\n감정 피로가 누적되면\n혼자 거리 조절하려는 경향도 함께 나타납니다."
   },
   역마: {
     name: '역마살(驛馬殺)',
@@ -8943,7 +9444,9 @@ const V31_SHIN_SAL_MATRIX = {
     meaning: '이동과 변화가 많은 살 — 출장/여행/이주 흐름',
     effect: '활동성 + 새 환경 적응 + 글로벌 흐름',
     advice: '변화 즐기기 + 안정 추구 시 정착 노력',
-    rare: 'medium'
+    rare: 'medium',
+    v54_label: '✈️ 이동 변화 신호',
+    v54_body: "한 자리에 오래 머물지 못하는 흐름이 있습니다.\n환경 변화와 이동에서 오히려 안정감을 얻으며,\n새로운 자리에서 자기 색이 빠르게 드러납니다.\n\n다만 변화 자체가 목적이 되면\n축적이 어려워지는 구조이기도 합니다."
   },
   양인: {
     name: '양인(羊刃)',
@@ -8953,7 +9456,9 @@ const V31_SHIN_SAL_MATRIX = {
     meaning: '날카로운 칼날과 같은 살 — 강한 추진력 + 위험 양면',
     effect: '결단력 + 추진력 + 단, 다툼/사고 주의',
     advice: '에너지 통제 + 차분함 유지 (특히 운전/도구 사용 주의)',
-    rare: 'medium'
+    rare: 'medium',
+    v54_label: '⚔️ 강한 추진 신호',
+    v54_body: "결단력과 추진력이 강하게 작동하는 흐름입니다.\n위기 상황에서 가장 빛나는 자질이지만,\n평온한 시기에는 그 강도가 너무 세져\n주변에 부담을 주기도 합니다.\n\n쓰는 자리를 의식적으로 고를 때 강점이 됩니다."
   },
   공망: {
     name: '공망(空亡)',
@@ -8963,7 +9468,9 @@ const V31_SHIN_SAL_MATRIX = {
     meaning: '비어있는 흐름 — 노력해도 결과가 잘 안 보이는 시기',
     effect: '좌절감 + 정신적 공허 / 단, 종교/예술/봉사로 승화 가능',
     advice: '결과보다 과정 + 봉사/수행 흐름 추천',
-    rare: 'low'
+    rare: 'low',
+    v54_label: '🌫 비움 학습 신호',
+    v54_body: "원하는 것을 잡으려 할수록 비어 보이는 자리가 있습니다.\n그 자리는 채우는 곳이 아니라\n비움을 배우는 영역에 가깝습니다.\n\n집착을 풀면 오히려 다른 통로로\n예상치 못한 결과가 들어옵니다."
   }
 };
 
@@ -14434,73 +14941,7 @@ function applyLoveVariationToMetrics(metrics) {
 //
 //   효과: V26.3 규칙 prompt+code 이중 방어 → 시제 결함 0% 보장
 // ══════════════════════════════════════════════════════════════════
-function fixTenseAlignment(text) {
-  if (!text || typeof text !== 'string') return text;
-
-  // 시제 마커 — 각 라벨에 부적합한 시작 어구 패턴
-  // (line start | newline after label) 직후의 문장 시작 어구만 검사
-  const TENSE_FIX_RULES = [
-    // PAST 블록: "지금은~", "현재는~", "오늘날~", "미래에는~", "앞으로~" 시작 차단
-    {
-      label: '과거',
-      badStarts: [
-        { pattern: /^(지금은\s|지금\s시점에서\s|지금\s시점의\s|현재는?\s|현재의\s|오늘날\s)/, replace: '과거에는 ' },
-        { pattern: /^(미래에는?\s|미래의\s|앞으로는?\s|앞으로\s다가올?\s|다가오는?\s\S{0,5}\s)/, replace: '과거에는 ' }
-      ]
-    },
-    // PRESENT 블록: 과거/미래 시작 차단
-    {
-      label: '현재',
-      badStarts: [
-        { pattern: /^(과거에는?\s|과거의\s|지난\s시기에?\s|지난\s시간\s|이전에는?\s)/, replace: '현재는 ' },
-        { pattern: /^(미래에는?\s|미래의\s|앞으로는?\s|앞으로\s다가올?\s|다가오는?\s\S{0,5}\s)/, replace: '현재는 ' }
-      ]
-    },
-    // FUTURE 블록: 과거/현재 시작 차단
-    {
-      label: '미래',
-      badStarts: [
-        { pattern: /^(과거에는?\s|과거의\s|지난\s시기에?\s|지난\s시간\s|이전에는?\s)/, replace: '미래에는 ' },
-        { pattern: /^(지금은\s|지금\s시점에서\s|지금\s시점의\s|현재는?\s|현재의\s|오늘날\s)/, replace: '미래에는 ' }
-      ]
-    }
-  ];
-
-  let result = text;
-  let fixCount = 0;
-
-  for (const rule of TENSE_FIX_RULES) {
-    // 라벨 매칭 패턴 — "과거\n" 또는 "과거\r\n" 다음의 블록 시작
-    //   카드명이 라벨과 본문 사이에 들어가는 구조 고려:
-    //     과거\n
-    //     Five of Wands\n
-    //     (본문 시작)
-    //   따라서 라벨 다음 임의 줄 1~3개 건너뛰고 본문 시작 검사
-    const labelRegex = new RegExp(
-      `(^|\\n)\\s*${rule.label}\\s*\\n` +     // 라벨 줄
-      `((?:[^\\n]*\\n){0,3})` +                // 카드명 등 0-3줄
-      `([^\\n]+)`,                              // 본문 첫 줄 ★ 캡처 ★
-      'g'
-    );
-
-    result = result.replace(labelRegex, (match, prefix, midLines, firstLine) => {
-      let fixedFirstLine = firstLine;
-      for (const { pattern, replace } of rule.badStarts) {
-        if (pattern.test(fixedFirstLine)) {
-          fixedFirstLine = fixedFirstLine.replace(pattern, replace);
-          fixCount++;
-          break;  // 한 라벨당 1회만 교정
-        }
-      }
-      return `${prefix}${rule.label}\n${midLines}${fixedFirstLine}`;
-    });
-  }
-
-  if (fixCount > 0) {
-    console.log(`[V202.52.2] 시제 자동 교정 ${fixCount}건 적용`);
-  }
-  return result;
-}
+// [V202.52.2] fixTenseAlignment 제거 — 클라이언트 alignTenseWithLabel 사용 중, 워커 미호출 (V53.5 dead code 정리)
 
 // ══════════════════════════════════════════════════════════════════
 // [V26.0 Phase D] 호칭 정규화 — '신차장님과 양소장님' 어색 차단
@@ -19152,7 +19593,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.53.0-AD", // ★ V202.53.0-AD 핫픽스 (V53.0-AC 라이브 추가 결함): "승희의 속마음을 알고싶어요" 입력 → "승희의님과 속마음을님" 환각 출력. 원인: 정규식 [가-힣]{2,4}가 조사 글자("의","을")까지 캡처 + 일반 명사 "속마음"이 NOT_NAMES에 없어 통과. 해결: (1) stripParticles 후처리 함수 신설 — 끝의 조사 (의/을/를/가/은/는/에게/에/도/만/랑/와/과) 자동 제거 ('이'는 한국어 이름 자연 어미라 제외). (2) NOT_NAMES에 30+ 일반 명사 추가 (속마음/진심/속내/의도/안부/연락/심리/계획/일정/약속/...). (3) 6순위 패턴 첫 그룹에 (?:이|가)? 포함하여 "지영이"가 통째로 캡처되도록 회귀 차단. (4) 신규 7순위 패턴 — '이름(+이) + 의/을/를/은/는 + 일반 명사' 매칭하여 단일 이름 추출 (예: "승희의 속마음"→["승희"]). 게이트 1 단위 테스트 20/20 통과 (V52.5 회귀 + 신규 4건). V53.0-AC 매니페스토 #7 비활성화 유지 (V53.1까지 보류).
+        version: "V202.54.0",    // ★★★★★ V202.54.0 사주 정밀분석 3계층 엔진 (사장님 + 외부 의견 통합) ★★★★★ 사장님 비전: "지구상 최고의 사주앱". 설계: 1층 구조 판정(deterministic profile, 17상태값) → 2층 Trait 매트릭스(28종 trait, 인터넷 사주 차단) → 3층 문장 풀(28 본문, 환각 0). 핵심 함수: v54_buildSajuProfile (사주→profile), v54_calculateSipsungStrength (십성 강도 자동), v54_matchTraits (profile→trait 배열), v54_buildEssenceCore/EnergyOperation/RelationOperation/PsychePattern (영역별 본문 생성), v54_buildDeepInsight (통합). v31GenerateText 응답에 deepInsight 필드 노출 — { essenceCore, energyOperation, relationOperation, psychePattern, _profile, _traits }. 검증: 같은 "화 강함"이지만 계/갑/임/병/무 일간 모두 다른 trait 매칭 확인 ✅ (계=emotional_burnout/self_depleting_chaser, 갑=creative_expresser/self_powered, 임=goal_chaser, 병=impulsive_actor, 무=emotional_stability/cautious_perfectionist) — 인터넷 사주 차단 검증. 환각 0 (워커 100% 사전 정의 풀). 백워드 호환 100% (옛 V31 풀 보존). V54.0 풀 7종 통합. 클라이언트 노출은 다음 단계 (Step 5).
         _ts: Date.now(),
         _ok: true
       }), {
