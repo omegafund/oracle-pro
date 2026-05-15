@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.53.0-AC';  // ★ V202.53.0-AC 긴급 안정화 핫픽스: V53.0-AB 라이브 결정적 결함 차단 — LLM 매니페스토 #7 골격 라벨 오인 → 카드명-본문 한 칸씩 밀림 결함. 핫픽스: 매니페스토 #7 출력 1줄 비활성화 (V52.6 안정 상태 복귀). V53 인프라 보존 (V53.1 클라이언트 통합 준비). 클라이언트 변경 없음 (버전 동기화).
+        const APP_VERSION = 'V202.53.0-AD';  // ★ V202.53.0-AD 워커 핫픽스 (V53.0-AC 라이브 추가 결함): "승희의 속마음을" 입력 → "승희의님과 속마음을님" 환각. 워커 extractKoreanNames에 stripParticles 후처리 + NOT_NAMES 30+ 추가 + 7순위 패턴 신설. 클라이언트 변경 없음 (버전 동기화).
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
