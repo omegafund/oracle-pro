@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.54.0';  // ★★★ V202.54.0 사주 정밀분석 3계층 엔진 + 클라이언트 노출 완료 ★★★ Step 4.5 (워커): V54_SIPSUNG_EXPLAIN 풀 10 십성 + bars.explain 매핑. Step 5 (클라이언트): (1) [3/6] 사주 본질 박스에 💭 본질 결/에너지 작동 방식/관계 작동 방식 펼침 노출 (deepInsight.essenceCore/energyOperation/relationOperation). (2) 🌟 성향 신호 박스에 💭 심리 작동 패턴 V54 우선 노출 (deepInsight.psychePattern) + V31 signals fallback + 수치 노출 자동 차단 (V54 활성 시 "(화 49%)" 사라짐). (3) [6/6] 핵심 구조 박스 첫/둘째 barsHTML에 b.explain.short + action 한 줄 노출 (레벨 4+ 매우강함/강함만, 시각 부담 차단). (4) 격국 archetype에 v54_label + v54_body 깊이 본문 노출. 기존 박스 구조/큰 레이아웃 ★ 100% 보존 ★, 박스 안 텍스트만 V54 톤으로 대치. 안전: V54 필드 없으면 V31 자동 fallback (백워드 호환). 다음 단계: 신살 v54_body 노출 + LUCKY GUIDE 한 줄 이유 (사장님 라이브 검증 후).
+        const APP_VERSION = 'V202.54.0';  // ★★★ V202.54.0 사주 V54 전체 통합 완료 (Step 1~8) ★★★ 전 사주 영역에 사장님 7원칙 적용. [3/6] 본질결/에너지/관계, 🌟 심리 패턴, [4/6] 종합 신탁 3블록(⚠흔들리기/✦안정/💭조언), [5/6] 에너지 가이드 2블록(💎강점/⚠멀어지면 좋은), [6/6] 격국 v54_body, 십성 일상 풀이, 12운성 v54_body, 신살 v54_label/v54_body 모두 노출. V54 필드 없으면 V31 fallback 자동. 박스 구조 큰 포맷 100% 보존. 환각 0. 결제 직격 영역 완전 V54 톤 통합.
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -19812,19 +19812,48 @@ function renderSajuResult(data) {
                 const constraint = buildConstraint(sajuState, text.meta?.pillars || {});
                 
                 return `
-                <!-- [4] ⚡ 종합 신탁 — 압박 문장 엔진 (V31 #165) -->
+                <!-- [4] ⚡ 종합 신탁 — V202.54.0 Step 6: V54 3블록 우선, V31 fallback -->
                 <div style="margin:20px 0; padding:16px; background:linear-gradient(135deg, rgba(46,204,113,0.10), rgba(46,204,113,0.04)); border:2px solid rgba(46,204,113,0.45); border-radius:10px;">
                     <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
                         <span style="font-size:0.7rem; color:#7ad188; font-weight:900; letter-spacing:0.05em;">[4/6]</span>
                         <span style="color:#2ecc71; font-size:0.92rem; font-weight:900;">⚡ 종합 신탁</span>
                     </div>
                     
-                    <!-- 핵심 1줄 (현실 보정 적용) -->
+                    ${(text.oracleNarrative && text.oracleNarrative.risk) ? `
+                    <!-- ★★★ [V202.54.0 Step 6] V54 3블록 노출 — 사장님 비전 ★★★
+                         이질감 차단: V31 "구조적 균형 + 가속" / "강제 트리거" / "실행 피드백" 모두 제거
+                         사장님 7원칙 ④⑤: 시스템 → 통찰 / 명령 → 권유
+                         trait 동적 매핑: 일간별 다른 블록 자동 생성 -->
+                    
+                    <!-- ⚠ 현재 흐름에서 흔들리기 쉬운 부분 -->
+                    <div style="margin-top:8px; padding:12px 14px; background:rgba(231,76,60,0.08); border-left:3px solid rgba(231,76,60,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#FF9870; font-size:0.80rem; font-weight:800; margin-bottom:7px; letter-spacing:0.02em;">⚠ 현재 흐름에서 흔들리기 쉬운 부분</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.oracleNarrative.risk}
+                        </div>
+                    </div>
+                    
+                    <!-- ✦ 흐름을 안정시키는 방향 -->
+                    <div style="margin-top:10px; padding:12px 14px; background:rgba(46,204,113,0.08); border-left:3px solid rgba(46,204,113,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#8ad7a0; font-size:0.80rem; font-weight:800; margin-bottom:7px; letter-spacing:0.02em;">✦ 흐름을 안정시키는 방향</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.oracleNarrative.stabilize}
+                        </div>
+                    </div>
+                    
+                    <!-- 💭 지금 시기 조언 -->
+                    <div style="margin-top:10px; padding:12px 14px; background:rgba(195,155,211,0.08); border-left:3px solid rgba(195,155,211,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#C39BD3; font-size:0.80rem; font-weight:800; margin-bottom:7px; letter-spacing:0.02em;">💭 지금 시기 조언</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.oracleNarrative.advice}
+                        </div>
+                    </div>
+                    ` : `
+                    <!-- V31 fallback (V54 없을 때만) -->
                     <div style="color:#FFE08A; font-size:0.95rem; line-height:1.6; font-weight:800; margin-bottom:14px; padding:10px 12px; background:rgba(0,0,0,0.25); border-left:3px solid #2ecc71; border-radius:0 4px 4px 0;">
                         👉 ${correctedTldr}
                     </div>
                     
-                    <!-- ⚠ 압박 흐름 (V31 #165 동적 생성) -->
                     <div style="margin-top:12px; padding:11px 13px; background:rgba(231,76,60,0.10); border-left:3px solid #e74c3c; border-radius:0 6px 6px 0;">
                         <div style="color:#FF8870; font-size:0.78rem; font-weight:800; margin-bottom:5px; letter-spacing:0.02em;">⚠ 압박 흐름</div>
                         <div style="color:rgba(255,255,255,0.92); font-size:0.86rem; line-height:1.6; font-weight:700;">
@@ -19832,7 +19861,6 @@ function renderSajuResult(data) {
                         </div>
                     </div>
                     
-                    <!-- ✦ 보완 흐름 (V31 #165 균형 페어) -->
                     <div style="margin-top:8px; padding:11px 13px; background:rgba(46,204,113,0.10); border-left:3px solid #2ecc71; border-radius:0 6px 6px 0;">
                         <div style="color:#7ad188; font-size:0.78rem; font-weight:800; margin-bottom:5px; letter-spacing:0.02em;">✦ 보완 흐름</div>
                         <div style="color:rgba(255,255,255,0.92); font-size:0.86rem; line-height:1.6; font-weight:700;">
@@ -19840,8 +19868,6 @@ function renderSajuResult(data) {
                         </div>
                     </div>
                     
-                    <!-- [V31 #167] 🎯 강제 트리거 — 사장님 핵심 안 ★★★ -->
-                    <!--   "행동 안 하면 불안해지는 구조" = PRO 가치 -->
                     <div style="margin-top:10px; padding:13px 14px; background:linear-gradient(135deg, rgba(212,175,55,0.18), rgba(255,107,0,0.10)); border:2px solid rgba(212,175,55,0.7); border-radius:8px; box-shadow:0 0 16px rgba(212,175,55,0.2);">
                         <div style="color:#FFD970; font-size:0.78rem; font-weight:900; margin-bottom:6px; letter-spacing:0.04em;">🎯 강제 트리거 (행동 시점)</div>
                         <div style="color:#FFE08A; font-size:0.92rem; line-height:1.6; font-weight:800; padding:6px 0;">
@@ -19849,41 +19875,26 @@ function renderSajuResult(data) {
                         </div>
                     </div>
                     
-                    <!-- ═══════════════════════════════════════════════════════
-                         [V31 #168 사장님 안 + 클로드 보완 4가지]
-                         📊 실행 결과 피드백 — 행동 ↔ 미실행 대조
-                           ① "확률" → "흐름" 표현 (법적 안전)
-                           ② 사주별 동적 결과 (state.flow)
-                           ③ 시각 강화 (실행 녹색 / 미실행 회색 — 부담감 X)
-                           ④ 위치 — 강제 트리거 다음
-                         ═══════════════════════════════════════════════════════ -->
                     <div style="margin-top:10px; padding:13px 14px; background:rgba(0,0,0,0.30); border:1.5px solid rgba(212,175,55,0.4); border-radius:8px;">
                         <div style="color:#FFD970; font-size:0.78rem; font-weight:900; margin-bottom:9px; letter-spacing:0.04em;">📊 실행 결과 피드백</div>
-                        
-                        <!-- 실행 시 (녹색 — 긍정 강조) -->
                         <div style="display:flex; align-items:flex-start; gap:8px; padding:9px 10px; margin-bottom:6px; background:rgba(46,204,113,0.10); border-left:3px solid #2ecc71; border-radius:0 5px 5px 0;">
                             <span style="flex-shrink:0; color:#2ecc71; font-size:0.95rem; font-weight:900; line-height:1.4;">✅</span>
                             <div style="flex:1;">
                                 <div style="color:#7ad188; font-size:0.74rem; font-weight:800; margin-bottom:2px;">실행 시</div>
-                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.55; font-weight:700;">
-                                    → ${constraint.executionFeedback.onAct}
-                                </div>
+                                <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.55; font-weight:700;">→ ${constraint.executionFeedback.onAct}</div>
                             </div>
                         </div>
-                        
-                        <!-- 미실행 시 (회색 — 중립, 부담감 X) -->
                         <div style="display:flex; align-items:flex-start; gap:8px; padding:9px 10px; background:rgba(150,150,150,0.10); border-left:3px solid rgba(150,150,150,0.5); border-radius:0 5px 5px 0;">
                             <span style="flex-shrink:0; color:rgba(180,180,180,0.9); font-size:0.95rem; font-weight:900; line-height:1.4;">⏸</span>
                             <div style="flex:1;">
                                 <div style="color:rgba(180,180,180,0.85); font-size:0.74rem; font-weight:800; margin-bottom:2px;">미실행 시</div>
-                                <div style="color:rgba(220,220,220,0.78); font-size:0.84rem; line-height:1.55;">
-                                    → ${constraint.executionFeedback.onSkip}
-                                </div>
+                                <div style="color:rgba(220,220,220,0.78); font-size:0.84rem; line-height:1.55;">→ ${constraint.executionFeedback.onSkip}</div>
                             </div>
                         </div>
                     </div>
+                    `}
                     
-                    <!-- 타이밍 -->
+                    <!-- 타이밍 (V54/V31 공통 유지) -->
                     <div style="margin-top:12px; padding:8px 10px; background:rgba(46,204,113,0.06); border-radius:6px;">
                         <div style="color:#7ad188; font-size:0.78rem; font-weight:800; margin-bottom:3px;">⏱ 타이밍</div>
                         <div style="color:rgba(255,255,255,0.85); font-size:0.82rem; line-height:1.5;">${text.timing || '현 시점 흐름 점검 권장'}</div>
@@ -19913,29 +19924,24 @@ function renderSajuResult(data) {
                            👉 강제 시점 (압박)
                          ═══════════════════════════════════════════════════════ -->
                     
-                    <!-- ▸ 활성 조건 (긍정) -->
-                    <div style="margin-bottom:8px; padding:9px 12px; background:rgba(0,0,0,0.25); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
-                        <div style="color:${yongshinData.color}; font-size:0.76rem; font-weight:800; margin-bottom:3px;">▸ 활성 조건</div>
-                        <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.5;">${yongshinData.activeCondition}</div>
+                    ${text.energyGuideV54 ? `
+                    <!-- ★★★ [V202.54.0 Step 7] V54 에너지 가이드 — 사장님 비전 ★★★
+                         이질감 차단: V31 "활성/작동/차단 + 강제 시점" 5블록 시스템 톤 제거
+                         사장님 7원칙 ⑤: 명령 → 권유 -->
+                    
+                    <!-- 💧 강점이 되는 방향 -->
+                    <div style="margin-bottom:10px; padding:12px 14px; background:rgba(0,0,0,0.25); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
+                        <div style="color:${yongshinData.color}; font-size:0.80rem; font-weight:800; margin-bottom:7px;">💎 강점이 되는 방향</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.energyGuideV54.direction}
+                        </div>
                     </div>
                     
-                    <!-- 🎨 작동 트리거 (실행) -->
-                    <div style="margin-bottom:8px; padding:9px 12px; background:rgba(0,0,0,0.25); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
-                        <div style="color:${yongshinData.color}; font-size:0.76rem; font-weight:800; margin-bottom:3px;">🎨 작동 트리거</div>
-                        <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.5;">${yongshinData.activationTrigger}</div>
-                    </div>
-                    
-                    <!-- ⛔ 차단 조건 (부정 — 빨간 톤 시각 강화) -->
-                    <div style="margin-bottom:8px; padding:9px 12px; background:rgba(231,76,60,0.12); border:1px solid rgba(231,76,60,0.5); border-left:3px solid #e74c3c; border-radius:0 6px 6px 0;">
-                        <div style="color:#FF8870; font-size:0.76rem; font-weight:800; margin-bottom:3px;">⛔ 차단 조건</div>
-                        <div style="color:#FFCFC0; font-size:0.85rem; line-height:1.5; font-weight:700;">${yongshinData.blockCondition}</div>
-                    </div>
-                    
-                    <!-- 👉 강제 시점 (사장님 핵심 안 — 행동 강제) -->
-                    <div style="margin-top:12px; padding:11px 13px; background:linear-gradient(135deg, ${yongshinData.color}30, ${yongshinData.color}15); border:2px solid ${yongshinData.color}AA; border-radius:8px; box-shadow:0 0 12px ${yongshinData.color}30;">
-                        <div style="color:${yongshinData.color}; font-size:0.78rem; font-weight:900; margin-bottom:5px; letter-spacing:0.04em;">🎯 강제 시점</div>
-                        <div style="color:rgba(255,255,255,0.95); font-size:0.88rem; font-weight:800; line-height:1.55;">
-                            👉 ${yongshinData.forceTrigger}
+                    <!-- ⚠ 이 시기에 멀어지면 좋은 흐름 -->
+                    <div style="margin-bottom:10px; padding:12px 14px; background:rgba(231,76,60,0.08); border-left:3px solid rgba(231,76,60,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#FF9870; font-size:0.80rem; font-weight:800; margin-bottom:7px;">⚠ 이 시기에 멀어지면 좋은 흐름</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.energyGuideV54.avoid}
                         </div>
                     </div>
                     
@@ -19945,6 +19951,36 @@ function renderSajuResult(data) {
                             ${yongshinData.oneLine}
                         </div>
                     </div>
+                    ` : `
+                    <!-- V31 fallback (V54 없을 때만) -->
+                    <div style="margin-bottom:8px; padding:9px 12px; background:rgba(0,0,0,0.25); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
+                        <div style="color:${yongshinData.color}; font-size:0.76rem; font-weight:800; margin-bottom:3px;">▸ 활성 조건</div>
+                        <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.5;">${yongshinData.activeCondition}</div>
+                    </div>
+                    
+                    <div style="margin-bottom:8px; padding:9px 12px; background:rgba(0,0,0,0.25); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
+                        <div style="color:${yongshinData.color}; font-size:0.76rem; font-weight:800; margin-bottom:3px;">🎨 작동 트리거</div>
+                        <div style="color:rgba(255,255,255,0.92); font-size:0.85rem; line-height:1.5;">${yongshinData.activationTrigger}</div>
+                    </div>
+                    
+                    <div style="margin-bottom:8px; padding:9px 12px; background:rgba(231,76,60,0.12); border:1px solid rgba(231,76,60,0.5); border-left:3px solid #e74c3c; border-radius:0 6px 6px 0;">
+                        <div style="color:#FF8870; font-size:0.76rem; font-weight:800; margin-bottom:3px;">⛔ 차단 조건</div>
+                        <div style="color:#FFCFC0; font-size:0.85rem; line-height:1.5; font-weight:700;">${yongshinData.blockCondition}</div>
+                    </div>
+                    
+                    <div style="margin-top:12px; padding:11px 13px; background:linear-gradient(135deg, ${yongshinData.color}30, ${yongshinData.color}15); border:2px solid ${yongshinData.color}AA; border-radius:8px; box-shadow:0 0 12px ${yongshinData.color}30;">
+                        <div style="color:${yongshinData.color}; font-size:0.78rem; font-weight:900; margin-bottom:5px; letter-spacing:0.04em;">🎯 강제 시점</div>
+                        <div style="color:rgba(255,255,255,0.95); font-size:0.88rem; font-weight:800; line-height:1.55;">
+                            👉 ${yongshinData.forceTrigger}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px; padding:10px 12px; background:linear-gradient(135deg, ${yongshinData.color}20, ${yongshinData.color}08); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
+                        <div style="color:${yongshinData.color}; font-size:0.83rem; font-weight:800; line-height:1.55;">
+                            ${yongshinData.oneLine}
+                        </div>
+                    </div>
+                    `}
                 </div>
                 `;
             })()}
@@ -20260,12 +20296,39 @@ ${cleanContent}
                 <div style="margin-bottom:12px; padding:12px; background:rgba(0,0,0,0.25); border-left:3px solid #FFD970; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.luckPhase12.title || '🌀 12운성'}</div>
                     <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.luckPhase12.content || ''}</div>
+                    ${data.pro.luckPhase12.v54_body ? `
+                    <!-- ★ V202.54.0 Step 8 ★ 12운성 V54 깊이 본문 -->
+                    <div style="margin-top:12px; padding:10px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
+                        <div style="color:#C39BD3; font-size:0.78rem; font-weight:700; margin-bottom:6px;">💭 현재 단계 깊이 통찰</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">${data.pro.luckPhase12.v54_body}</div>
+                    </div>` : ''}
                 </div>` : ''}
                 
                 ${data.pro.shinSal ? `
                 <div style="margin-bottom:12px; padding:12px; background:rgba(255,165,80,0.08); border-left:3px solid #FFB870; border-radius:0 6px 6px 0;">
                     <div style="color:#FFD970; font-size:0.84rem; font-weight:800; margin-bottom:6px;">${data.pro.shinSal.title || '⚔️ 신살'}</div>
+                    ${(data.pro.shinSal.v54_items && data.pro.shinSal.v54_items.length > 0) ? `
+                    <!-- ★★★ [V202.54.0 Step 8] V54 신살 노출 — 사장님 7원칙 ⑥ ★★★
+                         "도화살: 매력과 인기" → "관계 끌림 신호 + 양면" -->
+                    ${data.pro.shinSal.v54_items.map(item => `
+                        <div style="margin-bottom:10px; padding:10px 12px; background:rgba(0,0,0,0.18); border-left:2px solid rgba(255,184,112,0.5); border-radius:0 5px 5px 0;">
+                            <div style="color:#FFB870; font-size:0.84rem; font-weight:800; margin-bottom:6px;">
+                                ${item.v54_label || (item.icon + ' ' + item.name)}
+                            </div>
+                            ${item.v54_body ? `
+                            <div style="color:rgba(255,255,255,0.88); font-size:0.81rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">${item.v54_body}</div>
+                            ` : `
+                            <div style="color:rgba(255,255,255,0.82); font-size:0.80rem; line-height:1.6;">
+                                ▸ ${item.meaning}<br>
+                                ▸ 효과: ${item.effect}<br>
+                                ▸ 조언: ${item.advice}
+                            </div>
+                            `}
+                        </div>
+                    `).join('')}
+                    ` : `
                     <div style="color:rgba(255,255,255,0.92); font-size:0.84rem; line-height:1.65; white-space:pre-line; word-break:keep-all; overflow-wrap:break-word;">${data.pro.shinSal.content || ''}</div>
+                    `}
                 </div>` : ''}
                 
                 ${data.pro.familyPackage ? `
