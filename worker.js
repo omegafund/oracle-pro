@@ -18854,7 +18854,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.52.5",    // ★ V202.52.5 핫픽스 (V202.52.4 라이브 검증 결정적 결함): 한글 이름 LLM 환각 차단 — 워커가 입력에서 정규식 6단계 우선순위로 이름을 명시 추출 후 LLM 프롬프트에 변수로 전달 (extractKoreanNames + 매니페스토 #6 신설). 라이브 결함: '이소영 최민식' → '이th영님과 최민식님' 음소 환각 → 결제 신뢰 즉시 붕괴. 해결: LLM이 추출된 이름을 한 글자도 변경 없이 그대로 사용하도록 절대 규칙 강제. V202.52.4 base 위에 적용.
+        version: "V202.52.6",    // ★ V202.52.6 긴급 핫픽스 (V202.52.5 결정적 결함): _v52_5_extractedNames 변수가 love 분기 안에서만 const 선언 → 다른 도메인(life/stock/crypto)에서 masterPrompt 빌드 시 ReferenceError → 워커 응답 실패 (사장님 라이브 '나의 내일 연애운' 입력 → 진행바 멈춤). 해결: let으로 상위 선언(빈 배열 초기화) + love 분기 안에서만 재할당. 게이트 표준 신규 추가: 'masterPrompt 변수 모든 코드 경로 스코프 안전성 검사'. V202.52.5 패치(extractKoreanNames + 매니페스토 #6) 그대로 유지.
         _ts: Date.now(),
         _ok: true
       }), {
@@ -20152,6 +20152,16 @@ export default {
         const { totalScore, riskScore, cleanCards, reversedFlags, synergies } = calcCardScores(cardNames, isReversed, queryType);
 
         let metrics;
+        // ★★★ [V202.52.6 사장님 결정적 결함] _v52_5_extractedNames 스코프 안전화 ★★★
+        //   V202.52.5 라이브 결함: "나의 내일 연애운" 입력 → 진행바 멈춤
+        //   원인: _v52_5_extractedNames 변수가 ★ love 분기 안에서만 정의 ★ 됐는데
+        //         masterPrompt는 ★ 모든 도메인 ★ 에서 빌드되어 사용
+        //         → life/stock/crypto 도메인일 때 ReferenceError → 워커 응답 실패
+        //   해결: 변수를 ★ 모든 분기 밖 ★ 에서 빈 배열로 초기화
+        //         love 분기에서만 extractKoreanNames 결과로 덮어쓰기
+        //   교훈: 백틱 prompt 내 변수가 모든 코드 경로에서 정의되는지 ★ 게이트 표준 검사 ★ 추가
+        let _v52_5_extractedNames = [];
+
         // ★ [V202.26 사장님 V202.0 의도 완성] realestate 카테고리 분기 ★ 완전 제거 ★
         //   V202.0에서 부동산 카테고리는 사주로 통합 (라인 5313 라우팅)
         //   잔존 realestate 분기는 ★ 도달 불가 dead code ★ → 제거
@@ -20339,7 +20349,9 @@ export default {
           }
 
           // ★ V202.52.5 ★ 이름 추출 실행 — LLM 프롬프트 주입용
-          const _v52_5_extractedNames = extractKoreanNames(prompt);
+          // ★ V202.52.6 ★ 변수는 상위에서 빈 배열로 선언됨 (life/stock/crypto 경로 안전)
+          //              여기서는 love 분기 한정 재할당
+          _v52_5_extractedNames = extractKoreanNames(prompt);
 
 
           // 모드 자동 교정: 버튼(loveSubType) vs 질문 의도 충돌 해결
