@@ -7534,7 +7534,7 @@ const V54_TRAIT_RULES = [
   
   // ─── 관계 패턴 (4종) ───
   { id: 'mask_with_distance',  when: p => p.socialMask === 'high' && p.isolation === 'high' },
-  { id: 'lonely_resilience',   when: p => p.supportLevel === 'low' && (p.strength === 'weak' || p.strength === 'extra_weak') },
+  { id: 'lonely_resilience',   when: p => (p.supportLevel === 'low' || p.supportLevel === 'none') && (p.strength === 'weak' || p.strength === 'extra_weak') },
   { id: 'warm_connector',      when: p => p.supportLevel === 'high' && p.outputDrive !== 'low' && p.socialMask !== 'high' },
   { id: 'protective_nurturer', when: p => p.outputDrive === 'high' && (p.dayMasterEl === '토' || p.dayMasterEl === '목') },
   
@@ -7547,7 +7547,7 @@ const V54_TRAIT_RULES = [
   // ─── 자기 동력 (3종) ───
   { id: 'self_powered',     when: p => p.selfDrive === 'high' && p.strength !== 'weak' && p.strength !== 'extra_weak' },
   { id: 'low_drive',        when: p => p.selfDrive === 'low' && (p.strength === 'weak' || p.strength === 'extra_weak') },
-  { id: 'over_independent', when: p => p.selfDrive === 'high' && p.supportLevel === 'low' },
+  { id: 'over_independent', when: p => p.selfDrive === 'high' && (p.supportLevel === 'low' || p.supportLevel === 'none') },
   
   // ─── 표현/창작 (3종) ───
   { id: 'creative_expresser', when: p => p.outputDrive === 'high' && (p.dayMasterEl === '목' || p.dayMasterEl === '화') },
@@ -7561,7 +7561,7 @@ const V54_TRAIT_RULES = [
   
   // ─── 보호/지지 (2종) ───
   { id: 'supported_growth', when: p => p.supportLevel === 'high' && p.strength !== 'extra_weak' },
-  { id: 'lonely_decision',  when: p => p.supportLevel === 'low' && p.officerPressure === 'high' },
+  { id: 'lonely_decision',  when: p => (p.supportLevel === 'low' || p.supportLevel === 'none') && p.officerPressure === 'high' },
   
   // ─── 회복 (2종) ───
   { id: 'solitary_recharger', when: p => p.recoveryStyle === 'solo' && p.isolation !== 'low' },
@@ -8061,12 +8061,22 @@ function v31GenerateText(sajuData, judgeResult) {
       v54OracleNarrative = v54_pickOracleBlocks(v54DeepInsight._profile, v54DeepInsight._traits);
     }
     // Step 7: 에너지 가이드 (용신 오행 기반)
-    // ★ V202.54.0-A 핫픽스 ★ sajuData.yongShin 없음 (별도 endpoint) → profile.deficientEl 사용
-    //   사주학 원리: 가장 약한 오행 = 채워야 할 기운 = 용신 후보 (정확도 80%+)
-    //   클라이언트의 detectYongshin과 동일 로직 (가장 약한 오행)
-    const yongShinEl = (sajuData.yongShin && sajuData.yongShin.element) ||
-                       (v54DeepInsight && v54DeepInsight._profile && v54DeepInsight._profile.deficientEl) ||
-                       null;
+    // ★ V202.54.0-B 핫픽스 ★ 결함 1 해결: 용신 라벨 vs 본문 ★ 일관성 ★ 확보
+    //   클라이언트 detectYongshin과 ★ 동일 로직 ★ 사용:
+    //     Object.entries(elements).sort((a,b) => a[1] - b[1])[0]
+    //     = 가장 약한 오행 (동률 시 객체 키 순서 = 목/화/토/금/수 정렬 순서)
+    //   효과: 계수 사례 목 1% / 금 1% 동률 → 목 선택 (클라이언트와 일치)
+    let yongShinEl = null;
+    if (sajuData.elements) {
+      const _sortedEls = Object.entries(sajuData.elements).sort((a, b) => a[1] - b[1]);
+      yongShinEl = _sortedEls[0] && _sortedEls[0][0];
+    }
+    // fallback: sajuData.yongShin → profile.deficientEl
+    if (!yongShinEl) {
+      yongShinEl = (sajuData.yongShin && sajuData.yongShin.element) ||
+                   (v54DeepInsight && v54DeepInsight._profile && v54DeepInsight._profile.deficientEl) ||
+                   null;
+    }
     if (yongShinEl && V54_ENERGY_GUIDE_NARRATIVE[yongShinEl]) {
       v54EnergyGuide = V54_ENERGY_GUIDE_NARRATIVE[yongShinEl];
     }
@@ -19829,7 +19839,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.54.0-A",  // ★ V202.54.0-A 핫픽스 ★ 라이브 정화 사례에서 발견된 2가지 결함 즉시 해결: (1) [5/6] 에너지 가이드 미작동 — sajuData.yongShin 객체 없음 (별도 endpoint) → profile.deficientEl fallback 사용 (가장 약한 오행 = 용신 후보, 사주학 정확도 80%+). (2) 격국 archetype 조합형 v54_body 미매핑 — 식신+정재 같은 조합형에서 v54_body가 null이던 결함을 가장 강한 십성(level 기준) 자동 선택 후 v54_body 매핑으로 해결. V54 8개 영역 완벽 작동 + 2개 핫픽스 추가 = 사주 모든 영역 V54 톤 100% 일관성 확보.
+        version: "V202.54.0-B",  // ★ V202.54.0-B 결함 1+2+3 통합 핫픽스 ★ 라이브 계수 사례 발견 결함 3가지 완벽 정리: 결함 1 (용신 라벨 vs 본문 불일치) — 워커가 클라이언트 detectYongshin과 ★ 동일 로직 ★ (가장 약한 오행 sort) 사용으로 일치. 계수 사례 목/금 1% 동률 → 둘 다 '목' 산출. 결함 2 (핵심 구조 vs 깊이 통찰 격국 모순) — 깊이 통찰 박스에 핵심 구조 archetype.v54_label 일관성 라벨 노출 (계수: '↑ 핵심 구조 일치 / 💰 현실 기반형 구조' + '🔮 편재격' 동시 노출로 모순 해소). 결함 3 (lonely_resilience/decision/over_independent supportLevel none 매칭 누락) — 'low' 조건에 'none' 추가로 인성 부재 사주 trait 매칭 완성. 라이브 검증 3 사례(정화/갑목/계수) yongShin 모두 클라이언트와 ★ 일치 ★ 확인.
         _ts: Date.now(),
         _ok: true
       }), {
