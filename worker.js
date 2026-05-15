@@ -7652,13 +7652,18 @@ function v54_buildEssenceCore(dayPillar, dayMaster) {
 /**
  * 💭 에너지 작동 방식 — 일간 + 강한 십성 trait 본문 매칭
  */
-function v54_buildEnergyOperation(profile, traits) {
+function v54_buildEnergyOperation(profile, traits, usedTraits) {
   // 우선순위: 가장 강한 trait 중 에너지 영역 우선
   const energyTraits = ['emotional_burnout', 'self_depleting_chaser', 'self_powered',
                         'creative_expresser', 'emotional_surge', 'low_drive',
                         'goal_chaser', 'innovative_breaker'];
   for (const t of energyTraits) {
-    if (traits.includes(t) && V54_TRAIT_POOL[t]) return V54_TRAIT_POOL[t];
+    // ★ V202.54.0-C 작업 1 ★ 반복 차단 — 이미 사용된 trait 회피
+    if (usedTraits && usedTraits.has(t)) continue;
+    if (traits.includes(t) && V54_TRAIT_POOL[t]) {
+      if (usedTraits) usedTraits.add(t);
+      return V54_TRAIT_POOL[t];
+    }
   }
   // fallback: 오행 편중 기반
   return V54_ELEMENT_NARRATIVE[`${({목:'wood',화:'fire',토:'earth',금:'metal',수:'water'}[profile.dominantEl])}_strong`] ||
@@ -7668,11 +7673,15 @@ function v54_buildEnergyOperation(profile, traits) {
 /**
  * 💭 관계 작동 방식 — 신강신약 + 관계 trait
  */
-function v54_buildRelationOperation(profile, traits) {
+function v54_buildRelationOperation(profile, traits, usedTraits) {
   const relationTraits = ['lonely_resilience', 'mask_with_distance', 'protective_nurturer',
                           'warm_connector', 'over_independent', 'lonely_decision', 'supported_growth'];
   for (const t of relationTraits) {
-    if (traits.includes(t) && V54_TRAIT_POOL[t]) return V54_TRAIT_POOL[t];
+    if (usedTraits && usedTraits.has(t)) continue;
+    if (traits.includes(t) && V54_TRAIT_POOL[t]) {
+      if (usedTraits) usedTraits.add(t);
+      return V54_TRAIT_POOL[t];
+    }
   }
   // fallback: 신강신약 기반
   return V54_STRENGTH_NARRATIVE[profile.strength] || V54_STRENGTH_NARRATIVE.balanced;
@@ -7681,20 +7690,25 @@ function v54_buildRelationOperation(profile, traits) {
 /**
  * 💭 심리 작동 패턴 — 매칭된 trait 2~3개 조합 (성향 신호 영역)
  */
-function v54_buildPsychePattern(traits) {
+function v54_buildPsychePattern(traits, usedTraits) {
   const psycheTraits = ['emotional_suppression', 'emotional_stability', 'controlled_leader',
                         'hidden_manager', 'reactive_responder', 'cautious_perfectionist',
                         'intuitive_strategist', 'decisive_cutter', 'impulsive_actor',
                         'silent_observer', 'solitary_recharger', 'social_recharger',
                         'direction_seeker'];
-  const matched = traits.filter(t => psycheTraits.includes(t)).slice(0, 3);
+  // 이미 사용된 trait 회피
+  const available = traits.filter(t => psycheTraits.includes(t) && 
+                                       !(usedTraits && usedTraits.has(t)));
+  const matched = available.slice(0, 3);
   if (matched.length === 0) return null;
+  if (usedTraits) matched.forEach(t => usedTraits.add(t));
   return matched.map(t => V54_TRAIT_POOL[t]).filter(Boolean).join('\n\n');
 }
 
 /**
  * ★ 통합 함수 — 사주 데이터 → V54 4영역 본문 ★
  * v31GenerateText에서 1회 호출하여 응답에 노출
+ * ★ V202.54.0-C 작업 1 ★ usedTraits Set으로 4영역 간 반복 차단
  */
 function v54_buildDeepInsight(sajuData) {
   const { pillars, meta } = sajuData;
@@ -7702,14 +7716,27 @@ function v54_buildDeepInsight(sajuData) {
   const traits  = v54_matchTraits(profile);
   const dayPillar = pillars.day.ganzhi;
   
+  // ★ 글로벌 trait 사용 추적 (4영역 + 종합 신탁 advice까지) ★
+  const usedTraits = new Set();
+  
+  // 1. essenceCore — V54_DAY_NATURE_POOL 사용 (trait 무관, 사용 추적 X)
+  const essenceCore = v54_buildEssenceCore(dayPillar, meta.dayMaster);
+  
+  // 2. energyOperation — 에너지 trait (사용 추적 ○)
+  const energyOperation = v54_buildEnergyOperation(profile, traits, usedTraits);
+  
+  // 3. relationOperation — 관계 trait (이전 사용 회피)
+  const relationOperation = v54_buildRelationOperation(profile, traits, usedTraits);
+  
+  // 4. psychePattern — 심리 trait 2~3 (이전 사용 모두 회피)
+  const psychePattern = v54_buildPsychePattern(traits, usedTraits);
+  
   return {
-    essenceCore:        v54_buildEssenceCore(dayPillar, meta.dayMaster),
-    energyOperation:    v54_buildEnergyOperation(profile, traits),
-    relationOperation:  v54_buildRelationOperation(profile, traits),
-    psychePattern:      v54_buildPsychePattern(traits),
-    _profile:           profile,    // 디버그용
-    _traits:            traits,     // 디버그용
-    _v:                 'V202.54.0'
+    essenceCore, energyOperation, relationOperation, psychePattern,
+    _profile:    profile,
+    _traits:     traits,
+    _usedTraits: Array.from(usedTraits),  // 종합 신탁에서 회피용
+    _v:          'V202.54.0-C'
   };
 }
 
@@ -7817,8 +7844,11 @@ const V54_ORACLE_NARRATIVE = {
 
 /**
  * profile + traits → oracle 3블록 매칭
+ * ★ V202.54.0-C 작업 1 ★ deepInsightUsedTraits로 4영역과 중복 회피
  */
-function v54_pickOracleBlocks(profile, traits) {
+function v54_pickOracleBlocks(profile, traits, deepInsightUsedTraits) {
+  const _used = new Set(deepInsightUsedTraits || []);
+  
   // risk 우선순위
   let riskKey = 'overthinking';
   if (traits.includes('self_depleting_chaser') || traits.includes('emotional_burnout')) riskKey = 'self_depleting';
@@ -7836,13 +7866,26 @@ function v54_pickOracleBlocks(profile, traits) {
   else if (traits.includes('mask_with_distance'))                                         stabKey = 'relation_repair';
   else if (traits.includes('direction_seeker') || traits.includes('low_drive'))          stabKey = 'small_focus';
   
-  // advice 우선순위
+  // advice 우선순위 — ★ V54.0-C: 4영역에서 이미 표현된 관계 메시지 회피 ★
+  //   lonely_resilience가 관계 영역에서 사용됐다면 seek_perspective 회피 (같은 톤)
   let advKey = 'delay_decision';
-  if (traits.includes('lonely_resilience') || profile.supportLevel === 'low')             advKey = 'seek_perspective';
-  else if (traits.includes('emotional_burnout') || profile.burnoutRisk === 'high')        advKey = 'rest_first';
-  else if (traits.includes('emotional_surge') || traits.includes('impulsive_actor'))      advKey = 'emotion_check';
-  else if (traits.includes('cautious_perfectionist') || traits.includes('intuitive_strategist')) advKey = 'small_action';
-  else if (traits.includes('protective_nurturer'))                                         advKey = 'self_care';
+  const _hasLonelyMessage = _used.has('lonely_resilience') || _used.has('hidden_manager');
+  
+  if (_hasLonelyMessage) {
+    // 관계 영역에서 이미 "혼자/협력" 메시지 노출됨 → 다른 톤 advice 선택
+    if (traits.includes('emotional_burnout') || profile.burnoutRisk === 'high')         advKey = 'rest_first';
+    else if (traits.includes('emotional_surge') || traits.includes('impulsive_actor'))  advKey = 'emotion_check';
+    else if (traits.includes('cautious_perfectionist') || traits.includes('intuitive_strategist')) advKey = 'small_action';
+    else if (traits.includes('protective_nurturer'))                                     advKey = 'self_care';
+    else                                                                                  advKey = 'delay_decision';
+  } else {
+    // 기존 로직
+    if (traits.includes('lonely_resilience') || profile.supportLevel === 'low')             advKey = 'seek_perspective';
+    else if (traits.includes('emotional_burnout') || profile.burnoutRisk === 'high')        advKey = 'rest_first';
+    else if (traits.includes('emotional_surge') || traits.includes('impulsive_actor'))      advKey = 'emotion_check';
+    else if (traits.includes('cautious_perfectionist') || traits.includes('intuitive_strategist')) advKey = 'small_action';
+    else if (traits.includes('protective_nurturer'))                                         advKey = 'self_care';
+  }
   
   return {
     risk:      V54_ORACLE_NARRATIVE.risk[riskKey],
@@ -7887,8 +7930,7 @@ const V54_ENERGY_GUIDE_NARRATIVE = {
 // ════════════════════════════════════════════════════════════════════
 
 const V54_LUCK_PHASE_NARRATIVE = {
-  '장생': "새로운 시작이 자연스럽게 자리잡는 시기에 가깝습니다.\n순수한 호기심과 배움의 에너지가 강한 흐름이며,\n작은 도전 하나가 큰 성장의 씨앗이 될 수 있습니다.\n다만 익숙함에 안주하면 흐름이 늦어지기 쉽습니다.",
-  '목욕': "지금은 외부 환경과 자기 결을 맞춰가는 시기에 가깝습니다.\n큰 결단보다 작은 정돈이 강점이 되는 흐름이며,\n새로운 자극에 끌리기 쉬운 양면도 함께 있습니다.\n감정 조절이 결정의 무게를 가볍게 만들어줍니다.",
+  '장생': "새로운 시작이 자연스럽게 자리잡는 시기에 가깝습니다.\n순수한 호기심과 배움의 에너지가 강한 흐름이며,\n작은 도전 하나가 큰 성장의 씨앗이 될 수 있습니다.\n다만 익숙함에 안주하면 흐름이 늦어지기 쉽습니다.",  '목욕': "지금은 외부 환경과 자기 결을 맞춰가는 시기에 가깝습니다.\n큰 결단보다 작은 정돈이 강점이 되는 흐름이며,\n새로운 자극에 끌리기 쉬운 양면도 함께 있습니다.\n감정 조절이 결정의 무게를 가볍게 만들어줍니다.",
   '관대': "자기 결이 분명해지는 시기에 가깝습니다.\n결정과 추진의 자질이 살아나는 흐름이며,\n자기 색을 드러내는 자리에서 진가가 발휘됩니다.\n다만 자신감이 너무 강해지면 주변과의 마찰이 늘어날 수 있습니다.",
   '건록': "안정된 자기 자리를 만드는 시기에 가깝습니다.\n노력의 결과가 가시화되는 흐름이며,\n신뢰와 책임이 함께 따라오는 자리에 놓이기 쉽습니다.\n무리한 확장보다 단단한 토대 쌓기가 핵심입니다.",
   '제왕': "에너지의 정점에 가까운 시기입니다.\n결정력과 추진력이 최고치로 작동하는 흐름이며,\n사람들의 시선이 자연스럽게 모이는 자리에 놓이기 쉽습니다.\n다만 정점 이후의 흐름을 미리 준비하는 자세가 길게 갑니다.",
@@ -7899,6 +7941,34 @@ const V54_LUCK_PHASE_NARRATIVE = {
   '절': "비움과 정리의 시기에 가깝습니다.\n새로운 흐름을 받기 위해 기존을 내려놓는 시기이며,\n집착이 풀릴 때 의외의 길이 열리는 흐름입니다.\n결과보다 과정 자체에서 의미를 찾는 자세가 핵심입니다.",
   '태': "새 흐름이 안에서 자라기 시작하는 시기에 가깝습니다.\n겉으로는 변화가 잘 보이지 않지만,\n안에서 다음 단계의 씨앗이 만들어지는 흐름입니다.\n조급함보다 자연스러운 시간을 두는 게 중요합니다.",
   '양': "새 흐름이 형태를 갖춰가는 시기에 가깝습니다.\n조용히 자라온 에너지가 분명해지는 흐름이며,\n작은 시작이 큰 결과로 이어질 수 있는 토대가 만들어집니다.\n인내심과 꾸준함이 결과의 크기를 결정합니다."
+};
+
+// ════════════════════════════════════════════════════════════════════
+// ★★★ [V202.54.0-C 작업 2] V54_TIMELINE_NARRATIVE — 시계열 흐름 ★★★
+//   사장님 진단: V31 "가속 흐름 / 흐름 강화 / 결과 가속" = 기계형 표현
+//   해결: 사람 친화 톤으로 풀 신설 (사장님 안 그대로 확장)
+//   영역: [8/8] 시계열 흐름 (오늘/이번달/올해)
+// ════════════════════════════════════════════════════════════════════
+
+const V54_TIMELINE_NARRATIVE = {
+  // 📅 오늘 (3종)
+  today: {
+    accel:   "움직인 만큼 결과 반응이 빠르게 들어오는 날입니다.\n멈추기보다 흐름을 이어가는 쪽이 유리합니다.",
+    steady:  "안정된 결을 유지하는 날입니다.\n큰 변화보다 작은 흐름의 연속이 의미를 만드는 시기입니다.",
+    caution: "한 박자 호흡을 두는 게 좋은 날입니다.\n결정 전 자기 상태를 점검하는 시간이 흐름을 지켜줍니다."
+  },
+  // 🗓 이번 달 (3종)
+  month: {
+    accel:   "방향이 점점 선명해지는 시기입니다.\n지금 선택이 이후 흐름에 영향을 주기 쉬운 구간이며,\n작은 결정이라도 정확하게 짚어가는 자세가 핵심입니다.",
+    steady:  "균형을 다지는 시기에 가깝습니다.\n새로운 시도보다 이미 시작한 흐름을 단단하게 만드는 쪽이\n장기적으로 더 큰 결과로 이어질 수 있습니다.",
+    caution: "정돈과 회복이 우선되는 시기입니다.\n무리한 확장보다 자기 페이스를 다시 잡는 데\n에너지를 쓰는 게 다음 흐름을 위한 준비가 됩니다."
+  },
+  // 🎯 올해 (3종)
+  year: {
+    accel:   "생각보다 빠르게 반응이 돌아오기 시작하는 해입니다.\n쌓아온 흐름이 결과로 변환되는 시기로,\n방향성을 유지하면 결실의 크기가 분명해집니다.",
+    steady:  "안정 위에 결을 다지는 해입니다.\n큰 도약보다 견고함이 무기가 되는 시기로,\n작은 일관성이 큰 차이를 만들어냅니다.",
+    caution: "내적 정돈이 결과보다 중요한 해입니다.\n외부 변화에 휘둘리기보다 자기 결을 다시 잡는 시간이\n다음 도약의 토대를 만들어줍니다."
+  }
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -8056,9 +8126,13 @@ function v31GenerateText(sajuData, judgeResult) {
   let v54EnergyGuide = null;
   try {
     v54DeepInsight = v54_buildDeepInsight(sajuData);
-    // Step 6: 종합 신탁 (3블록)
+    // Step 6: 종합 신탁 (3블록) — ★ V54.0-C 반복 차단 ★
     if (v54DeepInsight && v54DeepInsight._profile && v54DeepInsight._traits) {
-      v54OracleNarrative = v54_pickOracleBlocks(v54DeepInsight._profile, v54DeepInsight._traits);
+      v54OracleNarrative = v54_pickOracleBlocks(
+        v54DeepInsight._profile,
+        v54DeepInsight._traits,
+        v54DeepInsight._usedTraits  // ★ 4영역 사용 trait 전달 ★
+      );
     }
     // Step 7: 에너지 가이드 (용신 오행 기반)
     // ★ V202.54.0-B 핫픽스 ★ 결함 1 해결: 용신 라벨 vs 본문 ★ 일관성 ★ 확보
@@ -19839,7 +19913,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.54.0-B",  // ★ V202.54.0-B 결함 1+2+3 통합 핫픽스 ★ 라이브 계수 사례 발견 결함 3가지 완벽 정리: 결함 1 (용신 라벨 vs 본문 불일치) — 워커가 클라이언트 detectYongshin과 ★ 동일 로직 ★ (가장 약한 오행 sort) 사용으로 일치. 계수 사례 목/금 1% 동률 → 둘 다 '목' 산출. 결함 2 (핵심 구조 vs 깊이 통찰 격국 모순) — 깊이 통찰 박스에 핵심 구조 archetype.v54_label 일관성 라벨 노출 (계수: '↑ 핵심 구조 일치 / 💰 현실 기반형 구조' + '🔮 편재격' 동시 노출로 모순 해소). 결함 3 (lonely_resilience/decision/over_independent supportLevel none 매칭 누락) — 'low' 조건에 'none' 추가로 인성 부재 사주 trait 매칭 완성. 라이브 검증 3 사례(정화/갑목/계수) yongShin 모두 클라이언트와 ★ 일치 ★ 확인.
+        version: "V202.54.0-C",  // ★ V202.54.0-C 완성판 ★ 사장님 4가지 지적 + Claude 보강 통합: (1) 반복 차단 알고리즘 — usedTraits Set으로 4영역(에너지/관계/심리/조언) 간 trait 중복 차단. lonely_resilience가 관계 영역에서 사용되면 advice는 seek_perspective 회피 → rest_first/emotion_check 등 다른 톤 자동 선택. (2) 시계열 흐름 V54 풀 신설 — V31 "가속 흐름/강화/유지" → "움직인 만큼 결과 반응이..." 사람 친화 톤. [8/8] 클라이언트 _v54TimelineTone 함수로 V31 키워드 자동 변환. (3) 격국 분리 명확화 — 깊이 통찰 박스에서 🔮 격국 구조 + 💎 현실 작동 중심 분리 표시 (편재격 vs 정재 성향 모순 해소). (4) 게임형 박스 완전 제거 — "🌀 흐름은 고정되지 않습니다 / 3일 후 흐름의 강도" 미션 시스템 톤 차단 (사장님 7원칙 ④ 시스템 → 통찰 완성). V54 14영역 완전 V54 톤 일관성 + 반복 체감 0 + 게임형 잔존 0.
         _ts: Date.now(),
         _ok: true
       }), {
