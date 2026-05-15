@@ -11850,6 +11850,230 @@ const LOVE_FLOW_KEY_POOL = {
   ]
 };
 
+// ════════════════════════════════════════════════════════════════════════════════
+// ★★★ [V202.53.0-A Macro-Block 엔진] 카드×서브타입 본문 조립 시스템 ★★★
+// ════════════════════════════════════════════════════════════════════════════════
+//   목적: LLM 환각 차단 + 카드별 톤 일관성 + 서브타입별 정서 밀도 보장
+//   사장님 설계: 3층 구조(카드/관계/문체) × 4서브타입 = 22만 가지 자연 조합
+//   원리:
+//     Layer 1: CARD_ESSENCE — 78카드 × 정역 × 3태그 (영문 식별자, 환각 회피)
+//     Layer 2: SUBTYPE_ZONE — 9서브타입 × intensity + tones 매핑
+//     Layer 3: STITCH_POOL_BY_ROLE — 3role × 9subtype × 6block 한국어 본문 풀
+//     Layer 4: assembleZeusCardBody — 카드+role+subtype+score → 골격 생성
+//   Phase A 한정: 메이저 아르카나 22장 + 우선순위 4서브타입 (breakup/marriage/reunion/general)
+//   Phase B/C 예정: 마이너 56장 + 나머지 5서브타입 (썸/연락/짝사랑/궁합/마음읽기)
+//   안전: LLM 환각 0건 + 시제 라벨 일치 보장 + 단어 반복 자연 방지
+// ════════════════════════════════════════════════════════════════════════════════
+
+// ──────────────────────────────────────────────────────────────
+// Layer 1: CARD ESSENCE — 78카드 × 정역 × 3태그 (Phase A: 메이저 22장)
+//   영문 태그 = LLM 환각 0건 + 한국어 dollar-brace 검사 통과
+// ──────────────────────────────────────────────────────────────
+const CARD_ESSENCE = {
+  'The Fool':           { up: ['new_start','leap_of_faith','innocence'],            rev: ['hesitation','naive_choice','rashness'] },
+  'The Magician':       { up: ['manifestation','willpower','creation'],             rev: ['manipulation','unfulfilled_potential','illusion'] },
+  'The High Priestess': { up: ['intuition','mystery','inner_wisdom'],               rev: ['hidden_secrets','disconnection','withheld_truth'] },
+  'The Empress':        { up: ['nurturing','abundance','fertile_emotion'],          rev: ['emotional_stagnation','insecurity','codependence'] },
+  'The Emperor':        { up: ['structure','authority','stability'],                rev: ['rigidity','control','domination'] },
+  'The Hierophant':     { up: ['tradition','commitment','shared_values'],           rev: ['rebellion','unconventional','misalignment'] },
+  'The Lovers':         { up: ['choice','harmony','union'],                         rev: ['disharmony','value_conflict','misalignment'] },
+  'The Chariot':        { up: ['determination','control','forward_motion'],         rev: ['loss_of_direction','self_doubt','aggression'] },
+  'Strength':           { up: ['inner_strength','compassion','gentle_force'],       rev: ['self_doubt','fear','weakness'] },
+  'The Hermit':         { up: ['solitude','introspection','inner_search'],          rev: ['isolation','withdrawal','avoidance'] },
+  'Wheel of Fortune':   { up: ['turning_point','destiny','cycle_change'],           rev: ['resistance_to_change','bad_luck','stagnation'] },
+  'Justice':            { up: ['fairness','truth','cause_and_effect'],              rev: ['unfairness','avoidance_of_truth','bias'] },
+  'The Hanged Man':     { up: ['surrender','new_perspective','pause'],              rev: ['stalling','resistance','indecision'] },
+  'Death':              { up: ['transformation','ending','rebirth'],                rev: ['resistance_to_change','incomplete_ending','fear_of_change'] },
+  'Temperance':         { up: ['balance','patience','moderation'],                  rev: ['imbalance','excess','impatience'] },
+  'The Devil':          { up: ['attachment','temptation','binding'],                rev: ['release','breaking_free','awareness'] },
+  'The Tower':          { up: ['sudden_upheaval','breakdown','revelation'],         rev: ['avoiding_disaster','fear_of_change','delayed_collapse'] },
+  'The Star':           { up: ['hope','healing','serene_renewal'],                  rev: ['hope_drain','doubt','healing_delay'] },
+  'The Moon':           { up: ['intuition_strong','illusion','subconscious_fear'],  rev: ['confusion_clearing','hidden_truth_revealed','release_of_fear'] },
+  'The Sun':            { up: ['joy','success','clarity'],                          rev: ['inner_clouds','temporary_setback','dimmed_warmth'] },
+  'Judgement':          { up: ['awakening','reckoning','rebirth_call'],             rev: ['avoidance_of_judgement','self_doubt','inner_resistance'] },
+  'The World':          { up: ['completion','integration','fulfillment'],           rev: ['delayed_completion','unfinished_business','lack_of_closure'] }
+};
+
+// ──────────────────────────────────────────────────────────────
+// Layer 2: SUBTYPE EMOTION ZONE — 9서브타입 × intensity + tone 매핑
+//   intensity: 본문 정서 밀도 (0.3 가볍게 ~ 0.9 무겁게)
+//   tones: STITCH POOL 톤 호환 필터 (3단계)
+// ──────────────────────────────────────────────────────────────
+const SUBTYPE_ZONE = {
+  thumb:         { intensity: 0.3, tones: ['light','ambiguous','curious'] },
+  contact:       { intensity: 0.5, tones: ['tension','wait','subtle'] },
+  crush:         { intensity: 0.6, tones: ['projection','solo','soft'] },
+  reunion:       { intensity: 0.7, tones: ['regret','reality','lingering'] },
+  marriage:      { intensity: 0.8, tones: ['structure','stable','committed'] },
+  breakup:       { intensity: 0.9, tones: ['calm','closure','realistic'] },
+  general:       { intensity: 0.5, tones: ['observe','natural','balanced'] },
+  compatibility: { intensity: 0.5, tones: ['essence_check','alignment','tone_match'] },
+  mindread:      { intensity: 0.6, tones: ['inference','depth','hidden'] }
+};
+
+// ──────────────────────────────────────────────────────────────
+// Layer 3: STITCH POOL — 3role × 4subtype × 6block 한국어 본문 풀 (Phase A)
+//   각 블록: { t: "본문 텍스트", tone: "톤태그" }
+//   사장님 모범 톤 반영: "이미 ~를 지나온 뒤", "~ 라기보다", "상처를 덜 건드리는 방식"
+// ──────────────────────────────────────────────────────────────
+const STITCH_POOL_BY_ROLE = {
+  past: {
+    breakup: [
+      { t: '이미 감정적으로 지친 상태에 가까운 시기였습니다. 처음의 열기는 사라지고 피로감이 누적된 결이 강합니다', tone: 'calm' },
+      { t: '관계를 다시 믿어보려 했지만 미묘하게 어긋난 결이었습니다. 표면의 평온 아래 균열이 자라던 시기였습니다', tone: 'realistic' },
+      { t: '한때 깊은 끌림이 있었지만 점차 거리가 자란 흐름이었습니다. 감정의 결이 더는 같은 자리에 머물지 못한 결입니다', tone: 'closure' },
+      { t: '표현되지 못한 감정이 누적된 채 시간이 흘러왔습니다. 정리되지 않은 결이 차곡차곡 쌓이던 시기였습니다', tone: 'calm' },
+      { t: '의지와 현실 사이에서 마음이 흔들리던 시기였습니다. 관계를 지키려는 노력과 무게가 함께 자라온 결입니다', tone: 'realistic' },
+      { t: '한 번의 정리를 미루며 이어왔던 흐름이었습니다. 결단이 필요한 신호가 점차 분명해지던 시기였습니다', tone: 'closure' }
+    ],
+    marriage: [
+      { t: '결혼이라는 합의 앞에서 신중함이 자라온 시기였습니다. 감정만으로는 채워지지 않는 결이 점차 드러나던 흐름입니다', tone: 'structure' },
+      { t: '두 사람의 결을 맞추려는 시도가 조심스레 시작된 결이었습니다. 가치관 정렬을 가늠하는 시기였습니다', tone: 'committed' },
+      { t: '한때 감정만으로 충분하던 결이 점차 구조를 고민하게 된 시기였습니다. 본질적 합의가 다가오던 흐름입니다', tone: 'stable' },
+      { t: '결혼에 대한 의지보다는 망설임이 앞섰던 시기였습니다. 신중한 판단이 길어진 결이 강합니다', tone: 'structure' },
+      { t: '감정의 풍요로움 속에서도 본질적 합의가 필요했던 시기였습니다. 현실 조건을 점검하려는 결이 자라온 흐름입니다', tone: 'stable' },
+      { t: '결혼이라는 결단을 앞두고 차분히 결을 살펴온 시기였습니다. 진지한 합의의 토대가 천천히 쌓이던 결입니다', tone: 'committed' }
+    ],
+    reunion: [
+      { t: '한때 깊은 감정의 시작이 있었던 시기였습니다. 다만 그때의 순수함이 완전히 무르익기 전 어긋난 결이었습니다', tone: 'regret' },
+      { t: '관계를 정리할 결단이 부족한 채 거리가 자라난 시기였습니다. 미련이 완전히 정리되지 못한 결이 강합니다', tone: 'lingering' },
+      { t: '서로의 결이 맞지 않는다는 신호를 외면했던 흐름이었습니다. 표면의 안정 아래 본질이 흔들리던 시기였습니다', tone: 'reality' },
+      { t: '감정의 무게를 미루다 자연스레 멀어진 결이었습니다. 정리되지 않은 마음이 남은 채 시간이 흘러왔습니다', tone: 'regret' },
+      { t: '헤어짐 이후에도 정리되지 않은 결이 남아있던 시기였습니다. 미련과 현실 사이에서 마음이 흔들리던 흐름입니다', tone: 'lingering' },
+      { t: '관계 종료의 사유가 완전히 정리되지 못한 채 시간이 흘러왔습니다. 같은 패턴이 잔존하던 결이 강합니다', tone: 'reality' }
+    ],
+    general: [
+      { t: '관계의 흐름을 관찰하던 시기에 가까웠습니다. 감정과 거리 사이에서 균형을 가늠해온 결이었습니다', tone: 'observe' },
+      { t: '관계 기준이 천천히 정립되어가던 시기였습니다. 자신의 결을 차분히 헤아려온 흐름이 강합니다', tone: 'natural' },
+      { t: '감정의 깊이를 신중히 헤아려온 결이었습니다. 표면 아래 본질이 천천히 자리잡던 시기였습니다', tone: 'balanced' },
+      { t: '관계의 방향성을 점검해온 시기에 가깝습니다. 감정과 현실의 균형을 살펴온 결이 강합니다', tone: 'observe' },
+      { t: '감정의 흐름을 자연스럽게 따라가던 결이었습니다. 무리하지 않는 자세가 자리잡던 시기였습니다', tone: 'natural' },
+      { t: '관계의 본질을 차분히 가늠해온 시기였습니다. 결의 조화를 살피는 자세가 자라온 흐름입니다', tone: 'balanced' }
+    ]
+  },
+  present: {
+    breakup: [
+      { t: '관계를 유지하려는 의지는 남아 있지만 표현되지 않은 감정이 천천히 가라앉고 있습니다. 정리의 결이 자연스럽게 자리잡는 시점에 가깝습니다', tone: 'calm' },
+      { t: '감정의 결이 점차 정리되어 가는 가운데 현실 인식이 분명해지고 있습니다. 더는 같은 방식으로 이어가기 어려운 신호가 자리잡습니다', tone: 'closure' },
+      { t: '마음의 거리가 자연스럽게 조정되며 감정보다 거리 조절이 우선되기 시작했습니다. 차분히 자신의 결을 살피는 시점입니다', tone: 'realistic' },
+      { t: '완전히 놓지는 못한 채 표면적 평온이 자리잡고 있습니다. 감정의 무게와 일상의 균형이 어긋나고 있는 결입니다', tone: 'calm' },
+      { t: '관계가 실제로 지속 가능한지 냉정하게 보이기 시작합니다. 감정 정리와 거리 두기가 함께 작동하는 흐름입니다', tone: 'realistic' },
+      { t: '더는 이어가지 못할 신호가 분명해지며 정리의 결이 점차 분명해집니다. 자연스러운 마무리로 향하는 시점에 가깝습니다', tone: 'closure' }
+    ],
+    marriage: [
+      { t: '감정만이 아니라 삶의 결을 맞추는 시점에 가깝습니다. 가치관과 미래관의 일치 여부가 시험대에 올라 있는 결입니다', tone: 'structure' },
+      { t: '두 사람의 장기 합의를 검증하는 흐름입니다. 감정과 실무를 분리해서 보려는 결단이 자리잡고 있는 시점입니다', tone: 'committed' },
+      { t: '현실 조건의 정합성이 핵심 변수로 작용하고 있습니다. 본질적 합의의 깊이를 차분히 헤아리는 시기입니다', tone: 'stable' },
+      { t: '경제·생활·가치관의 실제 결합 가능성이 점검되는 흐름입니다. 단계적 합의를 통해 결혼의 토대가 형성되는 결입니다', tone: 'stable' },
+      { t: '감정의 진심은 형성됐지만 현실 조건이 결과를 가르는 시점에 가깝습니다. 본질 합의 없이는 결합이 흔들릴 수 있는 결입니다', tone: 'committed' },
+      { t: '결혼이라는 결단 앞에서 결의 융합을 살피는 흐름입니다. 감정·조건의 동시 정렬이 핵심으로 떠오르는 시기입니다', tone: 'structure' }
+    ],
+    reunion: [
+      { t: '지금은 스스로 만든 제약 안에 머물러 있는 결입니다. 완전히 놓지 못한 채 거리감만 깊어지고 있는 시점에 가깝습니다', tone: 'regret' },
+      { t: '재접근 가능성이 살아있지만 시점이 결과를 가르는 결입니다. 감정 회복과 거리 정리 사이에서 균형을 가늠하는 흐름입니다', tone: 'lingering' },
+      { t: '해결책이 없다고 느끼는 시점에 가깝습니다. 예전 패턴 그대로 다가가면 같은 결과를 맞을 수 있는 결이 강합니다', tone: 'reality' },
+      { t: '관계를 다시 정의할 여지를 신중히 살피는 흐름입니다. 미련과 현실 사이에서 마음의 방향을 가늠하는 시점입니다', tone: 'lingering' },
+      { t: '재정렬 의지는 살아있지만 시점이 결과를 가르는 결입니다. 변화된 자세가 형성되어야 진정한 재접근이 가능합니다', tone: 'reality' },
+      { t: '감정 정리 없이 재시도는 동일한 어긋남을 반복하게 됩니다. 자기 회복이 충분히 누적될 시간이 필요한 시점입니다', tone: 'regret' }
+    ],
+    general: [
+      { t: '지금은 흐름을 자연스럽게 관찰하는 시점입니다. 감정의 결을 조율하며 다음 단계를 가늠하고 있는 흐름입니다', tone: 'observe' },
+      { t: '감정과 현실의 균형점을 찾아가는 결입니다. 관계 기준이 명확해지는 흐름이 자연스럽게 자리잡고 있습니다', tone: 'balanced' },
+      { t: '표면의 안정 아래 본질이 형성되고 있습니다. 단계적 진전이 흐름 안정의 핵심으로 작동하는 시점입니다', tone: 'natural' },
+      { t: '관계의 다음 단계가 천천히 정돈되고 있습니다. 감정의 솔직함과 페이스 조율이 결과를 좌우하는 결입니다', tone: 'observe' },
+      { t: '관계의 본질이 결의 조화 안에서 점차 명확해지는 시점입니다. 자연스러운 흐름이 안정의 토대를 만드는 결입니다', tone: 'natural' },
+      { t: '감정만으로는 흐름의 안정성을 보장하기 어려운 결입니다. 표현 방식이 관계의 결을 가르는 변수로 작용하고 있습니다', tone: 'balanced' }
+    ]
+  },
+  future: {
+    breakup: [
+      { t: '앞으로는 감정 자체보다 현실 회복과 안정 재구축에 가까운 흐름으로 향합니다. 회복의 시간이 만남보다 우선되는 결로 이동합니다', tone: 'realistic' },
+      { t: '관계를 완전히 끊든 이어가든 자신의 삶을 다시 안정시키려는 방향으로 움직입니다. 정리 후 새로운 결로 향하는 흐름입니다', tone: 'calm' },
+      { t: '정리 후 새로운 안정을 향해 단계적으로 나아갑니다. 남은 미련을 비워내며 자연스럽게 다음 단계로 이동하는 결입니다', tone: 'closure' },
+      { t: '감정 정리의 자연스러운 완결이 다음 단계를 엽니다. 자기 회복이 우선되며 천천히 새 결로 향하는 흐름입니다', tone: 'closure' },
+      { t: '회복의 시간이 만남보다 우선되는 결로 향합니다. 차분한 자기 정돈이 새로운 흐름의 토대를 만드는 시점에 다가갑니다', tone: 'realistic' },
+      { t: '남은 미련을 비워내며 새로운 결로 이동합니다. 정리의 완성도가 다음 흐름의 질을 결정하는 결입니다', tone: 'calm' }
+    ],
+    marriage: [
+      { t: '감정·조건이 일치할 때 결합 확정으로 향합니다. 단계적 합의를 통해 안정적 결합으로 나아가는 흐름입니다', tone: 'committed' },
+      { t: '본질 합의가 선행되면 견고한 기반 위에 결혼이 자리잡습니다. 균형이 장기 결합을 만드는 결로 이어집니다', tone: 'stable' },
+      { t: '감정과 현실의 동시 정렬이 결혼의 길을 엽니다. 결의 융합이 완성되는 시점이 결혼의 본질로 자리잡습니다', tone: 'structure' },
+      { t: '단계적 합의가 견고한 결합의 토대를 만듭니다. 본질을 점검한 결단이 안정적 결혼으로 향하는 흐름입니다', tone: 'committed' },
+      { t: '실무 점검이 완료될 때 결혼은 자연스러운 결로 자리잡습니다. 균형 잡힌 합의가 장기 결합의 질을 결정합니다', tone: 'stable' },
+      { t: '감정 우위가 아니라 본질 합의가 결혼의 결을 만드는 흐름입니다. 단계적 진전이 견고한 결합으로 이어지는 결입니다', tone: 'structure' }
+    ],
+    reunion: [
+      { t: '앞으로는 자존심을 조금씩 내려놓는 흐름으로 향합니다. 완전한 화해라기보다 관계를 다시 정의할 여지가 열리는 결입니다', tone: 'lingering' },
+      { t: '새 접근 방식이 관계 재정렬을 가능하게 합니다. 신중한 재접근이 흐름 재활성화의 열쇠가 되는 결입니다', tone: 'regret' },
+      { t: '회복의 시간이 충분히 누적될 때 자연스러운 재회가 형성됩니다. 패턴 변화 없이는 같은 결말로 회귀하는 결이 강합니다', tone: 'reality' },
+      { t: '변화된 자세가 형성되면 재접근의 가능성이 살아납니다. 시간이 결의 정돈을 도와 새 흐름을 여는 결입니다', tone: 'lingering' },
+      { t: '미련을 정돈하며 본질을 다시 가늠하는 결로 향합니다. 같은 패턴이 반복되지 않을 때 진정한 재접근이 가능합니다', tone: 'reality' },
+      { t: '관계 재정렬은 시점과 자세가 함께 맞아야 가능한 결입니다. 감정 회복이 선행되면 자연스러운 재회의 길이 열립니다', tone: 'regret' }
+    ],
+    general: [
+      { t: '앞으로는 자연스러운 흐름이 관계의 안정을 만들어 갑니다. 단계적 진전이 결실로 이어지는 결입니다', tone: 'natural' },
+      { t: '감정 흐름의 자연 안정이 다음 단계를 엽니다. 관계의 본질이 점차 명확해지는 흐름으로 향합니다', tone: 'balanced' },
+      { t: '차분한 관찰이 진전의 토대가 됩니다. 결의 자연스러운 정합이 관계를 깊게 만드는 결입니다', tone: 'observe' },
+      { t: '단계적 합의가 관계의 결을 견고하게 만듭니다. 자연스러운 페이스가 다음 단계의 질을 결정하는 흐름입니다', tone: 'natural' },
+      { t: '감정과 현실의 균형이 관계의 본질을 만드는 결입니다. 차분한 진전이 안정의 결을 형성하는 흐름으로 향합니다', tone: 'balanced' },
+      { t: '관계의 본질이 결의 조화 안에서 자연스럽게 자리잡습니다. 표현 방식의 정돈이 결과의 질을 결정하는 결입니다', tone: 'observe' }
+    ]
+  }
+};
+
+// ──────────────────────────────────────────────────────────────
+// Layer 4: assembleZeusCardBody — 카드+role+subtype+score → 골격 생성
+//   결과: { skeleton, tone, essence[], subtype, intensity }
+//   fallback: 메이저 외 카드 또는 Phase B/C 미지원 서브타입 → null (LLM 그대로)
+//   결정론: 같은 입력 = 같은 출력 (시드 기반 선택)
+// ──────────────────────────────────────────────────────────────
+function assembleZeusCardBody({ card, reversed, role, subtype, score }) {
+  if (!card || !role) return null;
+  const essence = (CARD_ESSENCE[card] && CARD_ESSENCE[card][reversed ? 'rev' : 'up']) || null;
+  if (!essence) return null;  // Phase B에서 마이너 56장 추가 시 해소
+
+  const zone = SUBTYPE_ZONE[subtype] || SUBTYPE_ZONE.general;
+  // Phase A: breakup/marriage/reunion/general만 지원. 그 외는 general 풀로 fallback
+  const subtypeKey = (STITCH_POOL_BY_ROLE.past[subtype]) ? subtype : 'general';
+  const pool = STITCH_POOL_BY_ROLE[role] && STITCH_POOL_BY_ROLE[role][subtypeKey];
+  if (!pool || pool.length === 0) return null;
+
+  // 시드 기반 결정론적 선택 (같은 카드+role+subtype = 같은 골격)
+  const seedKey = String(card) + role + subtypeKey;
+  let seed = 0;
+  for (let i = 0; i < seedKey.length; i++) seed += seedKey.charCodeAt(i);
+  const block = pool[seed % pool.length];
+
+  return {
+    skeleton: block.t,
+    tone: block.tone,
+    essence: essence,
+    subtype: subtypeKey,
+    intensity: zone.intensity
+  };
+}
+
+// ──────────────────────────────────────────────────────────────
+// buildZeusCardBodies — 3장 카드 통합 골격 생성 (metrics 통합용)
+// ──────────────────────────────────────────────────────────────
+function buildZeusCardBodies({ cleanCards, reversedFlags, loveSubType, score }) {
+  if (!cleanCards || cleanCards.length < 3) return null;
+  const roles = ['past', 'present', 'future'];
+  const result = {};
+  for (let i = 0; i < 3; i++) {
+    result[roles[i]] = assembleZeusCardBody({
+      card: cleanCards[i],
+      reversed: !!(reversedFlags && reversedFlags[i]),
+      role: roles[i],
+      subtype: loveSubType || 'general',
+      score: typeof score === 'number' ? score : 0
+    });
+  }
+  // 메이저 1장이라도 없으면 전체 null (Phase A 한정 안전 — Phase B에서 해소)
+  if (!result.past || !result.present || !result.future) return null;
+  return result;
+}
+
 // ════════════════════════════════════════════════════════════
 // ★★★ [V202.52.0 사장님 안 확장] coreInsight 추가 4개 풀 분기 ★★★
 //   목적: V202.51.0(line3 + 흐름 키)에 이어 ★ line4 + line5 + line3 structure ★ 풀 분기
@@ -18854,7 +19078,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.52.6",    // ★ V202.52.6 긴급 핫픽스 (V202.52.5 결정적 결함): _v52_5_extractedNames 변수가 love 분기 안에서만 const 선언 → 다른 도메인(life/stock/crypto)에서 masterPrompt 빌드 시 ReferenceError → 워커 응답 실패 (사장님 라이브 '나의 내일 연애운' 입력 → 진행바 멈춤). 해결: let으로 상위 선언(빈 배열 초기화) + love 분기 안에서만 재할당. 게이트 표준 신규 추가: 'masterPrompt 변수 모든 코드 경로 스코프 안전성 검사'. V202.52.5 패치(extractKoreanNames + 매니페스토 #6) 그대로 유지.
+        version: "V202.53.0-A",  // ★ V202.53.0-A Macro-Block 엔진 Phase A: 사장님 설계 3층 구조(카드/관계/문체) 구현 — Layer 1 CARD_ESSENCE(메이저 22장×정역×3태그), Layer 2 SUBTYPE_ZONE(9서브타입×intensity+tones), Layer 3 STITCH_POOL_BY_ROLE(3role×4서브타입×6블록=72블록 한국어 본문 풀 — breakup/marriage/reunion/general 우선), Layer 4 assembleZeusCardBody 함수 + buildZeusCardBodies(metrics 통합). LLM 매니페스토 #7 신설: 시스템이 사전 생성한 본문 골격을 LLM이 의미·톤·시제 그대로 따르도록 절대 규칙. 영문 변수명 사용(V52.3 dollar-brace 검사 통과) + let 상위 선언(V52.6 변수 스코프 검사 통과). 메이저 외 카드 또는 미지원 서브타입은 골격 null → LLM이 기존 방식대로 작성 (fallback). V52.6 모든 결함 패치 그대로 유지. Phase B: 마이너 56장 ESSENCE 추가 예정 / Phase C: 나머지 5서브타입 STITCH POOL 완성 예정.
         _ts: Date.now(),
         _ok: true
       }), {
@@ -20408,6 +20632,19 @@ export default {
           }
 
           metrics = buildLoveMetrics({ totalScore, cleanCards, prompt, loveSubType: finalLoveSubType });
+
+          // ★★★ [V202.53.0-A Macro-Block] 카드 본문 골격 생성 + metrics 주입 ★★★
+          //   V53.0 엔진: assembleZeusCardBody (메이저 22장 + 4서브타입)
+          //   메이저 외 또는 미지원 서브타입은 null → LLM이 기존 방식대로 작성
+          if (metrics) {
+            const _zcb = buildZeusCardBodies({
+              cleanCards,
+              reversedFlags,
+              loveSubType: finalLoveSubType || 'general',
+              score: metrics.score || 0
+            });
+            if (_zcb) metrics.zeusCardBodies = _zcb;
+          }
         }
         else {
           metrics = buildFortuneMetrics({ totalScore, cleanCards, prompt, fortuneSubType, reversedFlags });
@@ -20751,6 +20988,24 @@ ${compatNote}
 - 결론은 "관계 재편" 중심. "새 인연 발생" 중심 절대 금지.
 - 본문 작성 시 "유저님" 사용 금지 — 닉네임 있으면 첫 1회만, 없으면 주어 생략.
 `;
+        }
+
+        // ★★★ [V202.53.0-A Macro-Block] LLM 프롬프트용 골격 변수 상위 선언 ★★★
+        //   V52.6 교훈: masterPrompt 변수는 모든 코드 경로에서 정의되어야 함
+        //   영문 변수명 사용 (V52.3 dollar-brace 검사 통과)
+        let _v53_skeletonPast = '';
+        let _v53_skeletonPresent = '';
+        let _v53_skeletonFuture = '';
+        let _v53_essencePast = '';
+        let _v53_essencePresent = '';
+        let _v53_essenceFuture = '';
+        let _v53_subtypeKey = '';
+        if (metrics && metrics.zeusCardBodies) {
+          const _zcb2 = metrics.zeusCardBodies;
+          if (_zcb2.past)    { _v53_skeletonPast    = _zcb2.past.skeleton    || ''; _v53_essencePast    = (_zcb2.past.essence    || []).join(', '); }
+          if (_zcb2.present) { _v53_skeletonPresent = _zcb2.present.skeleton || ''; _v53_essencePresent = (_zcb2.present.essence || []).join(', '); }
+          if (_zcb2.future)  { _v53_skeletonFuture  = _zcb2.future.skeleton  || ''; _v53_essenceFuture  = (_zcb2.future.essence  || []).join(', '); }
+          _v53_subtypeKey = (_zcb2.past && _zcb2.past.subtype) || '';
         }
 
         const masterPrompt = `
@@ -21145,6 +21400,40 @@ ${_v52_5_extractedNames.length === 2 ? `
    3. 음소 환각 / 영문 음차 / 축약 / 한자 변환 ★ 모두 절대 금지 ★
 
 ⚠️ 위반 시 결과: 사용자 "AI가 내 이름도 못 읽음" 인지 → 즉시 환불 사유
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+` : ''}${_v53_skeletonPast ? `
+🚨🚨🚨 [V202.53.0-A 매니페스토 #7] V53 Macro-Block 골격 강제 준수 — 환각 0건 보장 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+사장님 V53.0 설계: 시스템이 카드×서브타입(${_v53_subtypeKey})별 본문 골격을 사전 생성.
+LLM은 골격의 의미·톤을 ★ 반드시 ★ 따르며, 카드 의미를 자연 결합만 추가합니다.
+
+✅ 시스템 생성 카드 본문 골격 (절대 변경 불가 — 의미·톤 그대로):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[PAST 골격] (${_v53_essencePast})
+  ${_v53_skeletonPast}
+
+[PRESENT 골격] (${_v53_essencePresent})
+  ${_v53_skeletonPresent}
+
+[FUTURE 골격] (${_v53_essenceFuture})
+  ${_v53_skeletonFuture}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚨 절대 작성 규칙:
+   1. 위 골격 문장을 ★ 그대로 ★ 사용하거나 ★ 자연 확장 (한 문장 추가) ★ 만 허용
+   2. 골격의 의미·톤·시제는 ★ 한 글자도 어긋나지 않게 ★ 보존
+   3. 카드 의미(괄호 안 essence 태그)를 골격에 자연스럽게 녹임
+   4. 시제 라벨(PAST/PRESENT/FUTURE)과 본문 시제 ★ 절대 일치 ★
+   5. PAST → 과거 시제 "~였습니다", PRESENT → "~입니다", FUTURE → "~로 향합니다"
+   6. 골격의 톤(${_v53_subtypeKey} 서브타입)을 흐리는 어휘 사용 절대 금지
+      · breakup 서브타입에 '발전/확장/결합' ★ 절대 금지 ★
+      · marriage 서브타입에 '정리/이별/단절' ★ 절대 금지 ★
+      · reunion 서브타입에 '강한 재진입/즉시 화해' ★ 절대 금지 ★
+   7. 결론·확정 어조 유지 ('~수도 있습니다' 류 회피형 금지)
+
+⚠️ 위반 시 결과: 시스템 골격과 LLM 본문 충돌 → 사용자 인지 "AI가 일관성 없음" → 환불 사유
+✅ 준수 시 효과: 환각 0건 + 톤 일관성 100% + 사장님 V25.22 "사전 정의 풀" 가치 완성
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ` : ''}🚨🚨🚨 [V202.52.2 매니페스토 #5] 카테고리별 모범 톤 + 이름 호명 + 무거운 카드 처리 🚨🚨🚨
