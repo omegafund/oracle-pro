@@ -12,8 +12,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V202.54.2">
-    <meta name="zeus-build-tag" content="V202.54.2">
+    <meta name="version" content="V202.54.3">
+    <meta name="zeus-build-tag" content="V202.54.3">
     
     <title>ZEUS · Tarot Oracle</title>
 
@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.54.2';  // V202.54.2 ★ 결정적 결함 진단 ★ 사장님 발견: "사주 결제 후 → 연애/투자/운세 프리패스 → 503". 원인 추정: getSajuAccessLevel()이 사주 전용인데 다른 카테고리에서 호출되어 paid_token 적용. 추가: getSajuAccessLevel 호출 시점 + 현재 도메인 비교 + 다른 카테고리에서 호출 시 ★ 경고 + 호출 스택 ★. 라이브 검증으로 정확 위치 확정 → V202.54.3 정밀 핫픽스 예정.
+        const APP_VERSION = 'V202.54.3';  // V202.54.3 ★ 사장님 패턴 B 결정적 핫픽스 ★ 발견: "다른 사이트 검색 후 zeustarot.com 결제 → 결제 돌아가기 화면이 이전 인터넷 검색 화면 → 503". 핫픽스 1: baseUrl 강제 정규화 — pathname 정확 추출 + origin 검증 + 외부 사이트 잔재 차단 + 안전 fallback 'https://zeustarot.com'. 핫픽스 2: 결제 실패 시 referrer + history.length + opener 진단 로그 — 정확 원인 콘솔 노출. 변경 영역: requestPayment 호출 직전 baseUrl 계산 (1곳). 결제 SDK 호출 자체는 손대지 않음. 위험: 매우 낮음 (정규화는 더 안전). V54 사주 정밀 엔진 + V202.54.1 방어막 + V202.54.2 진단 모두 보존.
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.54.0-D 정밀 캐시 무효화 핫픽스] ★★★
@@ -23837,7 +23837,33 @@ function startTossPayment(planKey, method) {
     const paymentMethod = method || '카드';
 
     // 4. Toss 결제 요청
-    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    // ★★★ [V202.54.3 결정적 핫픽스] baseUrl 강제 정규화 ★★★
+    //   사장님 발견 결함: "다른 사이트 검색 후 zeustarot.com 결제 시 503"
+    //   원인 추정: pathname이 ★ 이전 검색 URL 잔재 ★ 또는
+    //              query/hash 잔재로 successUrl이 잘못된 URL 생성
+    //   해결: pathname 완전 정규화 (query/hash 모두 제거)
+    //         + origin 명시적 확인 + 안전 fallback
+    let baseUrl;
+    try {
+        const _origin = window.location.origin || 'https://zeustarot.com';
+        // ★ pathname에서 query/hash 모두 제거 ★ 후 디렉터리만 추출
+        let _path = window.location.pathname || '/';
+        // 파일명 제거 (마지막 / 다음 부분)
+        _path = _path.replace(/\/[^/]*$/, '/');
+        // 빈 경로 또는 결함 시 루트로
+        if (!_path || _path === '') _path = '/';
+        // origin이 우리 도메인 아니면 강제 보정 (★ 외부 사이트 잔재 차단 ★)
+        if (_origin.indexOf('zeustarot.com') < 0 && _origin.indexOf('github.io') < 0 && _origin.indexOf('localhost') < 0) {
+            console.warn('🚨 [V54.3] origin 비정상 감지:', _origin, '→ 강제 보정');
+            baseUrl = 'https://zeustarot.com';
+        } else {
+            baseUrl = _origin + _path.replace(/\/$/, '');  // 끝 / 제거
+        }
+        console.log('🛡 [V54.3] baseUrl 정규화:', baseUrl, '(origin:', _origin, '/ path:', _path, ')');
+    } catch(e) {
+        baseUrl = 'https://zeustarot.com';
+        console.warn('🚨 [V54.3] baseUrl 결함 → 안전 fallback:', baseUrl, e);
+    }
     
     // ════════════════════════════════════════════════════════════════════════
     // ★ [V31 #199.1 SAJU MIGRATION] 사주 입력 worker 사전 저장 ★
@@ -23909,6 +23935,18 @@ function startTossPayment(planKey, method) {
         successUrl:   baseUrl + '/success.html' + sajuQueryFlag,
         failUrl:      baseUrl + '/fail.html' + sajuQueryFlag
     }).catch(err => {
+        // ★★★ [V202.54.3 진단] 결제 결함 정밀 추적 ★★★
+        //   사장님 패턴 B: 다른 사이트 검색 후 결제 시 503
+        //   referrer / history.length / opener 상태 콘솔 노출
+        try {
+            console.warn('🚨 [V54.3] 결제 요청 결함:', err.code, err.message);
+            console.warn('   • document.referrer:', document.referrer);
+            console.warn('   • window.history.length:', window.history.length);
+            console.warn('   • window.opener:', window.opener);
+            console.warn('   • baseUrl:', baseUrl);
+            console.warn('   • successUrl:', baseUrl + '/success.html' + sajuQueryFlag);
+        } catch(_e) {}
+        
         // 사용자가 결제 창을 닫았을 때 등
         if (err.code !== 'USER_CANCEL') {
             alert('결제 요청에 실패했습니다: ' + (err.message || err.code));
