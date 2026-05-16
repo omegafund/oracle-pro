@@ -12,8 +12,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V202.54.8">
-    <meta name="zeus-build-tag" content="V202.54.8">
+    <meta name="version" content="V202.54.0">
+    <meta name="zeus-build-tag" content="V202.54.0">
     
     <title>ZEUS · Tarot Oracle</title>
 
@@ -3289,61 +3289,6 @@
                 font-size: 0.96rem;
             }
         }
-        
-        /* ════════════════════════════════════════════════════════════
-           ★★★ [V202.54.0-E 작업 A] Progressive Disclosure 접기/펼치기 ★★★
-             테스터 피드백: "요약본 먼저 + 자세한 해석은 펼쳐보는 식"
-             사장님 비전: V54 깊이 보존 + 20대 친화 단축
-             효과: 첫 화면 ★ 70% 단축 ★, 깊이 원하면 탭으로 확장
-           ════════════════════════════════════════════════════════════ */
-        .v54-foldable {
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        .v54-foldable .v54-header {
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-            transition: background 0.2s ease;
-        }
-        .v54-foldable .v54-header:hover {
-            opacity: 0.85;
-        }
-        .v54-foldable .v54-header::after {
-            content: '▼';
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.7rem;
-            opacity: 0.6;
-            transition: transform 0.3s ease;
-        }
-        .v54-foldable[data-expanded="true"] .v54-header::after {
-            transform: translateY(-50%) rotate(180deg);
-        }
-        .v54-foldable .v54-body {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.3s ease;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-        .v54-foldable[data-expanded="true"] .v54-body {
-            max-height: 1200px;
-            opacity: 1;
-        }
-        .v54-foldable .v54-hint {
-            display: block;
-            font-size: 0.66rem;
-            color: rgba(195,155,211,0.55);
-            margin-top: 3px;
-            font-style: italic;
-        }
-        .v54-foldable[data-expanded="true"] .v54-hint {
-            display: none;
-        }
 </style>
     <!-- [V19 Phase3] 결과창 이미지 캡처용 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -3371,22 +3316,42 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.54.8';  // ★ V202.54.8 긴급 롤백 — 결제 정상화 우선 ★ 사장님 라이브: 전 테스터 카드+카카오 모두 결제 멈춤 → 우리 측 결함 확정. 롤백 영역: (1) V54.0-D 캐시 버스터 ★ 완전 비활성화 ★ (window.location.replace 리다이렉트가 결제 흐름 깨뜨림 추정). (2) V54.0-F 잔재 청소 비활성화 유지. (3) V202.54.7 결제 콜백 보호도 더 이상 필요 X (캐시 버스터 자체 비활성화). 보존 영역: V54 사주 정밀 엔진 14영역 콘텐츠 + Progressive Disclosure UI + 첫 화면 정리. 결제 흐름 V53.5와 동일 작동으로 복귀.
+        const APP_VERSION = 'V202.54.0';  // V54 사주 정밀 엔진 안정판 (사장님 백업 V53.5 복귀). 향후 핫픽스: V202.54.1 → 54.2 → ... → V202.55.0.
         window.APP_VERSION = APP_VERSION;
         
-        // ★★★ [V202.54.8 긴급 롤백] 캐시 버스터 ★ 완전 비활성화 ★ ★★★
-        //   사장님 라이브 결함: 전 테스터 카드+카카오 모두 결제 멈춤
-        //   진단: V54.0-D 캐시 버스터 window.location.replace가
-        //         결제 진행 중 페이지 리로드 → 결제 흐름 깨짐
-        //   롤백: 캐시 버스터 전체 ★ 즉시 return ★ — V54 이전 동작으로 복귀
-        //   효과: 결제 흐름 V53.5와 동일 작동 + V54 점사 콘텐츠는 그대로 유지
-        //   부작용: 옛 캐시 사용자 자동 갱신 X → 사장님 Cloudflare Purge로 처리
+        // ★★★ [V202.54.0-D 정밀 캐시 무효화 핫픽스] ★★★
+        //   PC zeustarot.com 옛 캐시 사용자 검은 화면 해결
+        //   스마트 감지:
+        //     • 정상 사용자 (같은 버전) → 리다이렉트 ★ X ★ (깜빡임 0)
+        //     • 옛 캐시 사용자 (다른 버전) → 자동 리로드
+        //     • 첫 방문 사용자 → 그대로 정상 로드 + 버전 기록
+        //   안전: try/catch + sessionStorage 가드 + 1세션 1회 제한
         try {
-            // ★ 긴급 롤백 ★ 캐시 버스터 작동 자체 차단
-            // 옛 버전이 의심되어도 강제 리로드 X → 결제 흐름 보호 우선
-            localStorage.setItem('zeus_last_version', APP_VERSION);  // 버전 기록만
+            const _LAST_VER_KEY = 'zeus_last_version';
+            const _lastVer = localStorage.getItem(_LAST_VER_KEY);
+            const _hasVerParam = window.location.search.indexOf('_v=') >= 0;
+            const _alreadyBusted = sessionStorage.getItem('_zeus_cache_busted');
+            
+            // 옛 캐시 의심 = 마지막 본 버전이 있고 + 현재 버전과 다름
+            const _isOldCache = _lastVer && _lastVer !== APP_VERSION;
+            
+            if (_isOldCache && !_hasVerParam && !_alreadyBusted) {
+                // 옛 캐시 사용자만 ★ 자동 캐시 무효화 ★
+                sessionStorage.setItem('_zeus_cache_busted', '1');
+                console.warn('🔄 [V54.0-D] 옛 캐시 감지 (' + _lastVer + ' → ' + APP_VERSION + ') — 자동 갱신');
+                const _sep = window.location.search ? '&' : '?';
+                const _newUrl = window.location.pathname + 
+                                window.location.search + _sep + 
+                                '_v=' + Date.now() + 
+                                window.location.hash;
+                window.location.replace(_newUrl);
+                return;  // 리로드 대기
+            }
+            
+            // 현재 버전 기록 (다음 배포 시 비교용)
+            localStorage.setItem(_LAST_VER_KEY, APP_VERSION);
         } catch (e) {
-            console.warn('Version record skipped:', e);
+            console.warn('Cache buster skipped:', e);
         }
         
         // ★★★ [V202.17 결정적 수정] _sajuInput 복원 ★ 페이지 로드 즉시 ★ ★★★
@@ -3639,27 +3604,6 @@
                 history.replaceState({}, '', cleanUrl);
                 console.log('✅ [V200.8.3] 새 버전 적용 완료 — URL 정리');
             } catch(_) {}
-        }
-        
-        // ════════════════════════════════════════════════════════════════
-        // ★★★ [V202.54.0-E 작업 A] Progressive Disclosure 토글 핸들러 ★★★
-        //   테스터 피드백: 결과창 길다 → 접기/펼치기 패턴 적용
-        //   설계: 이벤트 위임으로 모든 .v54-foldable 헤더 클릭 처리
-        //         동적 렌더링 후에도 자동 작동 (단일 리스너)
-        //   안전: addEventListener 1회 + try/catch
-        // ════════════════════════════════════════════════════════════════
-        try {
-            document.addEventListener('click', function(e) {
-                const _header = e.target && e.target.closest && e.target.closest('.v54-header');
-                if (!_header) return;
-                const _foldable = _header.closest('.v54-foldable');
-                if (!_foldable) return;
-                const _expanded = _foldable.getAttribute('data-expanded') === 'true';
-                _foldable.setAttribute('data-expanded', _expanded ? 'false' : 'true');
-            }, false);
-            console.log('✅ [V202.54.0-E] Progressive Disclosure 토글 활성화');
-        } catch(_e) {
-            console.warn('[V54.0-E] Toggle handler init failed:', _e);
         }
         
         // ════════════════════════════════════════════════════════════════
@@ -3916,34 +3860,6 @@
             
             // 결제 진행 흔적 1개라도 있으면 오버레이 표시
             var shouldShowOverlay = hasPaidOk || hasVtHash || hasSajuCtx || hasSajuFlag || hasPendingOracle;
-            
-            // ★★★ [V202.54.7 결제 보호 핫픽스] V54.0-F 잔재 청소 ★ 비활성화 ★ ★★★
-            //   사장님 라이브 결함: 500건 정상 → 갑자기 결제 실패
-            //   원인: V54.0-F 잔재 청소가 ★ 결제 진행 중 ★ localStorage 데이터 청소
-            //         pendingOracle, sajuPaymentContext 청소로 결제 흐름 깨짐
-            //   결정: 잔재 청소 ★ 완전 비활성화 ★ → 결제 흐름 100% 보호
-            //         매번 오버레이 노출은 ★ 사장님 본인만 ★ (잔재 보유 사용자)
-            //         일반 유저는 결제 후 정상 정리 흐름 → 영향 없음
-            //         사장님 본인 청소 필요 시 ?reset=true URL 한 번 사용
-            //   복귀 안전: if (false)만 if (true)로 바꾸면 즉시 부활
-            if (false && shouldShowOverlay && !hasPaidOk && !hasVtHash && !hasSajuCtx) {
-                try {
-                    var expAt = parseInt(localStorage.getItem('sajuPaidExpiresAt') || '0', 10);
-                    var now = Date.now();
-                    if (!expAt || now > expAt) {
-                        localStorage.removeItem('sajuPaymentContext');
-                        localStorage.removeItem('pendingOracle');
-                        console.log('🧹 [V54.0-F] 결제 잔재 자동 청소 — 오버레이 스킵');
-                        shouldShowOverlay = false;
-                    } else {
-                        var hasResult = !!localStorage.getItem('sajuPendingResult');
-                        if (hasResult) {
-                            console.log('🧹 [V54.0-F] 결제 완료 재방문 — 오버레이 스킵');
-                            shouldShowOverlay = false;
-                        }
-                    }
-                } catch(_e) {}
-            }
             
             if (!shouldShowOverlay) return;
             
@@ -4488,12 +4404,10 @@
         </div>
 
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 📦 3 GRID — V202.0 (V202.54.0-E 20대 친화 정리)     -->
-        <!--   사장님 테스터 피드백: "사주 / 연애 / 운세 중심"   -->
-        <!--   조정: 연애·운세는 첫 인상 강조, 투자는 자연 톤    -->
+        <!-- 📦 3 GRID — V202.0 (부동산 제거, 3-column)         -->
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
         <div class="category-grid category-grid-3col" id="category-grid">
-            <!-- 💘 연애 (20대 메인) -->
+            <!-- 💘 연애 -->
             <div class="cat-card" data-cat="love" onclick="selectCategory('love', this)">
                 <span class="cat-badge cat-badge-pro">PRO</span>
                 <div class="cat-icon">💘</div>
@@ -4501,20 +4415,20 @@
                 <div class="cat-sub">상대 마음 / 재회 / 궁합</div>
             </div>
 
-            <!-- ✨ 일반 운세 (20대 메인) -->
-            <div class="cat-card" data-cat="general" onclick="selectCategory('general', this)">
-                <span class="cat-badge cat-badge-mixed">FREE · PRO</span>
-                <div class="cat-icon">✨</div>
-                <div class="cat-title">일반 운세</div>
-                <div class="cat-sub">오늘 / 전반</div>
-            </div>
-
-            <!-- 📈 투자 (보조 카테고리) -->
+            <!-- 📈 투자 -->
             <div class="cat-card" data-cat="stock" onclick="selectCategory('stock', this)">
                 <span class="cat-badge cat-badge-pro">PRO</span>
                 <div class="cat-icon" style="filter: hue-rotate(140deg) saturate(1.3) drop-shadow(0 0 6px rgba(231,76,60,0.4));">📈</div>
                 <div class="cat-title">투자 신탁</div>
                 <div class="cat-sub">주식 / 코인 타이밍</div>
+            </div>
+
+            <!-- ✨ 일반 운세 -->
+            <div class="cat-card" data-cat="general" onclick="selectCategory('general', this)">
+                <span class="cat-badge cat-badge-mixed">FREE · PRO</span>
+                <div class="cat-icon">✨</div>
+                <div class="cat-title">일반 운세</div>
+                <div class="cat-sub">오늘 / 전반</div>
             </div>
         </div>
 
@@ -19563,14 +19477,9 @@ function renderSajuResult(data) {
                 
                 <!-- ★★★ [V202.54.0 Step 5] V54 일주 본질 결 펼침 ★★★ -->
                 ${text.deepInsight && text.deepInsight.essenceCore ? `
-                <div class="v54-foldable" data-expanded="false" style="margin:0 0 14px 8px;">
-                    <div class="v54-header" style="padding:8px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
-                        <div style="color:#C39BD3; font-size:0.78rem; font-weight:700;">💭 본질 결</div>
-                        <span class="v54-hint">탭하여 깊이 보기</span>
-                    </div>
-                    <div class="v54-body" style="padding:10px 12px 12px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 0 6px 6px;">
-                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line;">${text.deepInsight.essenceCore}</div>
-                    </div>
+                <div style="margin:0 0 14px 8px; padding:10px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
+                    <div style="color:#C39BD3; font-size:0.78rem; font-weight:700; margin-bottom:6px;">💭 본질 결</div>
+                    <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line;">${text.deepInsight.essenceCore}</div>
                 </div>
                 ` : ''}
                 
@@ -19581,14 +19490,9 @@ function renderSajuResult(data) {
                 
                 <!-- ★★★ [V202.54.0 Step 5] V54 에너지 작동 방식 펼침 ★★★ -->
                 ${text.deepInsight && text.deepInsight.energyOperation ? `
-                <div class="v54-foldable" data-expanded="false" style="margin:0 0 14px 8px;">
-                    <div class="v54-header" style="padding:8px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
-                        <div style="color:#C39BD3; font-size:0.78rem; font-weight:700;">💭 에너지 작동 방식</div>
-                        <span class="v54-hint">탭하여 깊이 보기</span>
-                    </div>
-                    <div class="v54-body" style="padding:10px 12px 12px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 0 6px 6px;">
-                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line;">${text.deepInsight.energyOperation}</div>
-                    </div>
+                <div style="margin:0 0 14px 8px; padding:10px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
+                    <div style="color:#C39BD3; font-size:0.78rem; font-weight:700; margin-bottom:6px;">💭 에너지 작동 방식</div>
+                    <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line;">${text.deepInsight.energyOperation}</div>
                 </div>
                 ` : ''}
                 
@@ -19609,14 +19513,9 @@ function renderSajuResult(data) {
                 
                 <!-- ★★★ [V202.54.0 Step 5] V54 관계 작동 방식 펼침 ★★★ -->
                 ${text.deepInsight && text.deepInsight.relationOperation ? `
-                <div class="v54-foldable" data-expanded="false" style="margin:10px 0 14px 8px;">
-                    <div class="v54-header" style="padding:8px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
-                        <div style="color:#C39BD3; font-size:0.78rem; font-weight:700;">💭 관계 작동 방식</div>
-                        <span class="v54-hint">탭하여 깊이 보기</span>
-                    </div>
-                    <div class="v54-body" style="padding:10px 12px 12px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 0 6px 6px;">
-                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line;">${text.deepInsight.relationOperation}</div>
-                    </div>
+                <div style="margin:10px 0 14px 8px; padding:10px 12px; background:rgba(195,155,211,0.06); border-left:2px solid rgba(195,155,211,0.45); border-radius:0 6px 6px 0;">
+                    <div style="color:#C39BD3; font-size:0.78rem; font-weight:700; margin-bottom:6px;">💭 관계 작동 방식</div>
+                    <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line;">${text.deepInsight.relationOperation}</div>
                 </div>
                 ` : ''}
 
@@ -20004,7 +19903,7 @@ function renderSajuResult(data) {
                          사장님 7원칙 ④⑤: 시스템 → 통찰 / 명령 → 권유
                          trait 동적 매핑: 일간별 다른 블록 자동 생성 -->
                     
-                    <!-- ⚠ 현재 흐름에서 흔들리기 쉬운 부분 — 항상 보임 (긴급도 신호) -->
+                    <!-- ⚠ 현재 흐름에서 흔들리기 쉬운 부분 -->
                     <div style="margin-top:8px; padding:12px 14px; background:rgba(231,76,60,0.08); border-left:3px solid rgba(231,76,60,0.55); border-radius:0 6px 6px 0;">
                         <div style="color:#FF9870; font-size:0.80rem; font-weight:800; margin-bottom:7px; letter-spacing:0.02em;">⚠ 현재 흐름에서 흔들리기 쉬운 부분</div>
                         <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
@@ -20012,25 +19911,19 @@ function renderSajuResult(data) {
                         </div>
                     </div>
                     
-                    <!-- ★ V202.54.0-E ★ ✦ 흐름을 안정시키는 방향 + 💭 조언 = 토글 묶음 -->
-                    <div class="v54-foldable" data-expanded="false" style="margin-top:10px;">
-                        <div class="v54-header" style="padding:10px 12px; background:rgba(46,204,113,0.08); border-left:3px solid rgba(46,204,113,0.55); border-radius:0 6px 6px 0;">
-                            <div style="color:#8ad7a0; font-size:0.80rem; font-weight:800; letter-spacing:0.02em;">✦ 흐름을 안정시키는 방향 + 💭 조언</div>
-                            <span class="v54-hint">탭하여 깊이 보기</span>
+                    <!-- ✦ 흐름을 안정시키는 방향 -->
+                    <div style="margin-top:10px; padding:12px 14px; background:rgba(46,204,113,0.08); border-left:3px solid rgba(46,204,113,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#8ad7a0; font-size:0.80rem; font-weight:800; margin-bottom:7px; letter-spacing:0.02em;">✦ 흐름을 안정시키는 방향</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.oracleNarrative.stabilize}
                         </div>
-                        <div class="v54-body">
-                            <div style="padding:12px 14px; background:rgba(46,204,113,0.08); border-left:3px solid rgba(46,204,113,0.55); border-radius:0 0 6px 6px;">
-                                <div style="color:#8ad7a0; font-size:0.78rem; font-weight:800; margin-bottom:6px;">✦ 안정시키는 방향</div>
-                                <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
-                                    ${text.oracleNarrative.stabilize}
-                                </div>
-                            </div>
-                            <div style="margin-top:8px; padding:12px 14px; background:rgba(195,155,211,0.08); border-left:3px solid rgba(195,155,211,0.55); border-radius:0 6px 6px 0;">
-                                <div style="color:#C39BD3; font-size:0.78rem; font-weight:800; margin-bottom:6px;">💭 지금 시기 조언</div>
-                                <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
-                                    ${text.oracleNarrative.advice}
-                                </div>
-                            </div>
+                    </div>
+                    
+                    <!-- 💭 지금 시기 조언 -->
+                    <div style="margin-top:10px; padding:12px 14px; background:rgba(195,155,211,0.08); border-left:3px solid rgba(195,155,211,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#C39BD3; font-size:0.80rem; font-weight:800; margin-bottom:7px; letter-spacing:0.02em;">💭 지금 시기 조언</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.oracleNarrative.advice}
                         </div>
                     </div>
                     ` : `
@@ -20110,7 +20003,11 @@ function renderSajuResult(data) {
                          ═══════════════════════════════════════════════════════ -->
                     
                     ${text.energyGuideV54 ? `
-                    <!-- 💧 강점이 되는 방향 — 항상 보임 (핵심 가치) -->
+                    <!-- ★★★ [V202.54.0 Step 7] V54 에너지 가이드 — 사장님 비전 ★★★
+                         이질감 차단: V31 "활성/작동/차단 + 강제 시점" 5블록 시스템 톤 제거
+                         사장님 7원칙 ⑤: 명령 → 권유 -->
+                    
+                    <!-- 💧 강점이 되는 방향 -->
                     <div style="margin-bottom:10px; padding:12px 14px; background:rgba(0,0,0,0.25); border-left:3px solid ${yongshinData.color}; border-radius:0 6px 6px 0;">
                         <div style="color:${yongshinData.color}; font-size:0.80rem; font-weight:800; margin-bottom:7px;">💎 강점이 되는 방향</div>
                         <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
@@ -20118,18 +20015,11 @@ function renderSajuResult(data) {
                         </div>
                     </div>
                     
-                    <!-- ★ V202.54.0-E ★ ⚠ 멀어지면 좋은 흐름 = 토글 -->
-                    <div class="v54-foldable" data-expanded="false" style="margin-bottom:10px;">
-                        <div class="v54-header" style="padding:10px 12px; background:rgba(231,76,60,0.08); border-left:3px solid rgba(231,76,60,0.55); border-radius:0 6px 6px 0;">
-                            <div style="color:#FF9870; font-size:0.80rem; font-weight:800;">⚠ 이 시기에 멀어지면 좋은 흐름</div>
-                            <span class="v54-hint">탭하여 보기</span>
-                        </div>
-                        <div class="v54-body">
-                            <div style="padding:10px 14px 12px 14px; background:rgba(231,76,60,0.08); border-left:3px solid rgba(231,76,60,0.55); border-radius:0 0 6px 6px;">
-                                <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
-                                    ${text.energyGuideV54.avoid}
-                                </div>
-                            </div>
+                    <!-- ⚠ 이 시기에 멀어지면 좋은 흐름 -->
+                    <div style="margin-bottom:10px; padding:12px 14px; background:rgba(231,76,60,0.08); border-left:3px solid rgba(231,76,60,0.55); border-radius:0 6px 6px 0;">
+                        <div style="color:#FF9870; font-size:0.80rem; font-weight:800; margin-bottom:7px;">⚠ 이 시기에 멀어지면 좋은 흐름</div>
+                        <div style="color:rgba(255,255,255,0.88); font-size:0.82rem; line-height:1.75; white-space:pre-line; word-break:keep-all;">
+                            ${text.energyGuideV54.avoid}
                         </div>
                     </div>
                     
@@ -24486,10 +24376,10 @@ function cancelShuffle() {
                            transition:all 0.2s ease;"
                     onmouseover="this.style.background='rgba(255,123,123,0.15)'; this.style.color='#ccc'"
                     onmouseout="this.style.background='rgba(255,123,123,0.08)'; this.style.color='#999'">
-                🔄 결제창이 안 열리나요?
+                🔄 결제 분기 문제 시 — 잔재 정리
             </button>
             <div style="margin-top:6px; color:#666; font-size:0.58rem;">
-                결제창이 안 보이면 다시 눌러주세요
+                결제 게이트가 안 보일 때 누르세요
             </div>
         </div>
     </div>
