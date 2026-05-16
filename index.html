@@ -12,8 +12,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V202.54.8">
-    <meta name="zeus-build-tag" content="V202.54.8">
+    <meta name="version" content="V202.54.10">
+    <meta name="zeus-build-tag" content="V202.54.10">
     
     <title>ZEUS · Tarot Oracle</title>
 
@@ -3316,7 +3316,7 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.54.8';  // V202.54.8 ★ ChatGPT 통찰 ★ 진짜 카테고리 누출 영구 차단. ChatGPT 지적: "Gate 4 이전에 renderText 호출 측에서 isPaidUser 직접 전달 = PRO 모드 진입 후 차단 불가". 해결: v548_getCategoryScopedPaid() 헬퍼 신설 — renderText 호출 4곳 모두 isPaidUser → v548_getCategoryScopedPaid(isFinance) 교체. 사주 결제 + 비-사주 컨텍스트 = 자동 false. 카테고리별 PAID 매트릭스 정확 차단. V54.7 Gate 4 검증과 ★ 이중 차단 ★.
+        const APP_VERSION = 'V202.54.10';  // V202.54.9 ★ 결정적 ★ 핫픽스. 사장님 시나리오: "투자 결제 완료 → 점사창 안 열림 → 또 결제 → 무한 루프 → 503". 진짜 원인: confirmPayment 시 cachedFullText 비어있음 (점사 텍스트 누적 안 됨). if (contentEl const APP_VERSION = 'V202.54.8';  // V202.54.8 ★ ChatGPT 통찰 ★ 진짜 카테고리 누출 영구 차단. ChatGPT 지적: "Gate 4 이전에 renderText 호출 측에서 isPaidUser 직접 전달 = PRO 모드 진입 후 차단 불가". 해결: v548_getCategoryScopedPaid() 헬퍼 신설 — renderText 호출 4곳 모두 isPaidUser → v548_getCategoryScopedPaid(isFinance) 교체. 사주 결제 + 비-사주 컨텍스트 = 자동 false. 카테고리별 PAID 매트릭스 정확 차단. V54.7 Gate 4 검증과 ★ 이중 차단 ★.const APP_VERSION = 'V202.54.8';  // V202.54.8 ★ ChatGPT 통찰 ★ 진짜 카테고리 누출 영구 차단. ChatGPT 지적: "Gate 4 이전에 renderText 호출 측에서 isPaidUser 직접 전달 = PRO 모드 진입 후 차단 불가". 해결: v548_getCategoryScopedPaid() 헬퍼 신설 — renderText 호출 4곳 모두 isPaidUser → v548_getCategoryScopedPaid(isFinance) 교체. 사주 결제 + 비-사주 컨텍스트 = 자동 false. 카테고리별 PAID 매트릭스 정확 차단. V54.7 Gate 4 검증과 ★ 이중 차단 ★. cachedFullText) 통과 못함 → renderText 호출 안 됨 → 화면 그대로 = 결제 게이트 잔존 → 사용자가 또 결제 클릭. 해결: cachedFullText 비었을 때 "결과 다시 받기" 안내 화면 표시 + 새로고침 버튼. 사용자가 무한 루프에서 탈출 가능.
         
         // ════════════════════════════════════════════════════════════════════════
         // ★★★ [V202.54.5 결제 흐름 안전 우선] V54.4 카카오 인앱 감지 ★ 비활성화 ★
@@ -24294,6 +24294,72 @@ async function confirmPayment() {
         
         // ── 타로 분기 (기존 로직)
         const contentEl = document.getElementById('oracle-content');
+        
+        // ★★★ [V202.54.9 결정적 핫픽스] cachedFullText 비었을 때 결제 후 멈춤 결함 ★★★
+        //   사장님 발견 결함:
+        //     "투자 결제 정상 완료 → 점사창 안 열림 → 또 결제 → 또 결제 무한 루프"
+        //   진짜 원인: cachedFullText가 결제 시점에 비어있음
+        //              → if (contentEl && cachedFullText) 통과 못함
+        //              → renderText 호출 안 됨 → 결과 표시 0
+        //              → 결제 게이트 화면 그대로 잔존
+        //   해결: cachedFullText 비었으면:
+        //         (1) 사용자에게 알림 + 페이지 새로고침 권고
+        //         (2) 또는 점사 재시도 트리거
+        if (contentEl && !cachedFullText) {
+            console.warn('🚨 [V54.10] cachedFullText 비어있음 — Content Lifecycle 결함');
+            console.warn('   • CURRENT_MODE:', typeof CURRENT_MODE !== 'undefined' ? CURRENT_MODE : 'unknown');
+            console.warn('   • ACTIVE_DOMAIN_BAR:', typeof ACTIVE_DOMAIN_BAR !== 'undefined' ? ACTIVE_DOMAIN_BAR : 'unknown');
+            console.warn('   • paid_token:', !!localStorage.getItem('paid_token'));
+            console.warn('   • selectedCards:', typeof selectedCards !== 'undefined' ? selectedCards : 'unknown');
+            console.warn('   • 사용자 안내: 결제 OK, 점사 재시작 권고');
+            
+            // ★★★ [V202.54.10 결제 안전 안내 — 새로고침 위험 차단] ★★★
+            //   사장님 V54.9 결과: 새로고침이 결제 흐름 깨뜨릴 위험 발견
+            //   해결: 새로고침 X → 점사 다시 시작 권고 (paid_token 보호 → 자동 인증)
+            contentEl.innerHTML = `
+                <div style="text-align:center; padding:36px 20px; background:rgba(212,175,55,0.08); 
+                            border:1px solid rgba(212,175,55,0.4); border-radius:12px; margin:20px 0;">
+                    <div style="font-size:1.6rem; margin-bottom:12px;">✅</div>
+                    <div style="color:#FFE08A; font-size:1.1rem; font-weight:800; margin-bottom:10px;">
+                        결제가 정상 완료되었습니다
+                    </div>
+                    <div style="color:rgba(255,255,255,0.85); font-size:0.88rem; line-height:1.7; margin-bottom:20px;">
+                        점사 데이터가 일시 손실되었습니다.<br>
+                        ★ 결제 정보는 안전하게 저장 ★ 되어 있으니<br>
+                        아래 버튼으로 ★ 점사를 다시 시작 ★ 해주세요.<br>
+                        <span style="color:#FFE08A; font-weight:700;">자동으로 PRO 콘텐츠 노출</span>됩니다.
+                    </div>
+                    <button onclick="
+                        try {
+                            sessionStorage.setItem('_v546_userDismissed','1');
+                            document.querySelectorAll('.pay-modal-overlay, #sajuPlanGate, #payModalOverlay').forEach(e=>e.remove());
+                            document.body.style.overflow='';
+                            const home = document.querySelector('.home-view, #homeView, [data-view=home]');
+                            if (home) home.scrollIntoView({behavior:'smooth'});
+                            else window.scrollTo({top:0, behavior:'smooth'});
+                        } catch(e) { console.warn(e); }
+                    " style="
+                        background: linear-gradient(135deg, #D4AF37, #B8860B);
+                        color: #000; border: none; padding: 13px 32px;
+                        font-size: 0.98rem; font-weight: 800; border-radius: 8px;
+                        cursor: pointer; font-family: inherit; min-width: 200px;">
+                        🏠 메인으로 → 다시 점사
+                    </button>
+                    <div style="color:rgba(255,255,255,0.55); font-size:0.74rem; margin-top:16px; line-height:1.5;">
+                        💎 paid_token 24시간 유효<br>
+                        다시 결제 X — 그대로 PRO 결과 노출
+                    </div>
+                </div>
+            `;
+            
+            // UI 정리
+            const holdingMsg = document.getElementById('holding-message');
+            const finalBtn   = document.getElementById('final-reset-btn');
+            if (holdingMsg) holdingMsg.style.display = 'none';
+            if (finalBtn) { finalBtn.style.display = 'inline-block'; finalBtn.style.marginTop = '25px'; }
+            contentEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
         
         if (contentEl && cachedFullText) {
             // [V19.3 버그수정] 연애는 finance 아님
