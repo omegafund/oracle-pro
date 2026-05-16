@@ -12,8 +12,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V202.54.3">
-    <meta name="zeus-build-tag" content="V202.54.3">
+    <meta name="version" content="V202.54.4">
+    <meta name="zeus-build-tag" content="V202.54.4">
     
     <title>ZEUS · Tarot Oracle</title>
 
@@ -3316,7 +3316,59 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.54.3';  // V202.54.3 ★ 사장님 패턴 B 결정적 핫픽스 ★ 발견: "다른 사이트 검색 후 zeustarot.com 결제 → 결제 돌아가기 화면이 이전 인터넷 검색 화면 → 503". 핫픽스 1: baseUrl 강제 정규화 — pathname 정확 추출 + origin 검증 + 외부 사이트 잔재 차단 + 안전 fallback 'https://zeustarot.com'. 핫픽스 2: 결제 실패 시 referrer + history.length + opener 진단 로그 — 정확 원인 콘솔 노출. 변경 영역: requestPayment 호출 직전 baseUrl 계산 (1곳). 결제 SDK 호출 자체는 손대지 않음. 위험: 매우 낮음 (정규화는 더 안전). V54 사주 정밀 엔진 + V202.54.1 방어막 + V202.54.2 진단 모두 보존.
+        const APP_VERSION = 'V202.54.4';  // V202.54.4 ★ 결정적 ★ 핫픽스 2종. 사장님 PC 콘솔 데이터: Gate 4 10회 차단 → 1회 통과 (isPaid 갑자기 true). 핫픽스 1: Gate 4 카테고리 매칭 검증 — 사주 결제 (sajuPaidPlan) + 투자 쿼리 (isFinanceQuery) ★ 불일치 시 강제 차단 ★ → 사주 토큰의 투자 프리패스 영구 차단. 사장님 휴대폰: 결제 시 카카오톡 채팅 목록 끼어듬 (90% 케이스). 핫픽스 2: 카카오톡 인앱 브라우저 감지 — KAKAOTALK UA 감지 시 외부 브라우저 안내 또는 자동 이동 시도. V54 + V54.1 방어막 + V54.2 진단 + V54.3 baseUrl 정규화 모두 보존.
+        
+        // ════════════════════════════════════════════════════════════════════════
+        // ★★★ [V202.54.4 결정적 핫픽스 2] 카카오톡 인앱 브라우저 감지 + 안내 ★★★
+        //
+        //   사장님 진술 (★ 매우 중요 ★):
+        //     "휴대폰 결제 시 끼어드는 화면의 90% 이상이 카카오톡 채팅 목록"
+        //     "이 화면이 없으면 결제 진행중이 뜨면서 오류난 적 한번도 없다"
+        //
+        //   원인: 사장님이 카카오톡 인앱 브라우저로 zeustarot.com 접속 → 결제
+        //         → 카카오톡이 외부 결제창 처리 못함 → 메인 채팅 화면 복귀
+        //         → 결제 흐름 깨짐 → 503
+        //
+        //   해결: navigator.userAgent에서 KAKAOTALK 감지 → 외부 브라우저 안내
+        //         사용자가 외부 브라우저(Chrome/Safari)에서 다시 접속하도록
+        //
+        //   영향: 일반 브라우저 사용자 = 0 (감지 안 됨)
+        //         카카오톡 인앱 사용자 = 안내 메시지 + 외부 열기 시도
+        // ════════════════════════════════════════════════════════════════════════
+        try {
+            const _ua = navigator.userAgent || '';
+            const _isKakaoInApp = /KAKAOTALK/i.test(_ua);
+            
+            if (_isKakaoInApp && !sessionStorage.getItem('_v544_kakao_warned')) {
+                console.warn('🚨 [V54.4] 카카오톡 인앱 브라우저 감지 — 결제 결함 가능성 매우 높음');
+                console.warn('   • userAgent:', _ua);
+                console.warn('   • 권고: 외부 브라우저 (Chrome/Safari) 사용');
+                
+                sessionStorage.setItem('_v544_kakao_warned', '1');
+                
+                // 외부 브라우저로 자동 열기 시도 (사용자 선택)
+                const _msg = '📱 카카오톡 인앱 브라우저에서는 결제가 불안정합니다.\n\n' +
+                            '✅ 안정적 결제를 위해 외부 브라우저로 열어주세요:\n' +
+                            '   • Chrome 또는 Safari\n' +
+                            '   • 또는 카카오톡 우측 상단 "..." → "다른 브라우저로 열기"\n\n' +
+                            '확인 시 자동으로 외부 브라우저 열기를 시도합니다.';
+                
+                setTimeout(function() {
+                    if (confirm(_msg)) {
+                        // 카카오톡 외부 브라우저 열기 시도
+                        try {
+                            const _externalUrl = 'kakaotalk://web/openExternal?url=' + 
+                                                encodeURIComponent(window.location.href);
+                            window.location.href = _externalUrl;
+                        } catch(_e) {
+                            alert('카카오톡 우측 상단 "..." 메뉴에서 "다른 브라우저로 열기" 선택해주세요.');
+                        }
+                    }
+                }, 500);
+            }
+        } catch(_e) {
+            console.warn('[V54.4] 카카오톡 감지 실패 (안전 통과):', _e.message);
+        }
         window.APP_VERSION = APP_VERSION;
         
         // ★★★ [V202.54.0-D 정밀 캐시 무효화 핫픽스] ★★★
@@ -10807,12 +10859,35 @@ function renderText(text, cards, investData, isPaid = false, isFinanceQuery = fa
                          || localStorage.getItem('oracleSessionToken'));
     const sessionPaid = (typeof isPaidUser !== 'undefined' && isPaidUser === true);
     
+    // ★★★ [V202.54.4 결정적 핫픽스] Gate 4 카테고리 매칭 검증 ★★★
+    //   사장님 발견 결함: "사주 결제 후 → 투자 단타 클릭 시 프리패스 결제창"
+    //   콘솔 증거: Gate 4가 10번 차단 → 1번 통과 (isPaid가 갑자기 true)
+    //   원인: 사주 paid_token이 ★ 글로벌 isPaidUser ★ 통해 투자에도 적용
+    //   해결: 결제 plan과 ★ 현재 카테고리 ★ 매칭 검증
+    //         예: sajuPaidPlan='saju_premium' + 현재 finance 쿼리 → ★ 불일치 차단 ★
+    const _paidPlan = localStorage.getItem('sajuPaidPlan') || '';
+    const _isSajuPaid = (_paidPlan === 'saju_premium' || _paidPlan === 'saju_basic');
+    
+    // 카테고리 매칭: 사주 결제는 사주만 PAID 인정, 투자/연애/운세는 별도 결제 필요
+    // isFinanceQuery=true인데 사주 결제만 있으면 ★ 불일치 ★ → 차단
+    const _categoryMismatch = isFinanceQuery && _isSajuPaid;
+    
+    if (_categoryMismatch) {
+        console.warn('🚨 [V54.4] Gate 4 카테고리 불일치 차단!');
+        console.warn('   • 결제 plan:', _paidPlan, '(사주 결제)');
+        console.warn('   • 현재 쿼리: 투자 (단타/매수타이밍/재물)');
+        console.warn('   • → 사주 결제 토큰을 투자 카테고리에 적용 ★ 차단 ★');
+        console.warn('   • 투자 점사는 별도 결제 필요');
+    }
+    
     // 최종 결제 상태 — 인자 + localStorage + 세션 변수 중 하나라도 true이면 결제 사용자
-    // (사장님: PRO 영역 노출은 결제한 사용자에게만)
-    const finalPaid = isPaid && (hasRealToken || sessionPaid);
+    // ★ V54.4: 카테고리 불일치 시 ★ 강제 차단 ★ — 프리패스 결함 영구 해결
+    const finalPaid = isPaid && (hasRealToken || sessionPaid) && !_categoryMismatch;
     
     console.log('  - hasRealToken:', hasRealToken);
     console.log('  - sessionPaid:', sessionPaid);
+    console.log('  - paidPlan:', _paidPlan);
+    console.log('  - categoryMismatch:', _categoryMismatch);
     console.log('  - finalPaid (Gate 4 통과 여부):', finalPaid);
     
     // ★ 핵심: isPaid가 false이면 PRO 영역 노출 0
