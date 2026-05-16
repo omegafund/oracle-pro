@@ -19913,7 +19913,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.54.6",  // V202.54.6 V200.5 자동 모달 무한 루프 차단 (워커 변경 없음).
+        version: "V202.54.8",  // V202.54.8 ChatGPT 통찰 — renderText 카테고리 범위 PAID (워커 변경 없음).
         _ts: Date.now(),
         _ok: true
       }), {
