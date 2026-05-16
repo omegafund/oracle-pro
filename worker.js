@@ -19913,7 +19913,7 @@ export default {
     // ════════════════════════════════════════════════════════════════════
     if (url.pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({
-        version: "V202.54.1",  // V54 안정판 + V202.54.1 진단 + 전방위 방어 (워커 변경 없음, 클라이언트 카테고리 분리 통합 방어막 강화).
+        version: "V202.54.2",  // V202.54.2 진단 (워커 변경 없음).
         _ts: Date.now(),
         _ok: true
       }), {
