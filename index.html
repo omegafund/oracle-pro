@@ -12,8 +12,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="V202.54.4">
-    <meta name="zeus-build-tag" content="V202.54.4">
+    <meta name="version" content="V202.54.5">
+    <meta name="zeus-build-tag" content="V202.54.5">
     
     <title>ZEUS · Tarot Oracle</title>
 
@@ -3316,26 +3316,25 @@
     (function() {
         'use strict';
         
-        const APP_VERSION = 'V202.54.4';  // V202.54.4 ★ 결정적 ★ 핫픽스 2종. 사장님 PC 콘솔 데이터: Gate 4 10회 차단 → 1회 통과 (isPaid 갑자기 true). 핫픽스 1: Gate 4 카테고리 매칭 검증 — 사주 결제 (sajuPaidPlan) + 투자 쿼리 (isFinanceQuery) ★ 불일치 시 강제 차단 ★ → 사주 토큰의 투자 프리패스 영구 차단. 사장님 휴대폰: 결제 시 카카오톡 채팅 목록 끼어듬 (90% 케이스). 핫픽스 2: 카카오톡 인앱 브라우저 감지 — KAKAOTALK UA 감지 시 외부 브라우저 안내 또는 자동 이동 시도. V54 + V54.1 방어막 + V54.2 진단 + V54.3 baseUrl 정규화 모두 보존.
+        const APP_VERSION = 'V202.54.5';  // V202.54.5 ★ 결제 흐름 안전 우선 ★ 사장님 PC 일반 모드: V54.4 배포 후 QR 코드 단계 생략 → 결제 진행 멈춤. 핫픽스: (1) V54.4 카카오톡 인앱 감지 코드 ★ 비활성화 ★ (page load 시 작동하던 코드 제거 — PC 결제 흐름 영향 가능성 차단). (2) V54.3 baseUrl 정규화도 ★ 비활성화 ★ → V53.5 원래 코드 복귀. 유지: V54.1 방어막 + V54.2 진단 + V54.4 Gate 4 카테고리 매칭 (결제 흐름 무관). V54 사주 정밀 엔진 보존.
         
         // ════════════════════════════════════════════════════════════════════════
-        // ★★★ [V202.54.4 결정적 핫픽스 2] 카카오톡 인앱 브라우저 감지 + 안내 ★★★
+        // ★★★ [V202.54.5 결제 흐름 안전 우선] V54.4 카카오 인앱 감지 ★ 비활성화 ★
         //
-        //   사장님 진술 (★ 매우 중요 ★):
-        //     "휴대폰 결제 시 끼어드는 화면의 90% 이상이 카카오톡 채팅 목록"
-        //     "이 화면이 없으면 결제 진행중이 뜨면서 오류난 적 한번도 없다"
-        //
-        //   원인: 사장님이 카카오톡 인앱 브라우저로 zeustarot.com 접속 → 결제
-        //         → 카카오톡이 외부 결제창 처리 못함 → 메인 채팅 화면 복귀
-        //         → 결제 흐름 깨짐 → 503
-        //
-        //   해결: navigator.userAgent에서 KAKAOTALK 감지 → 외부 브라우저 안내
-        //         사용자가 외부 브라우저(Chrome/Safari)에서 다시 접속하도록
-        //
-        //   영향: 일반 브라우저 사용자 = 0 (감지 안 됨)
-        //         카카오톡 인앱 사용자 = 안내 메시지 + 외부 열기 시도
+        //   사장님 PC 일반 모드 V202.54.4 배포 후 결제 흐름 결함:
+        //     "사주 4900 클릭 → 바로 결제 진행 중 멈춤 (QR 코드 단계 생략)"
+        //   
+        //   V54.4 코드 분석:
+        //     • _isKakaoInApp = /KAKAOTALK/i.test(_ua)
+        //     • PC Chrome UA에는 KAKAOTALK 없음 → 수학적으로 false
+        //     • 그러나 결제 흐름 결함 시점과 일치 → 안전 우선 비활성화
+        //   
+        //   비활성화 후:
+        //     • 카카오톡 인앱 사용자도 자동 안내 X (사장님 본인 PC는 해당 X)
+        //     • 추후 V202.54.6에서 결제 검증 후 재도입 가능
         // ════════════════════════════════════════════════════════════════════════
-        try {
+        // ★ V54.4 카카오 인앱 감지 코드 → if(false) 가드로 ★ 완전 비활성화 ★
+        if (false) try {
             const _ua = navigator.userAgent || '';
             const _isKakaoInApp = /KAKAOTALK/i.test(_ua);
             
@@ -3346,7 +3345,6 @@
                 
                 sessionStorage.setItem('_v544_kakao_warned', '1');
                 
-                // 외부 브라우저로 자동 열기 시도 (사용자 선택)
                 const _msg = '📱 카카오톡 인앱 브라우저에서는 결제가 불안정합니다.\n\n' +
                             '✅ 안정적 결제를 위해 외부 브라우저로 열어주세요:\n' +
                             '   • Chrome 또는 Safari\n' +
@@ -3355,7 +3353,6 @@
                 
                 setTimeout(function() {
                     if (confirm(_msg)) {
-                        // 카카오톡 외부 브라우저 열기 시도
                         try {
                             const _externalUrl = 'kakaotalk://web/openExternal?url=' + 
                                                 encodeURIComponent(window.location.href);
@@ -23912,33 +23909,11 @@ function startTossPayment(planKey, method) {
     const paymentMethod = method || '카드';
 
     // 4. Toss 결제 요청
-    // ★★★ [V202.54.3 결정적 핫픽스] baseUrl 강제 정규화 ★★★
-    //   사장님 발견 결함: "다른 사이트 검색 후 zeustarot.com 결제 시 503"
-    //   원인 추정: pathname이 ★ 이전 검색 URL 잔재 ★ 또는
-    //              query/hash 잔재로 successUrl이 잘못된 URL 생성
-    //   해결: pathname 완전 정규화 (query/hash 모두 제거)
-    //         + origin 명시적 확인 + 안전 fallback
-    let baseUrl;
-    try {
-        const _origin = window.location.origin || 'https://zeustarot.com';
-        // ★ pathname에서 query/hash 모두 제거 ★ 후 디렉터리만 추출
-        let _path = window.location.pathname || '/';
-        // 파일명 제거 (마지막 / 다음 부분)
-        _path = _path.replace(/\/[^/]*$/, '/');
-        // 빈 경로 또는 결함 시 루트로
-        if (!_path || _path === '') _path = '/';
-        // origin이 우리 도메인 아니면 강제 보정 (★ 외부 사이트 잔재 차단 ★)
-        if (_origin.indexOf('zeustarot.com') < 0 && _origin.indexOf('github.io') < 0 && _origin.indexOf('localhost') < 0) {
-            console.warn('🚨 [V54.3] origin 비정상 감지:', _origin, '→ 강제 보정');
-            baseUrl = 'https://zeustarot.com';
-        } else {
-            baseUrl = _origin + _path.replace(/\/$/, '');  // 끝 / 제거
-        }
-        console.log('🛡 [V54.3] baseUrl 정규화:', baseUrl, '(origin:', _origin, '/ path:', _path, ')');
-    } catch(e) {
-        baseUrl = 'https://zeustarot.com';
-        console.warn('🚨 [V54.3] baseUrl 결함 → 안전 fallback:', baseUrl, e);
-    }
+    // ★★★ [V202.54.5 결제 흐름 안전 우선] baseUrl V53.5 원래 코드 복귀 ★★★
+    //   V54.3 정규화 코드 → V53.5 단순 코드로 복귀
+    //   사유: V54.4 배포 후 결제 흐름 결함 → 결제 영향 가능 영역 모두 V53.5로
+    //   V53.5는 사장님이 ★ 500건 정상 결제 ★ 검증한 안정 코드
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
     
     // ════════════════════════════════════════════════════════════════════════
     // ★ [V31 #199.1 SAJU MIGRATION] 사주 입력 worker 사전 저장 ★
@@ -24010,18 +23985,6 @@ function startTossPayment(planKey, method) {
         successUrl:   baseUrl + '/success.html' + sajuQueryFlag,
         failUrl:      baseUrl + '/fail.html' + sajuQueryFlag
     }).catch(err => {
-        // ★★★ [V202.54.3 진단] 결제 결함 정밀 추적 ★★★
-        //   사장님 패턴 B: 다른 사이트 검색 후 결제 시 503
-        //   referrer / history.length / opener 상태 콘솔 노출
-        try {
-            console.warn('🚨 [V54.3] 결제 요청 결함:', err.code, err.message);
-            console.warn('   • document.referrer:', document.referrer);
-            console.warn('   • window.history.length:', window.history.length);
-            console.warn('   • window.opener:', window.opener);
-            console.warn('   • baseUrl:', baseUrl);
-            console.warn('   • successUrl:', baseUrl + '/success.html' + sajuQueryFlag);
-        } catch(_e) {}
-        
         // 사용자가 결제 창을 닫았을 때 등
         if (err.code !== 'USER_CANCEL') {
             alert('결제 요청에 실패했습니다: ' + (err.message || err.code));
