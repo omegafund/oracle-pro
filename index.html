@@ -23991,10 +23991,18 @@ async function startTossPayment(planKey, method) {
         return;
     }
 
-    // ─── orderId = readingId (V55 정체성 일원화) ───
+    // ─── orderId = "ORD-" + readingId (V55 정체성 일원화) ───
     //   기존 V54: `zeus_${planKey}_${timestamp}_${random}` 클라이언트 생성
     //   V55:      서버 발급 readingId (예: sj_20260518_abc...) — 서버가 진실
-    const orderId = readingId;
+    //
+    //   [V55-MIGRATION 1.8] "ORD-" prefix 부착 — KV 결정적 발견 (사장님 라이브 진단):
+    //     · KV에서 reading 데이터 직접 조회 결과:
+    //       "orderId": "ORD-sj_20260518_fbb2a66d268f8369"  ← 워커가 자동 prepend
+    //     · 즉, 워커 create-reading 코드 내부에 `const orderId = "ORD-" + readingId` 존재
+    //     · 우리가 토스에 "ORD-" 없이 보내면 → KV.orderId ≠ Toss API.orderId
+    //     · confirm-payment 시 둘 비교 → 불일치 → "signedAccessToken 검증 실패"
+    //   해결: 우리가 토스에 보낼 때도 "ORD-" 부착 → 양쪽 일치 → 검증 통과
+    const orderId = `ORD-${readingId}`;
     const paymentMethod = method || '카드';
 
     // ─── successUrl / failUrl → V55 정적 페이지 (oracle-tarot-v1 워커) ───
@@ -24027,13 +24035,13 @@ async function startTossPayment(planKey, method) {
     const successUrl = V55_STATIC_BASE + '/v55/success-v55.html' + v55Query;
     const failUrl    = V55_STATIC_BASE + '/v55/fail-v55.html'    + v55Query;
     
-    // [V55-MIGRATION 1.6] confirm 직전 진단 로그 — 사장님 분석 권고 "90% 잡히는 로그"
+    // [V55-MIGRATION 1.8] confirm 직전 진단 로그 — 사장님 분석 권고 "90% 잡히는 로그"
     //   이 로그가 콘솔에 정확히 떠야 우리 측에서 readingId 단일 정체성 보장 확인됨
-    console.log('🔬 [V55-1.6 진단] orderId/readingId 단일 정체성 검증:', {
+    console.log('🔬 [V55-1.8 진단] orderId/readingId 단일 정체성 검증:', {
         OUR_readingId:    readingId,
-        OUR_orderId:      readingId,    // V55 패턴 — orderId = readingId
-        URL_readingId:    readingId,    // successUrl query?readingId= 부착값
-        URL_rid:          readingId,    // successUrl query?rid= 부착값 (별칭)
+        OUR_orderId:      orderId,       // ★ "ORD-" + readingId (KV와 일치)
+        URL_readingId:    readingId,     // successUrl query?readingId= 부착값
+        URL_rid:          readingId,     // successUrl query?rid= 부착값 (별칭)
         nonce:            nonce,
         successUrl:       successUrl,
         failUrl:          failUrl
