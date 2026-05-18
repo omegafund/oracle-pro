@@ -23924,34 +23924,29 @@ async function startTossPayment(planKey, method) {
                                     '오늘의 점사'
     );
     
-    // ─── [V55-MIGRATION 1.4] 결제 시작 직전 stale v55 흔적 강제 정리 ───
-    //   배경: 사장님 라이브 진단 — "orderId 불일치: 오늘 sj_ vs 어제 lv_"
-    //   원인 추정: 이전 결제 시도의 readingId가 localStorage/sessionStorage에 잔존
-    //              success-v55.html이 URL ?readingId= 무시하고 localStorage 우선 읽을 가능성
-    //   해결: 우리 도메인(zeustarot.com)에서 새 readingId 발급 직전 ★ 완전 정리 ★
-    //         (cross-origin 제약으로 oracle-tarot-v1 도메인 localStorage는 못 만짐 — 
-    //          그쪽은 사장님 ChatGPT 측 success-v55.html 점검 필요)
+    // ─── [V55-MIGRATION 1.5] 결제 시작 직전 ★ 무조건 ★ stale v55 흔적 강제 정리 ───
+    //   사장님 ChatGPT 분석 권고: "create-reading 직후 localStorage.removeItem() 후 setItem(); merge 금지"
+    //   1.4: "1분 이상 됐으면 정리" — 너무 관대 (같은 세션 내 다른 결제 시 stale)
+    //   1.5: ★ 무조건 정리 ★ — 새 결제 시작 = 이전 흔적 완전 삭제
+    //
+    //   ★ 한계 ★: 이건 zeustarot.com 도메인만. oracle-tarot-v1 도메인은 cross-origin 못 만짐.
+    //              fail.html이 lv_20260517_... 표시 = oracle-tarot-v1 측 localStorage 잔존이 진짜 결함.
+    //              → success-v55.html이 URL 우선 사용하도록 ChatGPT 수정 필수.
     try {
-        const prevReadingId = localStorage.getItem('v55ActiveReadingId');
-        const prevSavedAtStr = localStorage.getItem('v55ActiveReadingId_savedAt');
-        const prevSavedAt = parseInt(prevSavedAtStr || '0', 10);
-        const ageMs = Date.now() - prevSavedAt;
-        
-        // 이전 readingId가 1분 이상 됐거나, savedAt 없으면 → 정리
-        // (1분 = 동일 세션 빠른 재시도는 보존, 그 외는 모두 stale)
-        if (!prevSavedAt || ageMs > 60 * 1000) {
-            if (prevReadingId) {
-                console.log('🧹 [V55-1.4] stale readingId 정리:', prevReadingId, 
-                            `(${Math.round(ageMs / 1000)}초 전)`);
-            }
-            localStorage.removeItem('v55ActiveReadingId');
-            localStorage.removeItem('v55ActiveReadingId_savedAt');
-            localStorage.removeItem('v55ActivePlan');
-            try { sessionStorage.removeItem('v55ActiveReadingId'); } catch(e) {}
-            try { delete window._v55ActiveReadingId; } catch(e) { window._v55ActiveReadingId = null; }
+        const stalePrev = localStorage.getItem('v55ActiveReadingId');
+        if (stalePrev) {
+            console.log('🧹 [V55-1.5] 결제 시작 — stale readingId 무조건 정리:', stalePrev);
         }
+        // 우리 도메인 V55 흔적 전부 (purchaseContext 류 포함)
+        ['v55ActiveReadingId', 'v55ActiveReadingId_savedAt', 'v55ActivePlan',
+         'v55PurchaseContext', 'purchaseContext', 'v55CurrentReading'].forEach(k => {
+            try { localStorage.removeItem(k); } catch(e) {}
+            try { sessionStorage.removeItem(k); } catch(e) {}
+        });
+        try { delete window._v55ActiveReadingId; } catch(e) { window._v55ActiveReadingId = null; }
+        try { delete window._v55PurchaseContext; } catch(e) { window._v55PurchaseContext = null; }
     } catch(e) {
-        console.warn('[V55-1.4] stale 정리 실패:', e.message);
+        console.warn('[V55-1.5] stale 정리 실패:', e.message);
     }
 
     let readingId;
@@ -23993,20 +23988,46 @@ async function startTossPayment(planKey, method) {
     const paymentMethod = method || '카드';
 
     // ─── successUrl / failUrl → V55 정적 페이지 (oracle-tarot-v1 워커) ───
-    //   [V55-MIGRATION 1.3] 사장님 라이브 진단:
-    //     zeustarot.com → GitHub Pages → /v55/* 없음 → 404
-    //   해결: V55_STATIC_BASE (oracle-tarot-v1) 절대경로 사용
+    //   [V55-MIGRATION 1.3] zeustarot.com → GitHub Pages → /v55/* 없음 → V55_STATIC_BASE 절대경로
     //
-    //   /v55/success-v55.html — fix4: URL 파라미터 누락 시 자동 fail 이동
-    //     · 토스가 ?paymentKey=...&orderId=...&amount=... 자동 부착
-    //     · V55PaymentContext.js가 /v55/confirm-payment 호출 → KV 저장
-    //   /v55/fail-v55.html    — fix3: 토스 코드 6분류 + 명확한 출구
-    //   ?readingId=... — 우리가 추가 부착 (lifecycle 추적용)
-    const v55Qs   = '?readingId=' + encodeURIComponent(readingId)
-                  + '&plan=' + encodeURIComponent(planKey)
-                  + (isSajuCtx ? '&ctx=saju' : '');
-    const successUrl = V55_STATIC_BASE + '/v55/success-v55.html' + v55Qs;
-    const failUrl    = V55_STATIC_BASE + '/v55/fail-v55.html'    + v55Qs;
+    //   [V55-MIGRATION 1.6] hash 제거 — query 통일 (사장님 ChatGPT 분석 권고 v2):
+    //     · 1.5에서 hash(#rid=...) 부착했으나 ★ 모바일 WebView에서 location.hash 유실 흔함 ★
+    //     · 사장님 결제 환경 = 카카오페이 = 모바일 WebView = hash 유실 고위험
+    //     · iOS Safari bfcache + 카카오 인증 + 앱 전환 = 우리가 본 결함 패턴
+    //     · 권장: 모든 식별자 querystring 통일 (hash 제거)
+    //
+    //   토스 redirect 후 최종 URL 예시:
+    //     https://oracle-tarot-v1.../v55/success-v55.html
+    //       ?readingId=sj_20260518_xxx&rid=sj_20260518_xxx&plan=saju_premium
+    //       &n=1747...&ctx=saju
+    //       &paymentKey=AAA&orderId=sj_20260518_xxx&amount=4900   ← 토스 자동 추가
+    //
+    //   · readingId 와 rid 둘 다 부착 — success-v55.html이 어느 이름으로 읽든 매칭
+    //   · n (nonce) — 매 결제 unique → CDN/브라우저 캐시 강제 무효화
+    //
+    //   ★ 한계 ★: success-v55.html이 URL 무시하고 localStorage 우선 읽으면 무용지물.
+    //              fail.html이 'lv_20260517_...' 표시 = localStorage fallback 결함 강력 의심.
+    //              → ChatGPT 측 success-v55.html 수정 필수 (URL 우선 / fallback 제거).
+    const nonce = `n${Date.now()}${Math.random().toString(36).slice(2,8)}`;
+    const v55Query = '?readingId=' + encodeURIComponent(readingId)
+                   + '&rid='      + encodeURIComponent(readingId)   // ★ 별칭 — fetch-reading 스키마와 동일
+                   + '&plan='     + encodeURIComponent(planKey)
+                   + '&n='        + nonce
+                   + (isSajuCtx ? '&ctx=saju' : '');
+    const successUrl = V55_STATIC_BASE + '/v55/success-v55.html' + v55Query;
+    const failUrl    = V55_STATIC_BASE + '/v55/fail-v55.html'    + v55Query;
+    
+    // [V55-MIGRATION 1.6] confirm 직전 진단 로그 — 사장님 분석 권고 "90% 잡히는 로그"
+    //   이 로그가 콘솔에 정확히 떠야 우리 측에서 readingId 단일 정체성 보장 확인됨
+    console.log('🔬 [V55-1.6 진단] orderId/readingId 단일 정체성 검증:', {
+        OUR_readingId:    readingId,
+        OUR_orderId:      readingId,    // V55 패턴 — orderId = readingId
+        URL_readingId:    readingId,    // successUrl query?readingId= 부착값
+        URL_rid:          readingId,    // successUrl query?rid= 부착값 (별칭)
+        nonce:            nonce,
+        successUrl:       successUrl,
+        failUrl:          failUrl
+    });
 
     // ─── [V200.8.5 보존] Toss 결제 진입 마커 ───
     //   pagehide / bfcache 복귀 시 결제 모달 정리 로직과 협조
