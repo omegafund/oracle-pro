@@ -17106,9 +17106,25 @@ window.handleSajuRestart = function() {
     window._sajuPaymentContext = false;
     try { localStorage.removeItem('sajuPaymentContext'); } catch(e) {}
     try { localStorage.removeItem('sajuPaidPlan'); } catch(e) {}
-    try { localStorage.removeItem('sajuPendingResult'); } catch(e) {}  // ★ V200.3 추가 ★
+    try { localStorage.removeItem('sajuPendingResult'); } catch(e) {}
     try { sessionStorage.removeItem('sajuPendingResult'); } catch(e) {}
     try { sessionStorage.removeItem('sajuPaymentContext'); } catch(e) {}
+    
+    // ════════════════════════════════════════════════════════════════════════
+    // ★ V55-RESTART ★ V55 결제 토큰 6종 청소 (프리패스 원천 차단)
+    //   외부 자문 정확:
+    //     handleSajuRestart = 점사 완료 후 사용자가 명시적으로 누름
+    //     → pendingOracle + cachedFullText 청소 안전 (결제 진행 중 X)
+    //     → V55 결제 토큰 + 카드 잔존 모두 청소
+    // ════════════════════════════════════════════════════════════════════════
+    try { localStorage.removeItem('paid_token'); } catch(e) {}
+    try { localStorage.removeItem('oracleSessionToken'); } catch(e) {}
+    try { localStorage.removeItem('sajuPaidExpiresAt'); } catch(e) {}
+    try { localStorage.removeItem('verifiedAt'); } catch(e) {}
+    try { localStorage.removeItem('pendingOracle'); } catch(e) {}
+    try { sessionStorage.removeItem('pendingOracle'); } catch(e) {}
+    try { localStorage.removeItem('cachedFullText'); } catch(e) {}
+    console.log('🧹 [V55-RESTART] V55 결제 토큰 + 카드 잔존 청소 완료');
     
     // 4. 홈 화면 보장 (이미 그려져 있으면 그대로, 아니면 페이지 진입)
     //    스크롤 맨 위로
@@ -17121,6 +17137,18 @@ window.handleSajuRestart = function() {
             sajuCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }, 400);
+    
+    // ════════════════════════════════════════════════════════════════════════
+    // ★ V55-RESTART 안전 ★ — URL 청소 + 흔적 없는 메인 리다이렉트
+    //   외부 자문 정확: 600ms → 100ms (중복 터치 + BFCache 개입 차단)
+    // ════════════════════════════════════════════════════════════════════════
+    setTimeout(function() {
+        try {
+            window.location.replace(window.location.pathname);
+        } catch (e) {
+            console.warn('[V55-RESTART] location.replace 결함:', e.message);
+        }
+    }, 100);
 };
 
 window.handleSajuModalClose = function() {
